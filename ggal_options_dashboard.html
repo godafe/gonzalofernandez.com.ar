@@ -37,6 +37,7 @@
   <div class="tab" onclick="showTab('ivsmile')">Smile de volatilidad</div>
   <div class="tab" onclick="showTab('ivcalc')">Calc. volatilidad implícita</div>
   <div class="tab" onclick="showTab('histdata')">Datos históricos</div>
+  <div class="tab" onclick="showTab('mariposa')">Mariposa</div>
 </div>
 
 <div id="main">
@@ -75,14 +76,16 @@
           4. Ejecutar como: <b>Yo</b> · Quién tiene acceso: <b>Cualquier persona</b> → Implementar<br>
           5. Copiá la URL que aparece y pegala abajo
         </div>
-        <div class="form-grid">
+        <div class="form-grid" style="margin-bottom:8px">
           <div class="form-group" style="grid-column:1/-1">
             <label>URL de tu Apps Script (web app)</label>
             <input type="text" id="sh-webapp-url" value="https://script.google.com/macros/s/AKfycbzK14QSqJxUp4p5KGWuBH3uzE-qlQhwcrap9SGNfZPITYoQGZiUWgHjDB0jwLbSvJXI/exec" style="font-size:11px;font-family:var(--mono)" />
           </div>
+        </div>
+        <div class="form-grid">
           <div class="form-group">
             <label>Nombre de la pestaña — Datos cotizaciones</label>
-            <input type="text" id="sh-sheetname" value="DMD" />
+            <input type="text" id="sh-sheetname" value="DMD" style="width:120px" />
           </div>
           <div class="form-group">
             <label>Fila encabezado</label>
@@ -105,9 +108,9 @@
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border2)">
           <div class="panel-title" style="margin-bottom:8px">Datos históricos</div>
           <div class="form-grid">
-            <div class="form-group">
+            <div class="form-group" style="max-width:280px">
               <label>Nombre de la pestaña — Datos históricos</label>
-              <input type="text" id="sh-sheetname-hist" value="HMD" />
+              <input type="text" id="sh-sheetname-hist" value="HMD" style="width:120px" />
             </div>
             <div class="form-group">
               <label>Fila encabezado</label>
@@ -575,6 +578,69 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- MARIPOSA TAB -->
+  <div id="tab-mariposa" style="display:none">
+
+    <!-- Controls -->
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:12px;font-size:11px">
+      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Vencimiento</label>
+        <select id="mar-expiry" onchange="renderMariposa()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Strikes alrededor</label>
+        <input type="number" id="mar-wings" value="3" min="1" max="6" step="1"
+          style="width:55px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderMariposa()" />
+        <span style="font-size:10px;color:var(--dim)">por lado del ATM</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Comisión %</label>
+        <input type="number" id="mar-com" value="0.500" step="0.001"
+          style="width:75px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderMariposa()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">IVA</label>
+        <input type="number" id="mar-iva" value="1.21" step="0.01"
+          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderMariposa()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Threshold color</label>
+        <input type="number" id="mar-threshold" value="5000" step="1" min="0"
+          style="width:80px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderMariposa()" />
+      </div>
+      <button class="btn-primary" onclick="renderMariposa()" style="padding:4px 12px;font-size:11px;margin-left:auto">⟳ Recalcular</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- CALLS -->
+      <div>
+        <div style="font-family:var(--sans);font-size:11px;font-weight:500;color:var(--green);text-transform:uppercase;letter-spacing:.8px;padding:6px 4px;border-bottom:1px solid var(--border);margin-bottom:6px">Calls</div>
+        <div style="overflow-x:auto">
+          <table id="mar-table-calls" style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+            <thead><tr id="mar-thead-calls" style="background:var(--surface2)"></tr></thead>
+            <tbody id="mar-body-calls"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- PUTS -->
+      <div>
+        <div style="font-family:var(--sans);font-size:11px;font-weight:500;color:var(--red);text-transform:uppercase;letter-spacing:.8px;padding:6px 4px;border-bottom:1px solid var(--border);margin-bottom:6px">Puts</div>
+        <div style="overflow-x:auto">
+          <table id="mar-table-puts" style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+            <thead><tr id="mar-thead-puts" style="background:var(--surface2)"></tr></thead>
+            <tbody id="mar-body-puts"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
