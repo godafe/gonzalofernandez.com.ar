@@ -31,13 +31,15 @@
 
 <div id="tabs">
   <div class="tab active" onclick="showTab('chain')">Cadena de opciones</div>
-  <div class="tab" onclick="showTab('strategy')">Constructor de estrategias</div>
+  <div class="tab" onclick="showTab('strategy')" style="display:none">Constructor de estrategias</div>
   <div class="tab" onclick="showTab('control')">Control de estrategias</div>
-  <div class="tab" onclick="showTab('calc')">Calculadora BS</div>
+  <div class="tab" onclick="showTab('calc')" style="display:none">Calculadora BS</div>
   <div class="tab" onclick="showTab('ivsmile')">Smile de volatilidad</div>
-  <div class="tab" onclick="showTab('ivcalc')">Calc. volatilidad implícita</div>
+  <div class="tab" onclick="showTab('ivcalc')" style="display:none">Calc. volatilidad implícita</div>
   <div class="tab" onclick="showTab('histdata')">Datos históricos</div>
   <div class="tab" onclick="showTab('mariposa')">Mariposa</div>
+  <div class="tab" onclick="showTab('analisis')" style="display:none">Análisis</div>
+  <div class="tab" onclick="showTab('tutoriales')">Tutoriales</div>
 </div>
 
 <div id="main">
@@ -85,7 +87,11 @@
         <div class="form-grid">
           <div class="form-group">
             <label>Nombre de la pestaña — Datos cotizaciones</label>
-            <input type="text" id="sh-sheetname" value="DMD" style="width:120px" />
+            <select id="sh-sheetname" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:4px">
+              <option value="DMD_Bot" selected>DMD_Bot</option>
+              <option value="DMD_Sabro">DMD_Sabro</option>
+              <option value="DMD_Mock">DMD_Mock</option>
+            </select>
           </div>
           <div class="form-group">
             <label>Fila encabezado</label>
@@ -101,6 +107,7 @@
             <div class="form-group"><label>Bid</label><input type="text" id="sh-col-bid" value="D" style="width:60px" /></div>
             <div class="form-group"><label>Ask</label><input type="text" id="sh-col-ask" value="E" style="width:60px" /></div>
             <div class="form-group"><label>Last (precio IV)</label><input type="text" id="sh-col-last" value="F" style="width:60px" /></div>
+            <div class="form-group"><label>Last VE (%)</label><input type="text" id="sh-col-lastve" value="G" style="width:60px" /></div>
           </div>
         </div>
 
@@ -159,10 +166,12 @@
             Auto-actualizar cada
           </label>
           <select id="auto-refresh-interval" onchange="toggleAutoRefresh()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px">
+            <option value="1000">1 seg</option>
+            <option value="2000">2 seg</option>
+            <option value="3000" selected>3 seg</option>
+            <option value="4000">4 seg</option>
             <option value="5000">5 seg</option>
-            <option value="10000" selected>10 seg</option>
-            <option value="30000">30 seg</option>
-            <option value="60000">1 min</option>
+            <option value="10000">10 seg</option>
           </select>
         </div>
         <span id="refresh-status" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
@@ -641,6 +650,56 @@
           </table>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ANÁLISIS TAB -->
+  <div id="tab-analisis" style="display:none">
+    <!-- Controls -->
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:14px;font-size:11px">
+      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px">Parámetros</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted)">Vencimiento</label>
+        <select id="ana-expiry" onchange="renderAnalisis()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted)">Tenencia (acc.)</label>
+        <input type="number" id="ana-shares" value="100" min="1" step="1"
+          style="width:75px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderAnalisis()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted)">Precio compra</label>
+        <input type="number" id="ana-cost" value="0" step="0.01"
+          style="width:90px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderAnalisis()" />
+      </div>
+      <button class="btn-primary" onclick="renderAnalisis()" style="padding:4px 12px;font-size:11px;margin-left:auto">⟳ Recalcular</button>
+    </div>
+    <!-- Cards grid -->
+    <div id="ana-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+  </div>
+
+  <!-- TUTORIALES TAB -->
+  <div id="tab-tutoriales" style="display:none">
+    <div style="display:grid;grid-template-columns:220px 1fr;gap:0;min-height:600px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+
+      <!-- Sidebar -->
+      <div id="tut-sidebar" style="background:var(--surface2);border-right:1px solid var(--border);padding:16px 0">
+        <div style="padding:0 16px 12px;font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim)">Módulos</div>
+        <div class="tut-item" id="tut-nav-cadena"   onclick="tutShow('cadena')"   style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📊 Cadena de opciones</div>
+        <div class="tut-item" id="tut-nav-control"  onclick="tutShow('control')"  style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🎛️ Control de estrategias</div>
+        <div class="tut-item" id="tut-nav-ivsmile"  onclick="tutShow('ivsmile')"  style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📈 Smile de volatilidad</div>
+        <div class="tut-item" id="tut-nav-histdata" onclick="tutShow('histdata')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🗂️ Datos históricos</div>
+        <div class="tut-item" id="tut-nav-mariposa" onclick="tutShow('mariposa')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🦋 Mariposa</div>
+        <div style="padding:16px 16px 4px;font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);margin-top:8px;border-top:1px solid var(--border2)">General</div>
+        <div class="tut-item" id="tut-nav-config"   onclick="tutShow('config')"   style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">⚙️ Configuración</div>
+        <div class="tut-item" id="tut-nav-formulas" onclick="tutShow('formulas')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🔢 Fórmulas y cálculos</div>
+      </div>
+
+      <!-- Content -->
+      <div id="tut-content" style="padding:28px 32px;overflow-y:auto;max-height:700px;font-size:13px;line-height:1.7;color:var(--text)"></div>
     </div>
   </div>
 

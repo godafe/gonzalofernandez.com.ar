@@ -1,3 +1,745 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GGAL Options Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0f14;
+  --surface: #131920;
+  --surface2: #1a2230;
+  --border: #2a3444;
+  --border2: #1f2a38;
+  --text: #d8e3ef;
+  --muted: #7a8fa6;
+  --dim: #3d4f63;
+  --amber: #e8b84b;
+  --amber-bg: #2c1f07;
+  --red: #f05a5a;
+  --red-bg: #2e1010;
+  --green: #44c76a;
+  --green-bg: #0b2618;
+  --blue: #5aabff;
+  --itm-call: #0b2218;
+  --itm-put: rgba(240,90,90,0.08);
+  --atm-row: rgba(232,184,75,0.07);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;min-height:100vh}
+a{color:var(--blue)}
+
+#app-header{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px
+}
+.ticker-block{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.ticker{font-family:var(--mono);font-size:18px;font-weight:500;letter-spacing:2px;color:var(--amber)}
+.spot-price{font-family:var(--mono);font-size:22px;font-weight:500}
+.pct-change{font-family:var(--mono);font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:500;letter-spacing:.5px;text-transform:uppercase}
+.badge-demo{background:var(--amber-bg);color:var(--amber);border:1px solid #5a3a0a}
+.badge-live{background:var(--green-bg);color:var(--green);border:1px solid #1a4a28}
+
+.hdr-stats{display:flex;gap:18px;flex-wrap:wrap}
+.hdr-stat{text-align:center}
+.hdr-stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:1px}
+.hdr-stat-val{font-family:var(--mono);font-size:13px;font-weight:500}
+
+.hdr-actions{display:flex;gap:8px}
+button{
+  font-family:var(--sans);font-size:12px;padding:6px 12px;border-radius:5px;cursor:pointer;
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);transition:border-color .15s
+}
+button:hover{border-color:var(--muted)}
+button.btn-primary{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
+button.btn-primary:hover{background:#3d2b0a}
+button.btn-sm{padding:3px 8px;font-size:11px}
+button.btn-danger{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+
+#tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px}
+.tab{padding:9px 16px;cursor:pointer;font-size:12px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+
+#main{padding:14px 20px;max-width:1600px}
+
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px}
+.panel-title{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:12px;font-weight:500}
+
+#api-config-wrap{margin-bottom:12px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.form-group label{font-size:10px;color:var(--muted);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+.form-group input,.form-group select{
+  width:100%;background:var(--bg);border:1px solid var(--border);
+  color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 9px;border-radius:5px
+}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--amber)}
+
+.chain-controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.chain-controls label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+.chain-controls select,.chain-controls input[type=number]{
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 9px;border-radius:5px
+}
+.chain-controls select:focus,.chain-controls input:focus{outline:none;border-color:var(--amber)}
+
+.chain-wrap{overflow-x:auto}
+.chain-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+.chain-table th{
+  font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--muted);padding:5px 7px;border-bottom:1px solid var(--border);white-space:nowrap;font-weight:500
+}
+.chain-table td{padding:4px 7px;border-bottom:1px solid var(--border2);white-space:nowrap;cursor:pointer}
+.chain-table tr:hover td{background:rgba(255,255,255,0.03)}
+.chain-table tr.selected td{background:var(--amber-bg)!important}
+.strike-col{background:var(--surface2)!important;border-left:1px solid var(--border)!important;border-right:1px solid var(--border)!important;text-align:center!important;font-weight:500;color:var(--text)!important}
+.calls-label{background:rgba(11,34,24,.6)!important}
+.puts-label{background:rgba(39,14,14,.6)!important}
+
+.greeks-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:10px}
+.greeks-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px}
+.greek-card{background:var(--surface2);border-radius:6px;padding:10px 8px;text-align:center;border:1px solid var(--border2)}
+.greek-name{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;font-weight:500}
+.greek-val{font-family:var(--mono);font-size:16px;font-weight:500}
+
+.strategy-layout{display:grid;grid-template-columns:330px 1fr;gap:14px}
+.legs-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px}
+.legs-table th{font-size:9px;color:var(--muted);padding:4px 5px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+.legs-table td{padding:3px 5px;border-bottom:1px solid var(--border2);font-family:var(--mono)}
+.legs-table input,.legs-table select{
+  background:var(--bg);border:1px solid var(--border);color:var(--text);
+  font-family:var(--mono);font-size:11px;padding:2px 4px;border-radius:3px;width:100%
+}
+
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px}
+.preset-btn{
+  padding:7px 8px;font-size:11px;text-align:center;background:var(--surface2);
+  border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;transition:all .15s
+}
+.preset-btn:hover{color:var(--text);border-color:var(--muted)}
+.preset-btn.active{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
+
+.sstats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.sstat{background:var(--surface2);border-radius:5px;padding:8px 10px;border:1px solid var(--border2)}
+.sstat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+.sstat-val{font-family:var(--mono);font-size:14px;font-weight:500}
+
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px}
+
+.calc-layout{display:grid;grid-template-columns:280px 1fr;gap:14px}
+.calc-inputs{display:flex;flex-direction:column;gap:9px}
+.calc-group label{font-size:10px;color:var(--muted);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+.calc-group input,.calc-group select{
+  width:100%;background:var(--bg);border:1px solid var(--border);
+  color:var(--text);font-family:var(--mono);font-size:13px;padding:6px 9px;border-radius:5px
+}
+.calc-group input:focus,.calc-group select:focus{outline:none;border-color:var(--amber)}
+.calc-result{text-align:center;padding:14px;margin-top:12px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:7px}
+.calc-result-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.calc-result-price{font-family:var(--mono);font-size:28px;font-weight:500;color:var(--amber)}
+
+#toast{
+  position:fixed;bottom:18px;right:18px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:7px;padding:9px 15px;font-size:12px;opacity:0;transition:opacity .3s;z-index:999;pointer-events:none
+}
+#toast.show{opacity:1}
+
+.src-btn{padding:6px 14px;font-size:12px;border-radius:5px;cursor:pointer;background:var(--surface2);border:1px solid var(--border);color:var(--muted);transition:all .15s;font-family:var(--sans)}
+.src-btn:hover{color:var(--text);border-color:var(--muted)}
+.src-btn.active{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
+
+
+
+@media(max-width:900px){
+  .strategy-layout,.calc-layout{grid-template-columns:1fr}
+  .greeks-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:600px){
+  .chain-wrap{flex-direction:column}
+  .greeks-grid{grid-template-columns:repeat(2,1fr)}
+  .hdr-stats{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="app-header">
+  <div class="ticker-block">
+    <span class="ticker">GGAL</span>
+    <span class="spot-price amber" id="spot-display">$ 8.200</span>
+    <span class="pct-change pos" id="pct-display">+1,85%</span>
+    <span class="badge badge-demo" id="data-badge">demo</span>
+  </div>
+  <div class="hdr-stats">
+    <div class="hdr-stat"><div class="hdr-stat-label">IV Rank</div><div class="hdr-stat-val amber" id="hdr-ivr">65</div></div>
+    <div class="hdr-stat"><div class="hdr-stat-label">HV 30d</div><div class="hdr-stat-val" id="hdr-hv">70%</div></div>
+    <div class="hdr-stat"><div class="hdr-stat-label">Vol ATM</div><div class="hdr-stat-val amber" id="hdr-atm-vol">--</div></div>
+    <div class="hdr-stat"><div class="hdr-stat-label">Tasa r</div><div class="hdr-stat-val" id="hdr-rate">30%</div></div>
+    <div class="hdr-stat"><div class="hdr-stat-label">Actualiz.</div><div class="hdr-stat-val" id="hdr-time">--:--</div></div>
+  </div>
+  <div class="hdr-actions">
+    <button class="btn-primary" onclick="fetchData()">⟳ Actualizar</button>
+    <button onclick="toggleEl('api-config-wrap')">⚙ Config API</button>
+  </div>
+</div>
+
+<div id="tabs">
+  <div class="tab active" onclick="showTab('chain')">Cadena de opciones</div>
+  <div class="tab" onclick="showTab('strategy')">Constructor de estrategias</div>
+  <div class="tab" onclick="showTab('control')">Control de estrategias</div>
+  <div class="tab" onclick="showTab('calc')">Calculadora BS</div>
+  <div class="tab" onclick="showTab('ivsmile')">Smile de volatilidad</div>
+  <div class="tab" onclick="showTab('ivcalc')">Calc. volatilidad implícita</div>
+  <div class="tab" onclick="showTab('histdata')">Datos históricos</div>
+</div>
+
+<div id="main">
+
+  <!-- API Config -->
+  <div id="api-config-wrap" style="display:none;margin-bottom:12px">
+    <div class="panel">
+      <div class="panel-title">Fuente de datos</div>
+
+      <!-- Source selector -->
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button id="src-btn-sheets" class="src-btn active" onclick="selectSource('sheets')">Google Sheets</button>
+        <button id="src-btn-demo" class="src-btn" onclick="selectSource('demo')">Demo</button>
+      </div>
+
+      <!-- Python source (hidden, kept for parseApiData compatibility) -->
+      <div id="src-python" style="display:none">
+        <input type="hidden" id="api-url" value="http://localhost:5000" />
+        <input type="hidden" id="api-token" value="" />
+        <input type="hidden" id="api-ticker" value="GGAL" />
+        <input type="hidden" id="map-spot" value="last" />
+        <input type="hidden" id="map-strike" value="strike" />
+        <input type="hidden" id="map-bid" value="bid" />
+        <input type="hidden" id="map-ask" value="ask" />
+        <input type="hidden" id="map-type" value="optionType" />
+        <input type="hidden" id="map-expiry" value="expiry" />
+      </div>
+
+      <!-- Sheets source -->
+      <div id="src-sheets" style="display:none">
+        <div style="margin-bottom:10px;padding:11px;background:var(--surface2);border-radius:6px;border:1px solid var(--border2);font-size:11px;color:var(--muted);line-height:2">
+          <span style="color:var(--amber);font-weight:500">Configuración (una sola vez — 3 minutos):</span><br>
+          1. Abrí tu hoja → <b>Extensiones → Apps Script</b><br>
+          2. Borrá el contenido y pegá el script del archivo <code style="background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--text)">ggal_appscript.js</code><br>
+          3. <b>Implementar → Nueva implementación</b> → Tipo: <b>Aplicación web</b><br>
+          4. Ejecutar como: <b>Yo</b> · Quién tiene acceso: <b>Cualquier persona</b> → Implementar<br>
+          5. Copiá la URL que aparece y pegala abajo
+        </div>
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:1/-1">
+            <label>URL de tu Apps Script (web app)</label>
+            <input type="text" id="sh-webapp-url" value="https://script.google.com/macros/s/AKfycbzK14QSqJxUp4p5KGWuBH3uzE-qlQhwcrap9SGNfZPITYoQGZiUWgHjDB0jwLbSvJXI/exec" style="font-size:11px;font-family:var(--mono)" />
+          </div>
+          <div class="form-group">
+            <label>Nombre de la pestaña — Datos cotizaciones</label>
+            <input type="text" id="sh-sheetname" value="DMD" />
+          </div>
+          <div class="form-group">
+            <label>Fila encabezado</label>
+            <input type="number" id="sh-header-row" value="1" min="0" style="width:60px" />
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <div class="panel-title" style="margin-bottom:8px">Mapeo de columnas <span style="color:var(--dim);font-size:9px;text-transform:none">(se detectan solas si hay encabezados — solo ajustá si falla)</span></div>
+          <div class="form-grid">
+            <div class="form-group"><label>Strike</label><input type="text" id="sh-col-strike" value="A" style="width:60px" /></div>
+            <div class="form-group"><label>Expiry</label><input type="text" id="sh-col-expiry" value="B" style="width:60px" /></div>
+            <div class="form-group"><label>Tipo (call/put)</label><input type="text" id="sh-col-type" value="C" style="width:60px" /></div>
+            <div class="form-group"><label>Bid</label><input type="text" id="sh-col-bid" value="D" style="width:60px" /></div>
+            <div class="form-group"><label>Ask</label><input type="text" id="sh-col-ask" value="E" style="width:60px" /></div>
+            <div class="form-group"><label>Last (precio IV)</label><input type="text" id="sh-col-last" value="F" style="width:60px" /></div>
+          </div>
+        </div>
+
+        <!-- Datos históricos -->
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border2)">
+          <div class="panel-title" style="margin-bottom:8px">Datos históricos</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Nombre de la pestaña — Datos históricos</label>
+              <input type="text" id="sh-sheetname-hist" value="HMD" />
+            </div>
+            <div class="form-group">
+              <label>Fila encabezado</label>
+              <input type="number" id="sh-header-row-hist" value="1" min="0" style="width:60px" />
+            </div>
+          </div>
+          <div style="margin-top:8px">
+            <div class="panel-title" style="margin-bottom:6px;font-size:9px">Mapeo de columnas <span style="color:var(--dim);font-size:9px;text-transform:none;font-weight:400">— formato: una fila por instrumento por fecha</span></div>
+            <div class="form-grid">
+              <div class="form-group"><label>Fecha</label><input type="text" id="hist-col-date" value="A" style="width:60px" /></div>
+              <div class="form-group"><label>Tipo (Call/Put/Suby)</label><input type="text" id="hist-col-type" value="C" style="width:60px" /></div>
+              <div class="form-group"><label>Strike</label><input type="text" id="hist-col-strike" value="F" style="width:60px" /></div>
+              <div class="form-group"><label>Último precio</label><input type="text" id="hist-col-last" value="E" style="width:60px" /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Demo source -->
+      <div id="src-demo" style="display:none">
+        <div style="padding:12px;background:var(--surface2);border-radius:6px;border:1px solid var(--border2);font-size:12px;color:var(--muted)">
+          Modo demo activo — datos generados con Black-Scholes. Spot $8.200, vol ATM 70%, tasa 30%, skew negativo realista.
+        </div>
+      </div>
+
+      <!-- Shared params -->
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border2)">
+        <div class="panel-title" style="margin-bottom:8px">Parámetros Black-Scholes <span style="color:var(--dim);font-size:9px;text-transform:none;font-weight:400">— afectan IV, Greeks y todos los cálculos</span></div>
+        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px">Tasa libre de riesgo (%)</label>
+            <input type="number" id="risk-free-rate" value="30" step="0.1" min="0" max="300" style="width:90px" />
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px">Dividendos (%)</label>
+            <input type="number" id="div-yield" value="0" step="0.1" min="0" style="width:80px" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Auto-refresh -->
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border2);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:11px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="auto-refresh-chk" onchange="toggleAutoRefresh()" style="accent-color:var(--amber);width:14px;height:14px" />
+            Auto-actualizar cada
+          </label>
+          <select id="auto-refresh-interval" onchange="toggleAutoRefresh()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px">
+            <option value="5000">5 seg</option>
+            <option value="10000" selected>10 seg</option>
+            <option value="30000">30 seg</option>
+            <option value="60000">1 min</option>
+          </select>
+        </div>
+        <span id="refresh-status" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-primary" onclick="applyAndFetch()">⟳ Aplicar y actualizar</button>
+        <button onclick="selectSource('demo');generateMockAndRender();toggleEl('api-config-wrap')">Usar datos demo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAIN TAB -->
+  <div id="tab-chain">
+    <!-- BS params bar — visible and editable inline -->
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:10px;font-size:11px">
+      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros BS</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Spot</label>
+        <input type="number" id="bs-spot" style="width:80px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="applyBSParams()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Tasa %</label>
+        <input type="number" id="bs-rate" step="0.1" style="width:70px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="applyBSParams()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Dividendos %</label>
+        <input type="number" id="bs-q" step="0.1" value="0" style="width:60px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px" onchange="applyBSParams()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Días vcto</label>
+        <input type="number" id="bs-days" min="1" style="width:60px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px" onchange="applyBSParams()" />
+        <span style="font-size:10px;color:var(--dim)">(auto desde vencimiento)</span>
+      </div>
+      <button onclick="applyBSParams()" style="padding:3px 10px;font-size:11px;margin-left:auto">Recalcular</button>
+    </div>
+
+    <div class="chain-controls">
+      <div><label>Vencimiento</label>
+        <select id="expiry-sel" onchange="renderChain()"></select>
+      </div>
+      <div><label>Spot manual</label>
+        <input type="number" id="spot-input" style="width:90px" onchange="manualSpot()" />
+      </div>
+      <div><label>Filtro</label>
+        <select id="chain-filter" onchange="renderChain()">
+          <option value="all">Todos los strikes</option>
+          <option value="near">Cercanos ±25%</option>
+          <option value="itm-call">Solo calls ITM</option>
+          <option value="itm-put">Solo puts ITM</option>
+        </select>
+      </div>
+      <div style="font-size:11px;color:var(--muted)">
+        <span style="display:inline-block;width:10px;height:10px;background:var(--itm-call);border:1px solid #1a4a28;margin-right:4px;border-radius:2px"></span>Call ITM
+        &nbsp;
+        <span style="display:inline-block;width:10px;height:10px;background:var(--itm-put);border:1px solid #5a2020;margin-right:4px;border-radius:2px"></span>Put ITM
+        &nbsp;
+        <span style="display:inline-block;width:10px;height:10px;background:rgba(232,184,75,0.15);border:1px solid rgba(232,184,75,0.5);margin-right:4px;border-radius:2px"></span>ATM
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="chain-table" style="width:100%">
+        <thead><tr>
+          <th style="text-align:left;color:var(--green)">CALLS</th>
+          <th>Delta</th>
+          <th>Vega</th>
+          <th>Theta</th>
+          <th>Bid</th>
+          <th>Ask</th>
+          <th style="color:var(--green)">Last</th>
+          <th>IV</th>
+          <th class="strike-col" style="border-left:1px solid var(--border);border-right:1px solid var(--border);text-align:center">STRIKE</th>
+          <th>IV</th>
+          <th style="color:var(--red)">Last</th>
+          <th>Ask</th>
+          <th>Bid</th>
+          <th>Theta</th>
+          <th>Vega</th>
+          <th>Delta</th>
+          <th style="text-align:right;color:var(--red)">PUTS</th>
+        </tr></thead>
+        <tbody id="chain-body"></tbody>
+      </table>
+    </div>
+
+    <div class="greeks-panel">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <span style="font-size:11px;color:var(--muted)">Greeks — </span>
+          <span id="sel-name" style="font-family:var(--mono);font-size:12px">seleccioná una opción de la cadena</span>
+        </div>
+        <span id="sel-type" style="font-size:11px;font-weight:500"></span>
+      </div>
+      <div class="greeks-grid">
+        <div class="greek-card"><div class="greek-name">Prima</div><div class="greek-val amber" id="g-price">--</div></div>
+        <div class="greek-card"><div class="greek-name">Delta</div><div class="greek-val" id="g-delta">--</div></div>
+        <div class="greek-card"><div class="greek-name">Gamma</div><div class="greek-val" id="g-gamma">--</div></div>
+        <div class="greek-card"><div class="greek-name">Theta / día</div><div class="greek-val neg" id="g-theta">--</div></div>
+        <div class="greek-card"><div class="greek-name">Vega</div><div class="greek-val" id="g-vega">--</div></div>
+        <div class="greek-card"><div class="greek-name">IV</div><div class="greek-val amber" id="g-iv">--</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STRATEGY TAB -->
+  <div id="tab-strategy" style="display:none">
+    <div class="strategy-layout">
+      <div>
+        <div class="panel">
+          <div class="panel-title">Estrategia</div>
+          <div class="preset-grid">
+            <div class="preset-btn active" data-preset="bull_spread" onclick="loadPreset('bull_spread',this)">Bull Call Spread</div>
+            <div class="preset-btn" data-preset="bear_spread" onclick="loadPreset('bear_spread',this)">Bear Put Spread</div>
+            <div class="preset-btn" data-preset="straddle" onclick="loadPreset('straddle',this)">Straddle</div>
+            <div class="preset-btn" data-preset="strangle" onclick="loadPreset('strangle',this)">Strangle</div>
+            <div class="preset-btn" data-preset="covered_call" onclick="loadPreset('covered_call',this)">Covered Call</div>
+            <div class="preset-btn" data-preset="custom" onclick="loadPreset('custom',this)">Personalizada</div>
+          </div>
+          <div class="panel-title">Patas</div>
+          <table class="legs-table">
+            <thead><tr>
+              <th>Tipo</th><th>Cant (+ compra / − venta)</th><th>Strike</th><th>Prima $</th><th></th>
+            </tr></thead>
+            <tbody id="legs-body"></tbody>
+          </table>
+          <button onclick="addLeg()" style="width:100%;font-size:11px">+ Agregar pata</button>
+          <div class="sstats">
+            <div class="sstat"><div class="sstat-lbl">Costo neto</div><div class="sstat-val" id="ss-cost">--</div></div>
+            <div class="sstat"><div class="sstat-lbl">Breakeven(s)</div><div class="sstat-val" id="ss-be" style="font-size:12px">--</div></div>
+            <div class="sstat"><div class="sstat-lbl">Máx ganancia</div><div class="sstat-val pos" id="ss-maxp">--</div></div>
+            <div class="sstat"><div class="sstat-lbl">Máx pérdida</div><div class="sstat-val neg" id="ss-maxl">--</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="panel-title">P&amp;L al vencimiento (en $)</div>
+        <div style="position:relative;height:320px"><canvas id="pnl-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTROL DE ESTRATEGIAS TAB -->
+  <div id="tab-control" style="display:none">
+
+    <!-- Config bar -->
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:12px;font-size:11px">
+      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Comisión %</label>
+        <input type="number" id="ctrl-comision" value="0.500" step="0.001" min="0" max="10"
+          style="width:75px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderControl()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">IVA</label>
+        <input type="number" id="ctrl-iva" value="1.21" step="0.01" min="1" max="2"
+          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderControl()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Vencimiento</label>
+        <select id="ctrl-expiry" onchange="renderControl()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
+      </div>
+      <button class="btn-primary" onclick="addCtrlStrategy()" style="margin-left:auto;padding:4px 14px;font-size:11px">+ Agregar estrategia</button>
+    </div>
+
+    <!-- Strategies container — rendered dynamically -->
+    <div id="ctrl-strategies-container"></div>
+  </div>
+
+  <!-- CALCULATOR TAB -->
+  <div id="tab-calc" style="display:none">
+    <div class="calc-layout">
+      <div class="panel">
+        <div class="panel-title">Parámetros Black-Scholes</div>
+        <div class="calc-inputs">
+          <div class="calc-group">
+            <label>Tipo de opción</label>
+            <select id="c-type" onchange="runCalc()">
+              <option value="call">Call</option>
+              <option value="put">Put</option>
+            </select>
+          </div>
+          <div class="calc-group"><label>Precio subyacente (S)</label><input type="number" id="c-s" value="8200" oninput="runCalc()" /></div>
+          <div class="calc-group"><label>Strike (K)</label><input type="number" id="c-k" value="8500" oninput="runCalc()" /></div>
+          <div class="calc-group"><label>Días al vencimiento</label><input type="number" id="c-t" value="30" min="1" oninput="runCalc()" /></div>
+          <div class="calc-group"><label>Volatilidad implícita (%)</label><input type="number" id="c-vol" value="70" step="0.5" oninput="runCalc()" /></div>
+          <div class="calc-group"><label>Tasa libre de riesgo (%)</label><input type="number" id="c-r" value="30" step="0.5" oninput="runCalc()" /></div>
+          <div class="calc-group"><label>Dividendos (%)</label><input type="number" id="c-q" value="0" step="0.1" oninput="runCalc()" /></div>
+          <div class="calc-result">
+            <div class="calc-result-lbl">Prima teórica</div>
+            <div class="calc-result-price" id="c-price">$ --</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="panel" style="margin-bottom:12px">
+          <div class="panel-title">Greeks</div>
+          <div class="greeks-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="greek-card"><div class="greek-name">Delta</div><div class="greek-val" id="cc-delta">--</div></div>
+            <div class="greek-card"><div class="greek-name">Gamma</div><div class="greek-val" id="cc-gamma">--</div></div>
+            <div class="greek-card"><div class="greek-name">Theta / día</div><div class="greek-val neg" id="cc-theta">--</div></div>
+            <div class="greek-card"><div class="greek-name">Vega / 1%</div><div class="greek-val" id="cc-vega">--</div></div>
+            <div class="greek-card"><div class="greek-name">Rho</div><div class="greek-val" id="cc-rho">--</div></div>
+            <div class="greek-card"><div class="greek-name">Moneyness</div><div class="greek-val" id="cc-money">--</div></div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <div class="panel-title">Prima vs. precio del subyacente</div>
+          <div style="position:relative;height:220px"><canvas id="sens-chart"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IV SMILE TAB -->
+  <div id="tab-ivsmile" style="display:none">
+    <div class="chart-wrap">
+      <div class="panel-title">Curva de volatilidad implícita por vencimiento</div>
+      <div style="position:relative;height:340px"><canvas id="iv-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- IV CALCULATOR TAB -->
+  <div id="tab-ivcalc" style="display:none">
+    <div style="display:grid;grid-template-columns:300px 1fr;gap:14px">
+
+      <!-- Inputs -->
+      <div class="panel">
+        <div class="panel-title">Datos de mercado</div>
+        <div class="calc-inputs">
+          <div class="calc-group">
+            <label>Tipo de opción</label>
+            <select id="iv-type" onchange="runIVCalc()">
+              <option value="call">Call</option>
+              <option value="put">Put</option>
+            </select>
+          </div>
+          <div class="calc-group"><label>Precio subyacente (S)</label><input type="number" id="iv-s" value="8200" oninput="runIVCalc()" /></div>
+          <div class="calc-group"><label>Strike (K)</label><input type="number" id="iv-k" value="8500" oninput="runIVCalc()" /></div>
+          <div class="calc-group"><label>Días al vencimiento</label><input type="number" id="iv-t" value="30" min="1" oninput="runIVCalc()" /></div>
+          <div class="calc-group"><label>Prima de mercado (precio observado $)</label><input type="number" id="iv-mkt" value="320" step="1" oninput="runIVCalc()" /></div>
+          <div class="calc-group"><label>Tasa libre de riesgo (%)</label><input type="number" id="iv-r" value="30" step="0.5" oninput="runIVCalc()" /></div>
+          <div class="calc-group"><label>Dividendos (%)</label><input type="number" id="iv-q" value="0" step="0.1" oninput="runIVCalc()" /></div>
+        </div>
+        <div style="margin-top:14px;padding:14px;background:var(--surface2);border-radius:7px;border:1px solid var(--border2)">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">Resultado</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+            <span id="iv-result-val" style="font-family:var(--mono);font-size:32px;font-weight:500;color:var(--amber)">--</span>
+            <span style="font-size:14px;color:var(--muted)">%</span>
+          </div>
+          <div id="iv-result-status" style="font-size:11px;color:var(--muted)">Ingresá los datos para calcular</div>
+          <div style="margin-top:10px;height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
+            <div id="iv-gauge-bar" style="height:100%;width:0%;background:var(--amber);border-radius:3px;transition:width .4s ease"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--dim);margin-top:3px">
+            <span>0%</span><span>50%</span><span>100%</span><span>150%</span><span>200%+</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right panel -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Greeks con la IV calculada -->
+        <div class="panel">
+          <div class="panel-title">Greeks con la IV calculada</div>
+          <div class="greeks-grid" style="grid-template-columns:repeat(6,1fr)">
+            <div class="greek-card"><div class="greek-name">Delta</div><div class="greek-val" id="iv-g-delta">--</div></div>
+            <div class="greek-card"><div class="greek-name">Gamma</div><div class="greek-val" id="iv-g-gamma">--</div></div>
+            <div class="greek-card"><div class="greek-name">Theta / día</div><div class="greek-val neg" id="iv-g-theta">--</div></div>
+            <div class="greek-card"><div class="greek-name">Vega / 1%</div><div class="greek-val" id="iv-g-vega">--</div></div>
+            <div class="greek-card"><div class="greek-name">Rho</div><div class="greek-val" id="iv-g-rho">--</div></div>
+            <div class="greek-card"><div class="greek-name">Valor intrínseco</div><div class="greek-val amber" id="iv-g-intr">--</div></div>
+          </div>
+        </div>
+
+        <!-- Tabla de sensibilidad Prima → IV -->
+        <div class="panel">
+          <div class="panel-title">Sensibilidad: Prima de mercado → Volatilidad implícita</div>
+          <div style="overflow-x:auto">
+            <table class="chain-table" style="min-width:500px">
+              <thead>
+                <tr>
+                  <th>Prima $</th>
+                  <th>IV calculada</th>
+                  <th>Delta</th>
+                  <th>Theta / día</th>
+                  <th>Vega</th>
+                  <th>Prima BS teórica $</th>
+                  <th>Dif. con mercado $</th>
+                </tr>
+              </thead>
+              <tbody id="iv-sens-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Gráfico IV vs Prima -->
+        <div class="chart-wrap">
+          <div class="panel-title">Curva IV implícita en función de la prima observada</div>
+          <div style="position:relative;height:200px"><canvas id="iv-sens-chart"></canvas></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- DATOS HISTÓRICOS TAB -->
+  <div id="tab-histdata" style="display:none">
+
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:12px;font-size:11px">
+      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">S1</label>
+        <button id="hist-type1-btn" onclick="histToggleType(1)"
+          style="font-family:var(--mono);font-size:12px;padding:3px 10px;border-radius:5px;cursor:pointer;background:var(--surface);border:1px solid var(--green);color:var(--green);min-width:46px;transition:all .15s">Call</button>
+        <input type="hidden" id="hist-type1" value="call" />
+        <select id="hist-strike1" onchange="renderHistData()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+      </div>
+      <!-- Swap button -->
+      <button onclick="histSwapStrikes()" title="Intercambiar S1 y S2"
+        style="font-size:13px;padding:2px 8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;transition:all .15s"
+        onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">⇄</button>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">S2</label>
+        <button id="hist-type2-btn" onclick="histToggleType(2)"
+          style="font-family:var(--mono);font-size:12px;padding:3px 10px;border-radius:5px;cursor:pointer;background:var(--surface);border:1px solid var(--green);color:var(--green);min-width:46px;transition:all .15s">Call</button>
+        <input type="hidden" id="hist-type2" value="call" />
+        <select id="hist-strike2" onchange="renderHistData()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">Tasa %</label>
+        <input type="number" id="hist-rate" value="0" step="0.1"
+          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderHistData()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">Vencimiento</label>
+        <input type="text" id="hist-expiry" placeholder="YYYY-MM-DD"
+          style="width:100px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px"
+          onchange="renderHistData()" />
+      </div>
+      <button class="btn-primary" onclick="fetchHistData()" style="padding:4px 12px;font-size:11px">⟳ Actualizar HMD</button>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">Relación RI</label>
+        <input type="number" id="hist-ri" value="2.0" step="0.1" min="0.1" max="4"
+          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderHistData()" />
+      </div>
+      <span id="hist-status" style="font-size:11px;color:var(--muted)"></span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+
+      <!-- Table — full width -->
+      <div style="overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+        <table id="hist-table" style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;table-layout:fixed">
+          <thead style="position:sticky;top:0;z-index:2">
+            <tr style="background:var(--surface2)">
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">Fecha</th>
+              <th id="hist-th-s1" style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">S1</th>
+              <th id="hist-th-s2" style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">S2</th>
+              <th id="hist-th-vi1" style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">VI S1</th>
+              <th id="hist-th-vi2" style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">VI S2</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">VI prom.</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">Var VI%</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">RC</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">Var RC%</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">Straddle</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">Var ST%</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--blue);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap" id="hist-th-bb">Bull/Bear</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">Var BB%</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--blue);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">Costo RI</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap">Var RI%</th>
+            </tr>
+          </thead>
+          <tbody id="hist-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Charts — 2 per row, each half width -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="chart-wrap" style="padding:14px">
+          <div class="panel-title" style="font-size:9px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Relación (RC)</div>
+          <div style="position:relative;height:260px"><canvas id="hist-chart-rc"></canvas></div>
+        </div>
+        <div class="chart-wrap" style="padding:14px">
+          <div class="panel-title" style="font-size:9px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">VI Promedio</div>
+          <div style="position:relative;height:260px"><canvas id="hist-chart-vi"></canvas></div>
+        </div>
+        <div class="chart-wrap" style="padding:14px">
+          <div class="panel-title" style="font-size:9px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Straddle</div>
+          <div style="position:relative;height:260px"><canvas id="hist-chart-st"></canvas></div>
+        </div>
+        <div class="chart-wrap" style="padding:14px">
+          <div class="panel-title" style="font-size:9px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Variación (%)</div>
+          <div style="position:relative;height:260px"><canvas id="hist-chart-var"></canvas></div>
+        </div>
+        <div class="chart-wrap" style="padding:14px">
+          <div class="panel-title" id="hist-chart-bb-title" style="font-size:9px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Bull/Bear</div>
+          <div style="position:relative;height:260px"><canvas id="hist-chart-bb"></canvas></div>
+        </div>
+        <div class="chart-wrap" style="padding:14px">
+          <div class="panel-title" style="font-size:9px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Costo RI</div>
+          <div style="position:relative;height:260px"><canvas id="hist-chart-ri"></canvas></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
 /* ===== BLACK-SCHOLES ENGINE ===== */
 function normCDF(x) {
   const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
@@ -570,35 +1312,6 @@ function buildIVSensTable(S,K,T,r,q,type,mktCenter,ivCenter){
 
 /* ===== CONTROL DE ESTRATEGIAS ===== */
 // ctrlStrategies: array of strategies, each strategy = array of row objects
-const CTRL_STORAGE_KEY='ggal_ctrl_strategies_v1';
-
-function ctrlSave(){
-  try{
-    localStorage.setItem(CTRL_STORAGE_KEY, JSON.stringify(ctrlStrategies));
-  }catch(e){console.warn('ctrlSave error:',e);}
-}
-
-function ctrlLoad(){
-  try{
-    const raw=localStorage.getItem(CTRL_STORAGE_KEY);
-    if(!raw)return false;
-    const parsed=JSON.parse(raw);
-    if(!Array.isArray(parsed)||!parsed.length)return false;
-    ctrlStrategies=parsed;
-    return true;
-  }catch(e){
-    console.warn('ctrlLoad error:',e);
-    return false;
-  }
-}
-
-function ctrlClearSaved(){
-  localStorage.removeItem(CTRL_STORAGE_KEY);
-  ctrlStrategies=[];
-  renderControl();
-  showToast('Estrategias guardadas eliminadas');
-}
-
 let ctrlStrategies=[];
 
 function ctrlDefaultRow(){
@@ -610,34 +1323,33 @@ function ctrlDefaultRow(){
 function addCtrlStrategy(){
   const n=ctrlStrategies.length+1;
   ctrlStrategies.push({name:`Estrategia ${n}`,rows:[ctrlDefaultRow(),ctrlDefaultRow()]});
-  ctrlSave();renderControl();
+  renderControl();
 }
 
 function removeCtrlStrategy(si){
   ctrlStrategies.splice(si,1);
-  ctrlSave();renderControl();
+  renderControl();
 }
 
 function addCtrlRowToStrategy(si){
   ctrlStrategies[si].rows.push(ctrlDefaultRow());
-  ctrlSave();renderControl();
+  renderControl();
 }
 
 function removeCtrlRow(si,ri){
   ctrlStrategies[si].rows.splice(ri,1);
-  ctrlSave();renderControl();
+  renderControl();
 }
 
 function updateCtrlRow(si,ri,field,val){
   const row=ctrlStrategies[si].rows[ri];
   row[field]=field==='lotes'||field==='precio'||field==='strike'
     ?(val===''?val:parseFloat(val)||0):val;
-  ctrlSave();renderControl();
+  renderControl();
 }
 
 function renameCtrlStrategy(si,val){
   ctrlStrategies[si].name=val||`Estrategia ${si+1}`;
-  ctrlSave();
 }
 
 function copyCtrlStrategy(si){
@@ -711,61 +1423,61 @@ function ctrlBuildRow(si,ri,row,strikes,com,iva){
   const tr=document.createElement('tr');
   tr.style.borderBottom='1px solid var(--border2)';
   tr.innerHTML=`
-    <td style="padding:5px 8px;text-align:center">
+    <td style="padding:5px 8px">
       <input type="number" value="${row.lotes}" step="1"
         style="width:65px;font-family:var(--mono);font-size:12px;color:${lotesColor};font-weight:500;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 6px"
         oninput="this.style.color=+this.value>=0?'var(--green)':'var(--red)'"
         onchange="updateCtrlRow(${si},${ri},'lotes',this.value)" />
     </td>
-    <td style="padding:5px 8px;text-align:center">
+    <td style="padding:5px 8px">
       <select onchange="updateCtrlRow(${si},${ri},'type',this.value)"
         style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:4px">
         <option value="call"${row.type==='call'?' selected':''}>Call</option>
         <option value="put"${row.type==='put'?' selected':''}>Put</option>
       </select>
     </td>
-    <td style="padding:5px 8px;text-align:center">
+    <td style="padding:5px 8px">
       <select onchange="updateCtrlRow(${si},${ri},'strike',this.value)"
         style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:4px;width:100px">
         ${strikeOpts}
       </select>
     </td>
-    <td style="padding:5px 8px;text-align:center">
+    <td style="padding:5px 8px">
       <input type="number" value="${row.precio>0?row.precio.toFixed(3):''}" step="0.001" placeholder="0,000"
         style="width:85px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 6px"
         onchange="updateCtrlRow(${si},${ri},'precio',this.value)" />
     </td>
-    <td style="padding:5px 10px;text-align:center;font-weight:500;color:${costoColor};white-space:nowrap">${costoArmado!==0?fmtN(costoArmado):'--'}</td>
-    <td style="padding:5px 10px;text-align:center;color:${precioLastEfectivo>0?'var(--text)':'var(--dim)'};white-space:nowrap">
+    <td style="padding:5px 10px;font-weight:500;color:${costoColor};white-space:nowrap">${costoArmado!==0?fmtN(costoArmado):'--'}</td>
+    <td style="padding:5px 10px;color:${precioLastEfectivo>0?'var(--text)':'var(--dim)'};white-space:nowrap">
       ${precioLastEfectivo>0?fmtN(precioLastEfectivo,3):'--'}
       ${hasManual?'<span style="font-size:9px;color:var(--amber);margin-left:3px">MAN</span>':''}
     </td>
-    <td style="padding:5px 8px;text-align:center">
+    <td style="padding:5px 8px">
       <input type="number" value="${hasManual?parseFloat(row.precioManual).toFixed(3):''}" step="0.001" placeholder="—"
         style="width:85px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);border-radius:4px;padding:3px 6px"
         onchange="updateCtrlRow(${si},${ri},'precioManual',this.value===''?'':this.value)" />
     </td>
-    <td style="padding:5px 10px;text-align:center;font-weight:500;color:${desarColor};white-space:nowrap">${desarmado!==0?fmtN(desarmado):'--'}</td>
-    <td style="padding:5px 10px;text-align:center;font-weight:500;color:${difColor};white-space:nowrap">
+    <td style="padding:5px 10px;font-weight:500;color:${desarColor};white-space:nowrap">${desarmado!==0?fmtN(desarmado):'--'}</td>
+    <td style="padding:5px 10px;font-weight:500;color:${difColor};white-space:nowrap">
       ${row.precio>0&&precioLastEfectivo>0?(difPct>=0?'+':'')+(difPct*100).toFixed(2)+'%':'--'}
     </td>
-    <td style="padding:5px 8px;text-align:center">
+    <td style="padding:5px 8px">
       <button class="btn-sm btn-danger" onclick="removeCtrlRow(${si},${ri})">✕</button>
     </td>`;
   return {tr,costoArmado,desarmado};
 }
 
 const CTRL_TH=`
-  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2);text-align:center">Lotes</th>
-  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2);text-align:center">Tipo</th>
-  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2);text-align:center">Strike</th>
-  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2);text-align:center">Precio</th>
-  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2);text-align:center">Costo c/Comi</th>
-  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2);text-align:center">Precio Last</th>
-  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2);text-align:center">Precio Manual</th>
-  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2);text-align:center">Desarmado c/Comi</th>
-  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2);text-align:center">Dif Precio %</th>
-  <th style="padding:7px 8px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);background:var(--surface2);text-align:center"></th>`;
+  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2)">Lotes</th>
+  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2)">Tipo</th>
+  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2)">Strike</th>
+  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2)">Precio</th>
+  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2)">Costo c/Comi</th>
+  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2)">Precio Last</th>
+  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2)">Precio Manual</th>
+  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2)">Desarmado c/Comi</th>
+  <th style="padding:7px 10px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;background:var(--surface2)">Dif Precio %</th>
+  <th style="padding:7px 8px;border-bottom:1px solid var(--border);border-top:1px solid var(--border2);background:var(--surface2)"></th>`;
 
 function parseARSNum(s){
   // Handles: "296,13" "296.13" "1.234,56" "-30,00"
@@ -810,7 +1522,8 @@ function handleCtrlPaste(e,si){
 
   // Replace strategy rows with parsed data
   ctrlStrategies[si].rows=parsed;
-  ctrlSave();
+
+  // Clear the textarea
   const ta=document.getElementById('ctrl-paste-'+si);
   if(ta)ta.value='';
 
@@ -902,7 +1615,7 @@ function renderControl(){
       </tr>
       <tr style="background:var(--amber-bg);border-top:1px solid rgba(232,184,75,.25)">
         <td colspan="4" style="padding:9px 10px;font-family:var(--sans);font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:.6px;font-weight:500">Resultado</td>
-        <td colspan="6" style="padding:9px 10px;text-align:right">
+        <td colspan="6" style="padding:9px 10px">
           <span style="font-family:var(--mono);font-size:18px;font-weight:500;color:${resColor}">
             ${stratRows.length?(resultado>=0?'+':'')+fmtN(resultado):'--'}
           </span>
@@ -1053,7 +1766,7 @@ function colLetterToIndex(col){
 async function fetchSheets(silent=false){
   const webAppUrl=document.getElementById('sh-webapp-url').value.trim();
   if(!webAppUrl){showToast('Pegá la URL del Apps Script web app');return;}
-  const sheet=document.getElementById('sh-sheetname').value.trim()||'DMD_Sabro';
+  const sheet=document.getElementById('sh-sheetname').value.trim()||'DMD';
   const url=`${webAppUrl}?sheet=${encodeURIComponent(sheet)}`;
   if(!silent)showToast('Conectando a Google Sheets...');
   try{
@@ -1105,7 +1818,6 @@ function parseSheetsRows(rows){
     bid:    autoMap.bid   ??colLetterToIndex(document.getElementById('sh-col-bid').value),
     ask:    autoMap.ask   ??colLetterToIndex(document.getElementById('sh-col-ask').value),
     last:   autoMap.last  ??colLetterToIndex(document.getElementById('sh-col-last').value),
-    lastve: colLetterToIndex(document.getElementById('sh-col-lastve')?.value||'G'),
   };
 
   console.log('Columnas mapeadas:', ci, '| Auto-detectadas:', autoMap);
@@ -1150,8 +1862,7 @@ function parseSheetsRows(rows){
     const tp=rawType.toLowerCase();
     const bid=parseARS(cols[ci.bid]);
     const ask=parseARS(cols[ci.ask]);
-    const last=parseARS(cols[ci.last]);
-    const lastve=parseARS(cols[ci.lastve]); // valor extrínseco % del spot
+    const last=parseARS(cols[ci.last]); // ← precio actual de la opción → base para IV
 
     if(isNaN(K)||K<=0||!exp){skipped++;return;}
 
@@ -1171,8 +1882,7 @@ function parseSheetsRows(rows){
       optionType:tp.includes('put')||tp==='p'?'put':'call',
       bid:safeBid,
       ask:safeAsk,
-      mid, // ← este valor alimenta impliedVol()
-      lastve:isNaN(lastve)?null:lastve,
+      mid // ← este valor alimenta impliedVol()
     });
   });
 
@@ -1228,8 +1938,8 @@ function parseApiData(data){
       const p=puts.find(x=>x.strike===K)||{};
       const iv=impliedVol(ST.spot,K,T,ST.rate,ST.q,c.mid||p.mid||1,c.mid?'call':'put')||0.70;
       return{strike:K,expiry:exp,T,iv,
-        callBid:c.bid||0,callAsk:c.ask||0,callMid:c.mid||0,callLastVE:c.lastve??null,
-        putBid:p.bid||0,putAsk:p.ask||0,putMid:p.mid||0,putLastVE:p.lastve??null,
+        callBid:c.bid||0,callAsk:c.ask||0,callMid:c.mid||0,
+        putBid:p.bid||0,putAsk:p.ask||0,putMid:p.mid||0,
         callOI:0,putOI:0};
     });
   });
@@ -1264,11 +1974,11 @@ function fmtExpiry(s){
 }
 function toggleEl(id){const e=document.getElementById(id);e.style.display=e.style.display==='none'?'block':'none'}
 function showTab(name){
-  ['chain','strategy','control','calc','ivsmile','ivcalc','histdata','mariposa','analisis','tutoriales'].forEach(t=>{
+  ['chain','strategy','control','calc','ivsmile','ivcalc','histdata'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'block':'none';
   });
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active',['chain','strategy','control','calc','ivsmile','ivcalc','histdata','mariposa','analisis','tutoriales'][i]===name);
+    t.classList.toggle('active',['chain','strategy','control','calc','ivsmile','ivcalc','histdata'][i]===name);
   });
   if(name==='strategy'&&!ST.charts.pnl)loadPreset('bull_spread',document.querySelector('[data-preset="bull_spread"]'));
   if(name==='calc')setTimeout(runCalc,50);
@@ -1276,9 +1986,6 @@ function showTab(name){
   if(name==='ivcalc')setTimeout(runIVCalc,50);
   if(name==='control'){ctrlPopulateExpiry();renderControl();}
   if(name==='histdata'){histPopulateStrikes();renderHistData();}
-  if(name==='mariposa'){marPopulateExpiry();renderMariposa();}
-  if(name==='analisis'){anaPopulateExpiry();renderAnalisis();}
-  if(name==='tutoriales'){tutShow('cadena');}
 }
 function manualSpot(){
   const v=parseFloat(document.getElementById('spot-input').value);
@@ -1482,7 +2189,7 @@ function renderHistData(){
 
   const source=HIST.rows.length?HIST.rows:[];
   if(!source.length){
-    document.getElementById('hist-body').innerHTML=`<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--muted)">Sin datos — presioná ⟳ Actualizar HMD</td></tr>`;
+    document.getElementById('hist-body').innerHTML=`<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--muted)">Sin datos — presioná ⟳ Actualizar HMD</td></tr>`;
     return;
   }
 
@@ -1528,22 +2235,21 @@ function renderHistData(){
     const pct=v=>v==null?'--':(v>=0?'+':'')+((v*100).toFixed(2))+'%';
     const varColor=v=>v==null?'var(--muted)':v>0?'var(--green)':'var(--red)';
     tr.innerHTML=`
-      <td style="padding:4px 8px;text-align:center;color:var(--muted);white-space:nowrap">${row.date||'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:var(--muted)">${row.spot!=null?fmtN(row.spot,0):'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:${c1color}">${row.p1!=null?fmtN(row.p1):'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:${c2color}">${row.p2!=null?fmtN(row.p2):'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:${c1color}">${row.iv1!=null?(row.iv1*100).toFixed(2)+'%':'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:${c2color}">${row.iv2!=null?(row.iv2*100).toFixed(2)+'%':'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:var(--amber)">${row.viProm!=null?(row.viProm*100).toFixed(2)+'%':'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:${varColor(row.varVI)}">${pct(row.varVI)}</td>
-      <td style="padding:4px 8px;text-align:center;color:var(--amber)">${row.rc!=null?row.rc.toFixed(2):'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:${varColor(row.varRC)}">${pct(row.varRC)}</td>
-      <td style="padding:4px 8px;text-align:center;color:var(--amber)">${row.straddle!=null?fmtN(row.straddle):'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:${varColor(row.varST)}">${pct(row.varST)}</td>
-      <td style="padding:4px 8px;text-align:center;color:${row.bb!=null?(row.bb>=0?'var(--green)':'var(--red)'):'var(--muted)'}">${row.bb!=null?fmtN(row.bb):'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:${varColor(row.varBB)}">${pct(row.varBB)}</td>
-      <td style="padding:4px 8px;text-align:center;color:${row.riCost!=null?(row.riCost>=0?'var(--green)':'var(--red)'):'var(--muted)'}">${row.riCost!=null?fmtN(row.riCost):'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:${varColor(row.varRI)}">${pct(row.varRI)}</td>`;
+      <td style="padding:4px 8px;color:var(--muted);white-space:nowrap">${row.date||'--'}</td>
+      <td style="padding:4px 8px;color:${c1color}">${row.p1!=null?fmtN(row.p1):'--'}</td>
+      <td style="padding:4px 8px;color:${c2color}">${row.p2!=null?fmtN(row.p2):'--'}</td>
+      <td style="padding:4px 8px;color:${c1color}">${row.iv1!=null?(row.iv1*100).toFixed(2)+'%':'--'}</td>
+      <td style="padding:4px 8px;color:${c2color}">${row.iv2!=null?(row.iv2*100).toFixed(2)+'%':'--'}</td>
+      <td style="padding:4px 8px;color:var(--amber)">${row.viProm!=null?(row.viProm*100).toFixed(2)+'%':'--'}</td>
+      <td style="padding:4px 8px;color:${varColor(row.varVI)}">${pct(row.varVI)}</td>
+      <td style="padding:4px 8px;color:var(--amber)">${row.rc!=null?row.rc.toFixed(2):'--'}</td>
+      <td style="padding:4px 8px;color:${varColor(row.varRC)}">${pct(row.varRC)}</td>
+      <td style="padding:4px 8px;color:var(--amber)">${row.straddle!=null?fmtN(row.straddle):'--'}</td>
+      <td style="padding:4px 8px;color:${varColor(row.varST)}">${pct(row.varST)}</td>
+      <td style="padding:4px 8px;color:${row.bb!=null?(row.bb>=0?'var(--green)':'var(--red)'):'var(--muted)'}">${row.bb!=null?fmtN(row.bb):'--'}</td>
+      <td style="padding:4px 8px;color:${varColor(row.varBB)}">${pct(row.varBB)}</td>
+      <td style="padding:4px 8px;color:${row.riCost!=null?(row.riCost>=0?'var(--green)':'var(--red)'):'var(--muted)'}">${row.riCost!=null?fmtN(row.riCost):'--'}</td>
+      <td style="padding:4px 8px;color:${varColor(row.varRI)}">${pct(row.varRI)}</td>`;
     tb.appendChild(tr);
   });
 
@@ -1557,10 +2263,7 @@ function renderHistData(){
         callbacks:{label:c=>` ${label}: ${fmt(c.raw)}`}}
     },
     scales:{
-      x:{ticks:{color:'#7a8fa6',font:{size:8},maxRotation:45,minRotation:45,autoSkip:false,callback:(v,i,vals)=>{
-          const d=labels[i];if(!d)return'';
-          const p=d.split('-');return p.length>=3?p[2]+'-'+p[1]:d;
-        }},grid:{color:'#1a2230'}},
+      x:{ticks:{color:'#7a8fa6',font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{color:'#1a2230'}},
       y:{ticks:{color:'#7a8fa6',font:{size:9},callback:v=>fmt(v)},grid:{color:'#1a2230'}}
     }
   });
@@ -1572,7 +2275,7 @@ function renderHistData(){
     HIST.charts[key]=new Chart(ctx,{
       type:'line',
       data:{labels,datasets:[{data:calc.map(r=>r[key]!=null?parseFloat(r[key].toFixed(4)):null),
-        borderColor:color,borderWidth:1.5,pointRadius:3,pointBackgroundColor:color,fill:false,spanGaps:true}]},
+        borderColor:color,borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true}]},
       options:chartOpts(color,label,fmt)
     });
   };
@@ -1590,8 +2293,8 @@ function renderHistData(){
     HIST.charts.varr=new Chart(ctxV,{
       type:'line',
       data:{labels,datasets:[
-        {label:'Var VI%',data:calc.map(r=>r.varVI!=null?parseFloat((r.varVI*100).toFixed(3)):null),borderColor:'#b088f0',borderWidth:1.5,pointRadius:3,fill:false,spanGaps:true},
-        {label:'Var RC%',data:calc.map(r=>r.varRC!=null?parseFloat((r.varRC*100).toFixed(3)):null),borderColor:'#f05a5a',borderWidth:1.5,pointRadius:3,fill:false,spanGaps:true},
+        {label:'Var VI%',data:calc.map(r=>r.varVI!=null?parseFloat((r.varVI*100).toFixed(3)):null),borderColor:'#b088f0',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true},
+        {label:'Var RC%',data:calc.map(r=>r.varRC!=null?parseFloat((r.varRC*100).toFixed(3)):null),borderColor:'#f05a5a',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true},
         {label:'Var ST%',data:calc.map(r=>r.varST!=null?parseFloat((r.varST*100).toFixed(3)):null),borderColor:'#e8b84b',borderWidth:1.5,pointRadius:0,fill:false,spanGaps:true}
       ]},
       options:{...chartOpts('','%',v=>v!=null?v.toFixed(2)+'%':'--'),
@@ -1629,840 +2332,6 @@ async function fetchHistData(){
 }
 
 
-/* ===== MÓDULO MARIPOSA ===== */
-
-function marPopulateExpiry(){
-  const sel=document.getElementById('mar-expiry');
-  if(!sel)return;
-  const cur=sel.value;
-  sel.innerHTML='';
-  ST.expirations.forEach(e=>{
-    const o=document.createElement('option');
-    o.value=e;o.textContent=fmtExpiry(e);
-    if(e===cur)o.selected=true;
-    sel.appendChild(o);
-  });
-  if(!sel.value&&ST.selExpiry)sel.value=ST.selExpiry;
-}
-
-// Commission cost for one leg (buy=+1, sell=-1)
-function marComi(precio,lotes,com,iva){
-  const sign=lotes>0?1:-1;
-  return Math.abs(lotes)*precio*(com/100+0.002)*iva*sign;
-}
-
-function marCostoBruto(pSL,pSM,pSH,lotes){
-  // Standard butterfly: +1 SL, -2 SM, +1 SH (scaled by lotes)
-  return (pSL - 2*pSM + pSH)*lotes*100;
-}
-
-function marCostoNeto(pSL,pSM,pSH,lotes,com,iva){
-  const bruto=marCostoBruto(pSL,pSM,pSH,lotes);
-  // Commission on each leg
-  const cSL =marComi(pSL, lotes,com,iva)*100;
-  const cSM =marComi(pSM,-2*lotes,com,iva)*100;
-  const cSH =marComi(pSH, lotes,com,iva)*100;
-  return bruto+cSL+cSM+cSH;
-}
-
-function marRatioSimetrico(kSL,kSM,kSH){
-  const dL=kSM-kSL;
-  const dH=kSH-kSM;
-  if(dL<=0||dH<=0)return null;
-  return{dL,dH,r:dL/dH};
-}
-
-function marCostoSimetrico(pSL,pSM,pSH,kSL,kSM,kSH){
-  if(!pSL||!pSM||!pSH)return null;
-  const ratio=marRatioSimetrico(kSL,kSM,kSH);
-  if(!ratio)return null;
-  const r=ratio.r;
-  // Formula: (pSL + r*pSH - (1+r)*pSM) * 100
-  return (pSL + r*pSH - (1+r)*pSM)*100;
-}
-
-function marCopyStrategy(row,mode){
-  const ratio=marRatioSimetrico(row.kSL,row.kSM,row.kSH);
-  const r=mode==='simetrica'&&ratio?ratio.r:1;
-
-  let lSL,lSM,lSH;
-  if(mode==='estandar'){
-    lSL=10; lSM=-20; lSH=10;
-  } else {
-    // ×100 so r becomes integer — lots: +100 SL / -(1+r)*100 SM / +r*100 SH
-    const mult=100;
-    lSL=mult; lSM=-Math.round((1+r)*mult); lSH=Math.round(r*mult);
-  }
-
-  const fmtL=n=>String(n).replace('.',',');
-  const lines=[
-    `${fmtL(lSL)}\t${fmtStrike(row.kSL).replace(/\./g,'')}\t${row.pSL.toFixed(3).replace('.',',')}`,
-    `${fmtL(lSM)}\t${fmtStrike(row.kSM).replace(/\./g,'')}\t${row.pSM.toFixed(3).replace('.',',')}`,
-    `${fmtL(lSH)}\t${fmtStrike(row.kSH).replace(/\./g,'')}\t${row.pSH.toFixed(3).replace('.',',')}`
-  ];
-  const tsv=lines.join('\n');
-  const label=mode==='simetrica'?'Simétrica':'Estándar';
-  navigator.clipboard.writeText(tsv)
-    .then(()=>showToast(`Mariposa ${label} copiada — ${fmtStrike(row.kSM)}`))
-    .catch(()=>{
-      const ta=document.createElement('textarea');
-      ta.value=tsv;ta.style.position='fixed';ta.style.opacity='0';
-      document.body.appendChild(ta);ta.select();
-      document.execCommand('copy');document.body.removeChild(ta);
-      showToast(`Mariposa ${label} copiada — ${fmtStrike(row.kSM)}`);
-    });
-}
-
-function marBuildRows(strikes,pricesFn,wings){
-  // strikes: sorted array of strike values
-  // pricesFn(K) -> price for that strike
-  // wings: how many SL/SH offsets to generate per SM
-  const S=ST.spot;
-  // Find ATM index
-  const atmIdx=strikes.reduce((pi,s,i)=>Math.abs(s-S)<Math.abs(strikes[pi]-S)?i:pi,0);
-  // SM candidates: strikes within wings positions around ATM
-  const smRange=wings;
-  const rows=[];
-  for(let si=Math.max(0,atmIdx-smRange);si<=Math.min(strikes.length-1,atmIdx+smRange);si++){
-    const kSM=strikes[si];
-    const pSM=pricesFn(kSM);
-    if(!pSM||pSM<=0)continue;
-    // Generate combinations: SL below SM, SH above SM
-    // offset 0: nearest available on each side; +1: next one out; etc.
-    const below=strikes.slice(0,si).reverse(); // strikes below SM, nearest first
-    const above=strikes.slice(si+1);           // strikes above SM, nearest first
-    for(let off=0;off<Math.min(wings,below.length,above.length);off++){
-      const kSL=below[off];
-      const kSH=above[off];
-      const pSL=pricesFn(kSL);
-      const pSH=pricesFn(kSH);
-      if(!pSL||pSL<=0||!pSH||pSH<=0)continue;
-      rows.push({label:`${fmtStrike(kSM)} + ${off}`,kSL,kSM,kSH,pSL,pSM,pSH});
-    }
-  }
-  return rows;
-}
-
-const MAR_TH_STYLE='padding:7px 8px;border-bottom:1px solid var(--border);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;white-space:nowrap;text-align:center;color:';
-function marBuildHeader(trEl){
-  const cols=[
-    ['var(--muted)','Mariposa'],
-    ['var(--muted)','Strike SL'],
-    ['var(--muted)','Strike SM'],
-    ['var(--muted)','Strike SH'],
-    ['var(--text)','Precio SL'],
-    ['var(--text)','Precio SM'],
-    ['var(--text)','Precio SH'],
-    ['var(--amber)','Costo Bruto'],
-    ['var(--amber)','Costo Neto (1×2×1)'],
-    ['var(--amber)','Costo Simétrico'],
-    ['var(--muted)','Ratio Simétrico'],
-    ['var(--blue)','Generar'],
-  ];
-  trEl.innerHTML=cols.map(([c,t])=>`<th style="${MAR_TH_STYLE}${c}">${t}</th>`).join('');
-}
-
-function marBuildTBody(rows,com,iva,lotes,tbodyEl){
-  tbodyEl.innerHTML='';
-  rows.forEach((row,ri)=>{
-    const bruto=marCostoBruto(row.pSL,row.pSM,row.pSH,lotes);
-    const neto=marCostoNeto(row.pSL,row.pSM,row.pSH,lotes,com,iva);
-    const simetrico=marCostoSimetrico(row.pSL,row.pSM,row.pSH,row.kSL,row.kSM,row.kSH);
-    const ratio=marRatioSimetrico(row.kSL,row.kSM,row.kSH);
-    const colorVal=v=>v==null?'var(--muted)':v<=0||Math.abs(v)<threshold?'var(--green)':'var(--red)';
-    const fmtCost=v=>v!=null?(v<=0?'+':'')+fmtN(Math.abs(v))+(v<=0?' crédito':' débito'):'--';
-    const tr=document.createElement('tr');
-    tr.style.borderBottom='1px solid var(--border2)';
-    tr.innerHTML=`
-      <td style="padding:4px 8px;text-align:center;color:var(--muted);white-space:nowrap">${row.label}</td>
-      <td style="padding:4px 8px;text-align:center;color:var(--muted)">${fmtStrike(row.kSL)}</td>
-      <td style="padding:4px 8px;text-align:center;color:var(--amber)">${fmtStrike(row.kSM)}</td>
-      <td style="padding:4px 8px;text-align:center;color:var(--muted)">${fmtStrike(row.kSH)}</td>
-      <td style="padding:4px 8px;text-align:center">${fmtN(row.pSL)}</td>
-      <td style="padding:4px 8px;text-align:center;color:var(--amber)">${fmtN(row.pSM)}</td>
-      <td style="padding:4px 8px;text-align:center">${fmtN(row.pSH)}</td>
-      <td style="padding:4px 8px;text-align:center;font-weight:500;color:${colorVal(bruto)}">${fmtN(bruto)}</td>
-      <td style="padding:4px 8px;text-align:center;font-weight:500;color:${colorVal(neto)}">${fmtN(neto)}</td>
-      <td style="padding:4px 8px;text-align:center;font-weight:500;color:${colorVal(simetrico)}">${simetrico!=null?fmtN(simetrico):'--'}</td>
-      <td style="padding:4px 8px;text-align:center;color:var(--muted);font-size:10px">${ratio?("1 × "+(1+ratio.r).toFixed(2).replace(".",",")+" × "+ratio.r.toFixed(2).replace(".",",")):"--"}</td>
-      <td style="padding:4px 8px;text-align:center;white-space:nowrap">
-        <button onclick="marCopyStrategy(MAR_ROWS[${ri}],'estandar')"
-          style="padding:2px 8px;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;cursor:pointer;margin-right:4px"
-          onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">Estándar</button>
-        <button onclick="marCopyStrategy(MAR_ROWS[${ri}],'simetrica')"
-          style="padding:2px 8px;font-size:10px;background:var(--surface2);border:1px solid var(--blue);color:var(--blue);border-radius:4px;cursor:pointer"
-          onmouseover="this.style.background='rgba(90,171,255,0.1)'" onmouseout="this.style.background='var(--surface2)'">Simétrica</button>
-      </td>`;
-    tbodyEl.appendChild(tr);
-  });
-}
-
-let MAR_ROWS=[];  // flat array for button callbacks
-
-function renderMariposa(){
-  marPopulateExpiry();
-  const exp=document.getElementById('mar-expiry')?.value||ST.selExpiry;
-  if(!exp||!ST.chain[exp]){
-    document.getElementById('mar-body-calls').innerHTML=`<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--muted)">Sin datos — cargá la cadena de opciones primero</td></tr>`;
-    document.getElementById('mar-body-puts').innerHTML='';
-    return;
-  }
-  const wings=Math.max(1,parseInt(document.getElementById('mar-wings')?.value)||3);
-  const com=parseFloat(document.getElementById('mar-com')?.value)||0.5;
-  const iva=parseFloat(document.getElementById('mar-iva')?.value)||1.21;
-  const lotes=1;
-  const threshold=Math.max(0,parseInt(document.getElementById('mar-threshold')?.value)||5000);
-  const chainRows=ST.chain[exp];
-  const strikes=chainRows.map(r=>r.strike).sort((a,b)=>a-b);
-
-  // Price functions using callMid / putMid (LAST price)
-  const callPrice=K=>{const r=chainRows.find(x=>Math.round(x.strike*100)===Math.round(K*100));return r?(r.callMid||0):0;};
-  const putPrice =K=>{const r=chainRows.find(x=>Math.round(x.strike*100)===Math.round(K*100));return r?(r.putMid||0):0;};
-
-  const callRows=marBuildRows(strikes,callPrice,wings);
-  const putRows =marBuildRows(strikes,putPrice,wings);
-
-  // Store flat for button callbacks with offset
-  MAR_ROWS=[...callRows,...putRows];
-
-  // Rebuild button indices per table
-  const callRowsOffset=0;
-  const putRowsOffset=callRows.length;
-
-  // Build headers
-  const thCalls=document.getElementById('mar-thead-calls');
-  const thPuts =document.getElementById('mar-thead-puts');
-  if(thCalls)marBuildHeader(thCalls);
-  if(thPuts) marBuildHeader(thPuts);
-
-  // Build bodies — need per-table row index offset for MAR_ROWS
-  function buildBody(rows,offset,tbodyEl){
-    tbodyEl.innerHTML='';
-    rows.forEach((row,ri)=>{
-      const globalIdx=offset+ri;
-      const bruto=marCostoBruto(row.pSL,row.pSM,row.pSH,lotes);
-      const neto=marCostoNeto(row.pSL,row.pSM,row.pSH,lotes,com,iva);
-      const simetrico=marCostoSimetrico(row.pSL,row.pSM,row.pSH,row.kSL,row.kSM,row.kSH);
-      const ratio=marRatioSimetrico(row.kSL,row.kSM,row.kSH);
-      const colorVal=v=>v==null?'var(--muted)':v<=0||Math.abs(v)<threshold?'var(--green)':'var(--red)';
-      const tr=document.createElement('tr');
-      tr.style.borderBottom='1px solid var(--border2)';
-      // Highlight rows where SM is ATM
-      const S=ST.spot;
-      const atmStrikes=new Set();
-      const sorted=[...strikes].sort((a,b)=>a-b);
-      const below=sorted.filter(s=>s<=S);
-      const above=sorted.filter(s=>s>S);
-      if(below.length)atmStrikes.add(below[below.length-1]);
-      if(above.length)atmStrikes.add(above[0]);
-      if(atmStrikes.has(row.kSM))tr.style.background='rgba(232,184,75,0.07)';
-      tr.innerHTML=`
-        <td style="padding:4px 8px;text-align:center;color:var(--muted);white-space:nowrap">${row.label}</td>
-        <td style="padding:4px 8px;text-align:center;color:var(--muted)">${fmtStrike(row.kSL)}</td>
-        <td style="padding:4px 8px;text-align:center;color:var(--amber)">${fmtStrike(row.kSM)}</td>
-        <td style="padding:4px 8px;text-align:center;color:var(--muted)">${fmtStrike(row.kSH)}</td>
-        <td style="padding:4px 8px;text-align:center">${fmtN(row.pSL)}</td>
-        <td style="padding:4px 8px;text-align:center;color:var(--amber)">${fmtN(row.pSM)}</td>
-        <td style="padding:4px 8px;text-align:center">${fmtN(row.pSH)}</td>
-        <td style="padding:4px 8px;text-align:center;font-weight:500;color:${colorVal(bruto)}">${fmtN(bruto)}</td>
-        <td style="padding:4px 8px;text-align:center;font-weight:500;color:${colorVal(neto)}">${fmtN(neto)}</td>
-        <td style="padding:4px 8px;text-align:center;font-weight:500;color:${colorVal(simetrico)}">${simetrico!=null?fmtN(simetrico):'--'}</td>
-        <td style="padding:4px 8px;text-align:center;color:var(--muted);font-size:10px">${ratio?("1 × "+(1+ratio.r).toFixed(2).replace(".",",")+" × "+ratio.r.toFixed(2).replace(".",",")):"--"}</td>
-        <td style="padding:4px 8px;text-align:center;white-space:nowrap">
-          <button onclick="marCopyStrategy(MAR_ROWS[${globalIdx}],'estandar')"
-            style="padding:2px 8px;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;cursor:pointer;margin-right:4px"
-            onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">Estándar</button>
-          <button onclick="marCopyStrategy(MAR_ROWS[${globalIdx}],'simetrica')"
-            style="padding:2px 8px;font-size:10px;background:var(--surface2);border:1px solid var(--blue);color:var(--blue);border-radius:4px;cursor:pointer"
-            onmouseover="this.style.background='rgba(90,171,255,0.1)'" onmouseout="this.style.background='var(--surface2)'">Simétrica</button>
-        </td>`;
-      tbodyEl.appendChild(tr);
-    });
-    if(!rows.length){
-      tbodyEl.innerHTML=`<tr><td colspan="12" style="padding:16px;text-align:center;color:var(--muted)">Sin combinaciones disponibles para los parámetros actuales</td></tr>`;
-    }
-  }
-
-  buildBody(callRows,callRowsOffset,document.getElementById('mar-body-calls'));
-  buildBody(putRows, putRowsOffset, document.getElementById('mar-body-puts'));
-}
-
-/* ===== MÓDULO ANÁLISIS DE ESTRATEGIAS ===== */
-
-function anaPopulateExpiry(){
-  const sel=document.getElementById('ana-expiry');
-  if(!sel)return;
-  const cur=sel.value;
-  sel.innerHTML='';
-  ST.expirations.forEach(e=>{
-    const o=document.createElement('option');
-    o.value=e;o.textContent=fmtExpiry(e);
-    if(e===cur)o.selected=true;
-    sel.appendChild(o);
-  });
-  if(!sel.value&&ST.selExpiry)sel.value=ST.selExpiry;
-}
-
-function anaGetChain(exp){
-  if(!exp||!ST.chain[exp])return null;
-  return [...ST.chain[exp]].sort((a,b)=>a.strike-b.strike);
-}
-
-function anaATM(rows){
-  const S=ST.spot;
-  return rows.reduce((p,r)=>Math.abs(r.strike-S)<Math.abs(p.strike-S)?r:p,rows[0]);
-}
-
-function anaRowByStrike(rows,K){
-  return rows.find(r=>Math.round(r.strike*100)===Math.round(K*100))||null;
-}
-
-function anaNthOTM(rows,type,n){
-  // n=1 → first OTM, n=2 → second OTM etc.
-  const S=ST.spot;
-  if(type==='call'){
-    const above=rows.filter(r=>r.strike>S).sort((a,b)=>a.strike-b.strike);
-    return above[n-1]||null;
-  } else {
-    const below=rows.filter(r=>r.strike<S).sort((a,b)=>b.strike-a.strike);
-    return below[n-1]||null;
-  }
-}
-
-function anaDays(exp){
-  if(!exp)return 0;
-  return Math.max(0,Math.round((new Date(exp+'T12:00:00')-Date.now())/(1000*60*60*24)));
-}
-
-// ---- Card builder ----
-const BADGE={
-  ALCISTA:  {label:'ALCISTA',   bg:'rgba(68,199,106,0.15)', color:'var(--green)',   border:'rgba(68,199,106,0.4)'},
-  BAJISTA:  {label:'BAJISTA',   bg:'rgba(240,90,90,0.15)',  color:'var(--red)',     border:'rgba(240,90,90,0.4)'},
-  NEUTRO:   {label:'NEUTRO',    bg:'rgba(122,143,166,0.15)',color:'var(--muted)',   border:'rgba(122,143,166,0.3)'},
-  COBERTURA:{label:'COBERTURA', bg:'rgba(90,171,255,0.15)', color:'var(--blue)',    border:'rgba(90,171,255,0.4)'},
-  VOLATILIDAD:{label:'VOLATILIDAD',bg:'rgba(232,184,75,0.15)',color:'var(--amber)', border:'rgba(232,184,75,0.4)'},
-};
-
-function anaCard({title,subtitle,badge,icon,desc,metrics,legs,extra}){
-  const b=BADGE[badge]||BADGE.NEUTRO;
-  const badgeHtml=`<span style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:3px;background:${b.bg};color:${b.color};border:1px solid ${b.border};letter-spacing:.5px">${b.label}</span>`;
-  const metHtml=(metrics||[]).map(([label,val,color])=>`
-    <div style="display:flex;flex-direction:column;gap:2px">
-      <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">${label}</span>
-      <span style="font-family:var(--mono);font-size:13px;font-weight:500;color:${color||'var(--text)'}">${val}</span>
-    </div>`).join('');
-  const legsHtml=(legs||[]).map(l=>`
-    <div style="padding:5px 10px;border-radius:4px;background:${l.side==='buy'?'rgba(68,199,106,0.08)':'rgba(240,90,90,0.08)'};border:1px solid ${l.side==='buy'?'rgba(68,199,106,0.2)':'rgba(240,90,90,0.2)'};font-family:var(--mono);font-size:11px;color:${l.side==='buy'?'var(--green)':'var(--red)'}">
-      ${l.label}
-    </div>`).join('');
-
-  const el=document.createElement('div');
-  el.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px';
-  el.innerHTML=`
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-      <div>
-        <div style="font-family:var(--sans);font-size:13px;font-weight:600;color:var(--text)">${icon?icon+' ':''}${title}</div>
-        ${subtitle?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${subtitle}</div>`:''}
-      </div>
-      ${badgeHtml}
-    </div>
-    ${desc?`<div style="font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid var(--border2);padding-top:8px">${desc}</div>`:''}
-    ${metrics?.length?`<div style="display:grid;grid-template-columns:repeat(${Math.min(metrics.length,3)},1fr);gap:10px;padding:10px;background:var(--surface2);border-radius:6px">${metHtml}</div>`:''}
-    ${legs?.length?`<div style="display:flex;flex-direction:column;gap:4px">${legsHtml}</div>`:''}
-    ${extra?`<div style="font-size:10px;color:var(--muted);border-top:1px solid var(--border2);padding-top:6px">${extra}</div>`:''}
-  `;
-  return el;
-}
-
-function renderAnalisis(){
-  anaPopulateExpiry();
-  const exp=document.getElementById('ana-expiry')?.value||ST.selExpiry;
-  const shares=parseInt(document.getElementById('ana-shares')?.value)||100;
-  const costBasis=parseFloat(document.getElementById('ana-cost')?.value)||ST.spot;
-  const grid=document.getElementById('ana-grid');
-  if(!grid)return;
-  grid.innerHTML='';
-
-  const rows=anaGetChain(exp);
-  if(!rows||!rows.length){
-    grid.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted)">Sin datos — cargá la cadena de opciones primero</div>';
-    return;
-  }
-
-  const S=ST.spot;
-  const days=anaDays(exp);
-  const expLabel=fmtExpiry(exp);
-  const atm=anaATM(rows);
-
-  // helpers
-  const c=r=>r?.callMid||0;
-  const p=r=>r?.putMid||0;
-  const fS=K=>fmtStrike(K);
-  const fP=v=>`$${fmtN(v)}`;
-  const pct=v=>`${v>=0?'+':''}${(v*100).toFixed(1)}%`;
-  const ve=(r,type)=>{const v=type==='call'?r?.callLastVE:r?.putLastVE;return v!=null?(v*100).toFixed(2)+'%':'--';};
-
-  // ATM call/put
-  const atmCall=c(atm);
-  const atmPut=p(atm);
-  const atmK=atm.strike;
-
-  // OTM strikes
-  const otmCall1=anaNthOTM(rows,'call',1);
-  const otmCall2=anaNthOTM(rows,'call',2);
-  const otmPut1=anaNthOTM(rows,'put',1);
-  const otmPut2=anaNthOTM(rows,'put',2);
-
-  // Slightly ITM call for bull spread (ATM or 1st above)
-  const bullLow=atm;
-  const bullHigh=otmCall1;
-  // Bear spread
-  const bearHigh=atm;
-  const bearLow=otmPut1;
-
-  // ── 1. Bull Call Spread ──
-  if(bullLow&&bullHigh){
-    const debit=c(bullLow)-c(bullHigh);
-    const maxProfit=(bullHigh.strike-bullLow.strike)*100-debit*100;
-    const be=bullLow.strike+debit;
-    const rr=maxProfit>0?((maxProfit/(debit*100))).toFixed(1):'--';
-    grid.appendChild(anaCard({
-      title:'Bull Call Spread',
-      subtitle:`${fS(bullLow.strike)} / ${fS(bullHigh.strike)}`,
-      badge:'ALCISTA',icon:'📈',
-      desc:`Spread alcista limitado. Compra call ${fS(bullLow.strike)} y vende call ${fS(bullHigh.strike)}. Beneficio si el precio sube hacia ${fS(bullHigh.strike)}.`,
-      metrics:[
-        ['Débito neto',fP(debit*100),'var(--red)'],
-        ['Break even',fS(be),'var(--amber)'],
-        ['Máx. ganancia',fP(maxProfit),'var(--green)'],
-        ['Risk/Reward',rr+'x','var(--text)'],
-        ['VE compra',ve(bullLow,'call'),'var(--blue)'],
-        ['VE venta',ve(bullHigh,'call'),'var(--blue)'],
-        ['VTO',expLabel,'var(--muted)'],
-        ['Días',days+'d','var(--muted)'],
-      ],
-      legs:[
-        {side:'buy',label:`COMPRA call ${fS(bullLow.strike)}  prima ${fP(c(bullLow))}`},
-        {side:'sell',label:`VENTA call ${fS(bullHigh.strike)}  prima ${fP(c(bullHigh))}`},
-      ]
-    }));
-  }
-
-  // ── 2. Bear Put Spread ──
-  if(bearHigh&&bearLow){
-    const debit=p(bearHigh)-p(bearLow);
-    const maxProfit=(bearHigh.strike-bearLow.strike)*100-debit*100;
-    const be=bearHigh.strike-debit;
-    const rr=maxProfit>0?(maxProfit/(debit*100)).toFixed(1):'--';
-    grid.appendChild(anaCard({
-      title:'Bear Put Spread',
-      subtitle:`${fS(bearLow.strike)} / ${fS(bearHigh.strike)}`,
-      badge:'BAJISTA',icon:'📉',
-      desc:`Spread bajista limitado. Compra put ${fS(bearHigh.strike)} y vende put ${fS(bearLow.strike)}. Beneficio si el precio cae hacia ${fS(bearLow.strike)}.`,
-      metrics:[
-        ['Débito neto',fP(debit*100),'var(--red)'],
-        ['Break even',fS(be),'var(--amber)'],
-        ['Máx. ganancia',fP(maxProfit),'var(--green)'],
-        ['Risk/Reward',rr+'x','var(--text)'],
-        ['VE compra',ve(bearHigh,'put'),'var(--blue)'],
-        ['VE venta',ve(bearLow,'put'),'var(--blue)'],
-        ['VTO',expLabel,'var(--muted)'],
-        ['Días',days+'d','var(--muted)'],
-      ],
-      legs:[
-        {side:'buy',label:`COMPRA put ${fS(bearHigh.strike)}  prima ${fP(p(bearHigh))}`},
-        {side:'sell',label:`VENTA put ${fS(bearLow.strike)}  prima ${fP(p(bearLow))}`},
-      ]
-    }));
-  }
-
-  // ── 3. Covered Call ──
-  if(otmCall1){
-    const premium=c(otmCall1);
-    const callK=otmCall1.strike;
-    const maxProfit=(callK-costBasis)*shares+premium*100;
-    const be=costBasis-premium;
-    const retorno=premium/S;
-    grid.appendChild(anaCard({
-      title:'Covered Call',
-      subtitle:`Venta call ${fS(callK)} · Ingreso sobre tenencia`,
-      badge:'NEUTRO',icon:'🛡️',
-      desc:`${fS(callK)} es el Call Wall — zona de máxima resistencia de gamma positiva. Ideal para vender si ya tenés acciones. El precio difícilmente supere ese nivel antes del vencimiento.`,
-      metrics:[
-        ['Prima cobrada',fP(premium*100),'var(--green)'],
-        ['Break even',fS(be),'var(--amber)'],
-        ['Máx. ganancia',fP(maxProfit),'var(--green)'],
-        ['Retorno prima',pct(retorno),'var(--green)'],
-        ['Last VE',ve(otmCall1,'call'),'var(--blue)'],
-        ['VTO',expLabel,'var(--muted)'],
-        ['Días',days+'d','var(--muted)'],
-      ],
-      legs:[
-        {side:'buy',label:`TENENCIA ${shares} acc. GGAL @ ${fP(costBasis)}`},
-        {side:'sell',label:`VENTA call ${fS(callK)}  prima ${fP(premium)}`},
-      ]
-    }));
-  }
-
-  // ── 4. Venta Put Cash Secured ──
-  if(otmPut1){
-    const putK=otmPut1.strike;
-    const premium=p(otmPut1);
-    const be=putK-premium;
-    const ganancia=premium*100;
-    const garantia=putK*100;
-    grid.appendChild(anaCard({
-      title:'Venta Put (Cash Secured)',
-      subtitle:`Venta put ${fS(putK)} · Entrada con descuento`,
-      badge:'ALCISTA',icon:'💰',
-      desc:`Cobrás la prima ahora. Si el precio se mantiene sobre ${fS(putK)} al vencimiento, la put vence sin valor. Si baja, comprás acciones efectivamente a ${fS(be)} (BE).`,
-      metrics:[
-        ['Prima cobrada',fP(ganancia),'var(--green)'],
-        ['Break even',fS(be),'var(--amber)'],
-        ['Ganancia máx.',fP(ganancia),'var(--green)'],
-        ['Strike vs Spot',pct((putK-S)/S),'var(--muted)'],
-        ['Last VE',ve(otmPut1,'put'),'var(--blue)'],
-        ['VTO',expLabel,'var(--muted)'],
-        ['Días',days+'d','var(--muted)'],
-      ],
-      legs:[
-        {side:'sell',label:`VENTA put ${fS(putK)}  prima ${fP(premium)}`},
-        {side:'buy',label:`GARANTÍA efectivo ${fS(putK)} × lote`},
-      ]
-    }));
-  }
-
-  // ── 5. Straddle ATM ──
-  const straddleCost=(atmCall+atmPut)*100;
-  const beUp=atmK+atmCall+atmPut;
-  const beDown=atmK-(atmCall+atmPut);
-  if(atmCall>0&&atmPut>0){
-    const T=rows[0]?.T||(days/365);
-    const ivAtm=impliedVol(S,atmK,T,ST.rate,ST.q,atmCall,'call')||0;
-    grid.appendChild(anaCard({
-      title:'Straddle ATM',
-      subtitle:`Compra call+put ${fS(atmK)} · Apuesta a volatilidad`,
-      badge:'VOLATILIDAD',icon:'⚡',
-      desc:`Ganás si el mercado se mueve bruscamente en cualquier dirección. Perdés la prima si el precio permanece cerca de ${fS(atmK)}.`,
-      metrics:[
-        ['Prima total',fP(straddleCost),'var(--red)'],
-        ['BE arriba',fS(beUp),'var(--green)'],
-        ['BE abajo',fS(beDown),'var(--green)'],
-        ['VE call ATM',ve(atm,'call'),'var(--blue)'],
-        ['VE put ATM',ve(atm,'put'),'var(--blue)'],
-        ['VTO',expLabel,'var(--muted)'],
-        ['Días',days+'d','var(--muted)'],
-      ],
-      legs:[
-        {side:'buy',label:`COMPRA call ${fS(atmK)}  prima ${fP(atmCall)}`},
-        {side:'buy',label:`COMPRA put ${fS(atmK)}  prima ${fP(atmPut)}`},
-      ]
-    }));
-  }
-
-  // ── 6. Strangle OTM ──
-  if(otmCall1&&otmPut1){
-    const cP=c(otmCall1),pP=p(otmPut1);
-    const cost=(cP+pP)*100;
-    const beUpS=otmCall1.strike+cP+pP;
-    const beDnS=otmPut1.strike-(cP+pP);
-    const savings=straddleCost-cost;
-    grid.appendChild(anaCard({
-      title:'Strangle OTM',
-      subtitle:`${fS(otmPut1.strike)} / ${fS(otmCall1.strike)}`,
-      badge:'VOLATILIDAD',icon:'🔀',
-      desc:`Versión más barata del straddle. Necesita un movimiento mayor para ser rentable, pero el rango ${fS(otmPut1.strike)} – ${fS(otmCall1.strike)} es más amplio.`,
-      metrics:[
-        ['Prima total',fP(cost),'var(--red)'],
-        ['BE arriba',fS(beUpS),'var(--green)'],
-        ['BE abajo',fS(beDnS),'var(--green)'],
-        ['Ahorro vs straddle',fP(savings),'var(--green)'],
-        ['VE call',ve(otmCall1,'call'),'var(--blue)'],
-        ['VE put',ve(otmPut1,'put'),'var(--blue)'],
-        ['VTO',expLabel,'var(--muted)'],
-        ['Días',days+'d','var(--muted)'],
-      ],
-      legs:[
-        {side:'buy',label:`COMPRA call ${fS(otmCall1.strike)}  prima ${fP(cP)}`},
-        {side:'buy',label:`COMPRA put ${fS(otmPut1.strike)}  prima ${fP(pP)}`},
-      ]
-    }));
-  }
-
-  // ── 7. Compra Call Directa ──
-  if(otmCall1){
-    const callK=otmCall1.strike;
-    const premium=c(otmCall1);
-    const be=callK+premium;
-    const T=rows[0]?.T||(days/365);
-    const greeks=bs(S,callK,T,ST.rate,ST.q,impliedVol(S,callK,T,ST.rate,ST.q,premium,'call')||0.5,'call');
-    grid.appendChild(anaCard({
-      title:'Compra Call Directa',
-      subtitle:`Call ${fS(callK)} · Ruptura al alza`,
-      badge:'ALCISTA',icon:'🚀',
-      desc:`Compra especulativa. Si el precio supera ${fS(be)} antes del vencimiento la operación es ganadora. Delta ${greeks.delta.toFixed(2)} — cada punto que sube el spot, la prima sube ~${fmtN(greeks.delta)}.`,
-      metrics:[
-        ['Prima',fP(premium*100),'var(--red)'],
-        ['Break even',fS(be),'var(--amber)'],
-        ['Target',fS(callK+(callK-S)*1.5),'var(--green)'],
-        ['Delta',greeks.delta.toFixed(2),'var(--text)'],
-        ['Last VE',ve(otmCall1,'call'),'var(--blue)'],
-        ['VTO',expLabel,'var(--muted)'],
-        ['Días',days+'d','var(--muted)'],
-      ],
-      legs:[
-        {side:'buy',label:`COMPRA call ${fS(callK)}  prima ${fP(premium)}`},
-      ]
-    }));
-  }
-
-  // ── 8. Compra Put Cobertura ──
-  if(otmPut1){
-    const putK=otmPut1.strike;
-    const premium=p(otmPut1);
-    const be=putK-premium;
-    const T=rows[0]?.T||(days/365);
-    const greeks=bs(S,putK,T,ST.rate,ST.q,impliedVol(S,putK,T,ST.rate,ST.q,premium,'put')||0.5,'put');
-    grid.appendChild(anaCard({
-      title:'Compra Put — Cobertura',
-      subtitle:`Put ${fS(putK)} · Protección bajista`,
-      badge:'COBERTURA',icon:'🔒',
-      desc:`Seguro bajista sobre tu cartera. Si el precio cae bajo ${fS(be)} la put compensa las pérdidas. Delta ${greeks.delta.toFixed(2)}.`,
-      metrics:[
-        ['Prima',fP(premium*100),'var(--red)'],
-        ['Break even',fS(be),'var(--amber)'],
-        ['Target bajista',fS(putK-(S-putK)*1.5),'var(--red)'],
-        ['Delta',greeks.delta.toFixed(2),'var(--text)'],
-        ['Last VE',ve(otmPut1,'put'),'var(--blue)'],
-        ['VTO',expLabel,'var(--muted)'],
-        ['Días',days+'d','var(--muted)'],
-      ],
-      legs:[
-        {side:'buy',label:`COMPRA put ${fS(putK)}  prima ${fP(premium)}`},
-      ]
-    }));
-  }
-}
-
-/* ===== MÓDULO TUTORIALES ===== */
-const TUT_PAGES={
-
-cadena:`
-<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">📊 Cadena de opciones</h2>
-<p style="color:var(--muted);font-size:12px;margin:0 0 20px">Visualización en tiempo real de calls y puts para el vencimiento seleccionado.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">¿Qué muestra?</h3>
-<p>La cadena de opciones presenta todos los contratos disponibles para GGAL organizados por strike. Las <span style="color:var(--green)">calls</span> están a la izquierda y las <span style="color:var(--red)">puts</span> a la derecha, con el strike en el centro.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Columnas</h3>
-<table style="width:100%;border-collapse:collapse;font-size:12px">
-  <tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Campo</th><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Descripción</th></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--green)">Delta</td><td style="padding:6px 10px;color:var(--muted)">Sensibilidad del precio de la opción ante movimientos del subyacente. Call: 0 a 1. Put: -1 a 0.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Vega</td><td style="padding:6px 10px;color:var(--muted)">Cuánto cambia la prima ante un cambio del 1% en volatilidad implícita.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Theta</td><td style="padding:6px 10px;color:var(--muted)">Decaimiento diario del valor de la opción por el paso del tiempo. Siempre negativo.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Bid / Ask</td><td style="padding:6px 10px;color:var(--muted)">Mejor precio de compra y venta disponible en el mercado.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--green)">Last</td><td style="padding:6px 10px;color:var(--muted)">Último precio operado. Es el valor que se usa para calcular la IV implícita.</td></tr>
-  <tr><td style="padding:6px 10px;color:var(--amber)">IV</td><td style="padding:6px 10px;color:var(--muted)">Volatilidad implícita calculada con Black-Scholes a partir del Last.</td></tr>
-</table>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Colores de filas</h3>
-<ul style="color:var(--muted);padding-left:18px;margin:0">
-  <li style="margin-bottom:6px"><span style="color:var(--green)">Verde</span> — Call ITM: el precio actual del subyacente está por encima del strike.</li>
-  <li style="margin-bottom:6px"><span style="color:var(--red)">Rojo suave</span> — Put ITM: el precio actual está por debajo del strike.</li>
-  <li><span style="color:var(--amber)">Ámbar</span> — Strikes ATM: los dos más cercanos al precio spot actual.</li>
-</ul>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Barra Black-Scholes</h3>
-<p style="color:var(--muted)">Permite ajustar el Spot, Tasa libre de riesgo, Dividendos y Días al vencimiento para recalcular la IV implícita de todos los contratos en tiempo real sin necesidad de recargar datos.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Greeks al hacer click</h3>
-<p style="color:var(--muted)">Al hacer click en cualquier opción de la cadena se abre un panel con los 6 griegos completos: Delta, Gamma, Theta, Vega, Rho y el precio teórico BS.</p>
-`,
-
-control:`
-<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">🎛️ Control de estrategias</h2>
-<p style="color:var(--muted);font-size:12px;margin:0 0 20px">Seguimiento del P&L de tus posiciones abiertas con precios actualizados de la cadena.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">¿Para qué sirve?</h3>
-<p style="color:var(--muted)">Permite registrar las patas de tus estrategias con el precio al que las armaste, y compararlas con el precio actual del mercado para ver el resultado si las desarmaras hoy.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Columnas</h3>
-<table style="width:100%;border-collapse:collapse;font-size:12px">
-  <tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Campo</th><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Descripción</th></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Lotes</td><td style="padding:6px 10px;color:var(--muted)">Cantidad de contratos. Positivo = compra, negativo = venta.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Precio</td><td style="padding:6px 10px;color:var(--muted)">Precio al que se armó la pata (precio de entrada).</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">Costo c/Comi</td><td style="padding:6px 10px;color:var(--muted)">Costo total de armar esa pata incluyendo comisión e IVA. Negativo = débito.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Precio Last</td><td style="padding:6px 10px;color:var(--muted)">Precio actual de la opción tomado de la cadena activa.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Precio Manual</td><td style="padding:6px 10px;color:var(--muted)">Si cargás un precio aquí, pisa el Last para ese cálculo (aparece badge "MAN").</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">Desarmado c/Comi</td><td style="padding:6px 10px;color:var(--muted)">Cuánto recibirías/pagarías al cerrar esa pata hoy.</td></tr>
-  <tr><td style="padding:6px 10px">Dif Precio %</td><td style="padding:6px 10px;color:var(--muted)">Variación porcentual entre el precio de entrada y el precio actual.</td></tr>
-</table>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Fórmulas de costo</h3>
-<p style="color:var(--muted);font-family:var(--mono);font-size:11px;background:var(--surface2);padding:10px;border-radius:5px;border:1px solid var(--border2)">
-Costo armado = -100 × lotes × precio × (1 + SIGN(lotes) × (com% + 0.2%) × IVA)<br>
-Desarmado = 100 × lotes × precioLast × (1 - SIGN(lotes) × (com% + 0.2%) × IVA)
-</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Pegado de datos (TSV)</h3>
-<p style="color:var(--muted)">Podés pegar datos directamente desde Excel o el módulo Mariposa. El formato esperado es una fila por pata: <code style="background:var(--bg);padding:2px 6px;border-radius:3px">lotes ⇥ strike ⇥ precio</code></p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Persistencia</h3>
-<p style="color:var(--muted)">Las estrategias se guardan automáticamente en el navegador (localStorage). Al reabrir la página se restauran solas. El botón <strong style="color:var(--red)">✕ Limpiar guardado</strong> elimina todo lo guardado.</p>
-`,
-
-ivsmile:`
-<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">📈 Smile de volatilidad</h2>
-<p style="color:var(--muted);font-size:12px;margin:0 0 20px">Curva de volatilidad implícita por strike para cada vencimiento disponible.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">¿Qué muestra?</h3>
-<p style="color:var(--muted)">El smile de volatilidad grafica la IV implícita de cada strike para los vencimientos disponibles. En mercados normales forma una "sonrisa" o "skew": las opciones OTM suelen tener mayor IV que las ATM.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Interpretación</h3>
-<ul style="color:var(--muted);padding-left:18px;margin:0">
-  <li style="margin-bottom:6px"><strong>Skew negativo (put skew)</strong>: las puts OTM tienen IV más alta que las calls OTM. Indica miedo bajista en el mercado.</li>
-  <li style="margin-bottom:6px"><strong>Smile simétrico</strong>: IV alta en ambos extremos, mercado en equilibrio.</li>
-  <li style="margin-bottom:6px"><strong>Curva plana</strong>: poca diferencia de IV entre strikes — mercado sin dirección clara.</li>
-  <li><strong>Pico ATM</strong>: el mercado está pagando más por opciones cerca del precio actual.</li>
-</ul>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Línea vertical</h3>
-<p style="color:var(--muted)">La línea punteada vertical indica el precio spot actual del subyacente (GGAL). Los strikes a la izquierda son puts ITM / calls OTM, y los de la derecha son calls ITM / puts OTM.</p>
-`,
-
-histdata:`
-<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">🗂️ Datos históricos</h2>
-<p style="color:var(--muted);font-size:12px;margin:0 0 20px">Evolución histórica de precios, IV y métricas de estrategia para dos strikes seleccionados.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Parámetros</h3>
-<table style="width:100%;border-collapse:collapse;font-size:12px">
-  <tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Parámetro</th><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Descripción</th></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">S1 / S2</td><td style="padding:6px 10px;color:var(--muted)">Los dos strikes a comparar. Podés elegir si son Call o Put con el botón de tipo.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Tasa %</td><td style="padding:6px 10px;color:var(--muted)">Tasa libre de riesgo usada para calcular IV histórica. Default 0%.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Vencimiento</td><td style="padding:6px 10px;color:var(--muted)">Fecha de vencimiento de los contratos. Se usa para calcular el tiempo T en la IV de cada fila histórica.</td></tr>
-  <tr><td style="padding:6px 10px">Relación RI</td><td style="padding:6px 10px;color:var(--muted)">Multiplicador para el Costo RI. Rango 0.1 – 4. Default 2.</td></tr>
-</table>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Columnas calculadas</h3>
-<table style="width:100%;border-collapse:collapse;font-size:12px">
-  <tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Columna</th><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Fórmula</th></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">VI S1 / VI S2</td><td style="padding:6px 10px;color:var(--muted)">IV implícita de cada strike calculada con Black-Scholes inverso (Newton-Raphson) usando el spot histórico del día.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">VI prom.</td><td style="padding:6px 10px;color:var(--muted)">(VI S1 + VI S2) / 2</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">RC</td><td style="padding:6px 10px;color:var(--muted)">Relación de costos = Precio S1 / Precio S2</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Straddle</td><td style="padding:6px 10px;color:var(--muted)">Precio S1 + Precio S2</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Bull/Bear</td><td style="padding:6px 10px;color:var(--muted)">Precio S1 − Precio S2. Si ambos son calls = Bull Call Spread. Si ambos puts = Bear Put Spread.</td></tr>
-  <tr><td style="padding:6px 10px">Costo RI</td><td style="padding:6px 10px;color:var(--muted);font-family:var(--mono);font-size:11px">(S1 × -10) + S2 × RI × 10</td></tr>
-</table>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Fuente de datos</h3>
-<p style="color:var(--muted)">Los datos vienen de la hoja <strong>HMD</strong> de tu Google Sheet. El formato es "tall" (una fila por instrumento por fecha). La columna F contiene el strike canónico que agrupa las bases aunque el strike exacto cambie entre vencimientos.</p>
-`,
-
-mariposa:`
-<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">🦋 Mariposa</h2>
-<p style="color:var(--muted);font-size:12px;margin:0 0 20px">Generador automático de combinaciones de estrategia mariposa desde la cadena activa.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">¿Qué es una mariposa?</h3>
-<p style="color:var(--muted)">La mariposa es una estrategia de tres patas: compra de un strike bajo (SL), venta de un strike medio (SM) y compra de un strike alto (SH). Tiene ganancia máxima si el precio queda exactamente en SM al vencimiento, y pérdida limitada al costo inicial.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Tipos de mariposa</h3>
-<table style="width:100%;border-collapse:collapse;font-size:12px">
-  <tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Tipo</th><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Descripción</th></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--green)">Estándar</td><td style="padding:6px 10px;color:var(--muted)">Ratio 1 × 2 × 1. Las alas son equidistantes en strikes. Se copia como 10 / -20 / 10 lotes.</td></tr>
-  <tr><td style="padding:6px 10px;color:var(--blue)">Simétrica</td><td style="padding:6px 10px;color:var(--muted)">Ajusta el ala alta para que sea equidistante en <strong>$</strong> del SM. Ratio = (SM-SL)/(SH-SM). Se copia con lotes × 100 para evitar decimales.</td></tr>
-</table>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Columnas</h3>
-<table style="width:100%;border-collapse:collapse;font-size:12px">
-  <tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Columna</th><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Fórmula</th></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">Costo Bruto</td><td style="padding:6px 10px;color:var(--muted);font-family:var(--mono);font-size:11px">(pSL − 2×pSM + pSH) × 100</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">Costo Neto</td><td style="padding:6px 10px;color:var(--muted)">Costo Bruto más comisiones de las 3 patas.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">Costo Simétrico</td><td style="padding:6px 10px;color:var(--muted);font-family:var(--mono);font-size:11px">(pSL + r×pSH − (1+r)×pSM) × 100<br><span style="color:var(--dim)">donde r = (SM−SL)/(SH−SM)</span></td></tr>
-  <tr><td style="padding:6px 10px">Ratio Simétrico</td><td style="padding:6px 10px;color:var(--muted)">Muestra los lotes relativos: 1 × (1+r) × r</td></tr>
-</table>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Threshold de color</h3>
-<p style="color:var(--muted)">Los costos se muestran en <span style="color:var(--green)">verde</span> si son ≤ 0 (crédito) o si su valor absoluto es menor al threshold configurado. En <span style="color:var(--red)">rojo</span> si superan ese umbral. Default: 5.000.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Botón Generar</h3>
-<p style="color:var(--muted)">Cada fila tiene dos botones que copian la estrategia al portapapeles en formato TSV listo para pegar en <strong>Control de estrategias</strong>.</p>
-`,
-
-config:`
-<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">⚙️ Configuración</h2>
-<p style="color:var(--muted);font-size:12px;margin:0 0 20px">Cómo conectar el dashboard a tu Google Sheet.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Google Apps Script</h3>
-<ol style="color:var(--muted);padding-left:18px;line-height:2">
-  <li>Abrí tu Google Sheet y andá a <strong>Extensiones → Apps Script</strong></li>
-  <li>Pegá el contenido del archivo <code style="background:var(--bg);padding:2px 6px;border-radius:3px">ggal_appscript.js</code></li>
-  <li>Implementar → Nueva implementación → Tipo: <strong>Aplicación web</strong></li>
-  <li>Ejecutar como: <strong>Yo</strong> · Acceso: <strong>Cualquier persona</strong></li>
-  <li>Copiá la URL generada y pegala en el campo URL del panel de Configuración (ícono ⚙ arriba)</li>
-</ol>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Hojas disponibles</h3>
-<table style="width:100%;border-collapse:collapse;font-size:12px">
-  <tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Hoja</th><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Uso</th></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">DMD_Bot</td><td style="padding:6px 10px;color:var(--muted)">Datos de cotizaciones actualizados automáticamente por un bot.</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">DMD_Sabro</td><td style="padding:6px 10px;color:var(--muted)">Hoja original de cotizaciones con datos ampliados (Last VE, etc.).</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">DMD_Mock</td><td style="padding:6px 10px;color:var(--muted)">Datos de prueba para testear sin afectar las hojas reales.</td></tr>
-  <tr><td style="padding:6px 10px;color:var(--amber)">HMD</td><td style="padding:6px 10px;color:var(--muted)">Datos históricos diarios. Formato tall: una fila por instrumento por fecha.</td></tr>
-</table>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Auto-actualización</h3>
-<p style="color:var(--muted)">El panel de configuración tiene una opción para activar auto-refresh. Las opciones van de 1 a 10 segundos. Cuando está activo, el dashboard recarga los datos de la cadena de opciones automáticamente y actualiza todos los módulos.</p>
-`,
-
-formulas:`
-<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">🔢 Fórmulas y cálculos</h2>
-<p style="color:var(--muted);font-size:12px;margin:0 0 20px">Referencia de los cálculos matemáticos usados en el dashboard.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Black-Scholes</h3>
-<p style="color:var(--muted)">Todos los precios teóricos y griegos se calculan con el modelo Black-Scholes con dividendos continuos (modelo de Merton):</p>
-<div style="font-family:var(--mono);font-size:11px;background:var(--surface2);padding:12px;border-radius:5px;border:1px solid var(--border2);color:var(--muted)">
-d1 = (ln(S/K) + (r - q + σ²/2) × T) / (σ × √T)<br>
-d2 = d1 − σ × √T<br>
-Call = S × e⁻ᵍᵀ × N(d1) − K × e⁻ʳᵀ × N(d2)<br>
-Put  = K × e⁻ʳᵀ × N(-d2) − S × e⁻ᵍᵀ × N(-d1)
-</div>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Volatilidad implícita</h3>
-<p style="color:var(--muted)">Se calcula por el método de Newton-Raphson: dado el precio de mercado, se busca iterativamente la volatilidad σ que hace que Black-Scholes devuelva ese precio. Converge en general en 5-15 iteraciones.</p>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Griegos</h3>
-<table style="width:100%;border-collapse:collapse;font-size:12px">
-  <tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Griego</th><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Definición</th></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Delta (Δ)</td><td style="padding:6px 10px;color:var(--muted)">∂V/∂S — sensibilidad al precio del subyacente</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Gamma (Γ)</td><td style="padding:6px 10px;color:var(--muted)">∂²V/∂S² — tasa de cambio del delta</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Theta (Θ)</td><td style="padding:6px 10px;color:var(--muted)">∂V/∂t — decaimiento por tiempo (por día)</td></tr>
-  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Vega (ν)</td><td style="padding:6px 10px;color:var(--muted)">∂V/∂σ — sensibilidad a la volatilidad</td></tr>
-  <tr><td style="padding:6px 10px">Rho (ρ)</td><td style="padding:6px 10px;color:var(--muted)">∂V/∂r — sensibilidad a la tasa de interés</td></tr>
-</table>
-
-<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Valor extrínseco (Last VE)</h3>
-<div style="font-family:var(--mono);font-size:11px;background:var(--surface2);padding:12px;border-radius:5px;border:1px solid var(--border2);color:var(--muted)">
-VE = (Last − MAX(Spot − Strike, 0)) / Spot  [para calls]<br>
-VE = (Last − MAX(Strike − Spot, 0)) / Spot  [para puts]
-</div>
-<p style="color:var(--muted);margin-top:8px">Expresa cuánto de la prima es "puro tiempo y volatilidad", como porcentaje del spot.</p>
-`
-};
-
-function tutShow(page){
-  // Update content
-  const content=document.getElementById('tut-content');
-  if(content)content.innerHTML=TUT_PAGES[page]||'<p style="color:var(--muted)">Contenido no disponible.</p>';
-
-  // Update sidebar active state
-  document.querySelectorAll('.tut-item').forEach(el=>{
-    const isActive=el.id==='tut-nav-'+page;
-    el.style.color=isActive?'var(--amber)':'var(--muted)';
-    el.style.borderLeftColor=isActive?'var(--amber)':'transparent';
-    el.style.background=isActive?'rgba(232,184,75,0.07)':'transparent';
-  });
-}
-
 (async function init(){
   selectSource('sheets');
   document.getElementById('spot-input').value=ST.spot;
@@ -2470,17 +2339,12 @@ function tutShow(page){
   document.getElementById('iv-r').value=(ST.rate*100).toFixed(1);
   document.getElementById('risk-free-rate').value=(ST.rate*100).toFixed(1);
 
-  // Restore saved strategies from localStorage
-  if(ctrlLoad()){
-    showToast(`${ctrlStrategies.length} estrategia${ctrlStrategies.length>1?'s':''} restaurada${ctrlStrategies.length>1?'s':''} ✓`);
-  }
-
   // Show demo data immediately so the page isn't blank while loading
   generateMockData();populateExpiries();renderChain();syncBSBar();
 
   // Then try to fetch real Sheets data
   const webAppUrl=document.getElementById('sh-webapp-url').value.trim();
-  const sheet=document.getElementById('sh-sheetname').value.trim()||'DMD_Sabro';
+  const sheet=document.getElementById('sh-sheetname').value.trim()||'DMD';
   if(!webAppUrl){
     showToast('Sin URL configurada — mostrando datos demo');
     return;
@@ -2523,3 +2387,6 @@ function tutShow(page){
       .catch(e=>console.warn('HMD auto-load failed:',e.message));
   }
 })();
+</script>
+</body>
+</html>
