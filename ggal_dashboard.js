@@ -136,8 +136,9 @@ function renderChain(){
     const T=!isNaN(daysOverride)&&daysOverride>0 ? daysOverride/365 : row.T;
 
     // Recalculate IV live with current ST.rate / ST.spot / ST.q and market LAST price
-    const midC=row.callMid>0?row.callMid:((row.callBid+row.callAsk)/2||0);
-    const midP=row.putMid>0?row.putMid:((row.putBid+row.putAsk)/2||0);
+    // Only use LAST (callMid/putMid) — no bid/ask fallback
+    const midC=row.callMid>0?row.callMid:0;
+    const midP=row.putMid>0?row.putMid:0;
     const ivC=midC>0 ? (impliedVol(S,row.strike,T,r,q,midC,'call')||null) : null;
     const ivP=midP>0 ? (impliedVol(S,row.strike,T,r,q,midP,'put')||null) : null;
     const vol=ivC||ivP||row.iv;
@@ -1158,12 +1159,8 @@ function parseSheetsRows(rows){
     const safeBid=isNaN(bid)?0:bid;
     const safeAsk=isNaN(ask)?0:ask;
 
-    // mid para IV: usamos LAST si existe, sino promedio bid/ask, sino lo que haya
-    let mid=!isNaN(last)&&last>0 ? last
-          : (safeBid+safeAsk)>0  ? (safeBid+safeAsk)/2
-          : safeBid>0            ? safeBid
-          : safeAsk>0            ? safeAsk
-          : 0;
+    // mid = LAST únicamente. Si no hay last, queda en 0 → se muestra "---" y no se calcula IV
+    const mid=(!isNaN(last)&&last>0) ? last : 0;
 
     opts.push({
       strike:K,
@@ -1213,9 +1210,9 @@ function parseApiData(data){
     const e=o[ef];if(!byExp[e])byExp[e]=[];
     const bid=parseFloat(o[bf])||0;
     const ask=parseFloat(o[af])||0;
-    // Preserve mid from upstream (LAST value) if already set; only fall back to (bid+ask)/2
-    const mid= o.mid>0 ? o.mid : (bid+ask)>0 ? (bid+ask)/2 : bid||ask;
-    byExp[e].push({strike:parseFloat(o[kf]),type:o[tf],bid,ask,mid});
+    // Only use LAST — no bid/ask fallback
+    const mid= o.mid>0 ? o.mid : 0;
+    byExp[e].push({strike:parseFloat(o[kf]),type:o[tf],bid,ask,mid,lastve:o.lastve??null});
   });
   ST.expirations=Object.keys(byExp).sort();ST.chain={};
   ST.expirations.forEach(exp=>{
@@ -1264,11 +1261,12 @@ function fmtExpiry(s){
 }
 function toggleEl(id){const e=document.getElementById(id);e.style.display=e.style.display==='none'?'block':'none'}
 function showTab(name){
-  ['chain','strategy','control','calc','ivsmile','ivcalc','histdata','mariposa','analisis','tutoriales'].forEach(t=>{
-    document.getElementById('tab-'+t).style.display=t===name?'block':'none';
+  ['chain','strategy','control','calc','ivsmile','ivcalc','histdata','mariposa','analisis','promedio','tutoriales'].forEach(t=>{
+    const el=document.getElementById('tab-'+t);
+    if(el)el.style.display=t===name?'block':'none';
   });
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active',['chain','strategy','control','calc','ivsmile','ivcalc','histdata','mariposa','analisis','tutoriales'][i]===name);
+    t.classList.toggle('active',['chain','strategy','control','calc','ivsmile','ivcalc','histdata','mariposa','analisis','promedio','tutoriales'][i]===name);
   });
   if(name==='strategy'&&!ST.charts.pnl)loadPreset('bull_spread',document.querySelector('[data-preset="bull_spread"]'));
   if(name==='calc')setTimeout(runCalc,50);
@@ -2388,6 +2386,52 @@ mariposa:`
 <p style="color:var(--muted)">Cada fila tiene dos botones que copian la estrategia al portapapeles en formato TSV listo para pegar en <strong>Control de estrategias</strong>.</p>
 `,
 
+promedio:`
+<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">⚖️ Precio Promedio</h2>
+<p style="color:var(--muted);font-size:12px;margin:0 0 20px">Calculadora de precio promedio ponderado de compras y ventas con comisiones e IVA.</p>
+
+<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">¿Para qué sirve?</h3>
+<p style="color:var(--muted)">Cuando tenés varias compras y/o ventas del mismo instrumento a distintas primas, este módulo calcula el precio promedio real que pagaste o cobraste, ya con el impacto de comisiones e IVA incluido. Útil para saber exactamente cuál es tu costo base en una posición armada en múltiples tramos.</p>
+
+<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Cómo usarlo</h3>
+<ol style="color:var(--muted);padding-left:18px;line-height:2">
+  <li>Configurá Comisión % e IVA en la barra de parámetros (default 0.5% y 1.21)</li>
+  <li>Copiá las filas desde Excel u otra fuente con el formato <code style="background:var(--bg);padding:2px 6px;border-radius:3px">CANT ⇥ BASE ⇥ PRIMA</code></li>
+  <li>Pegalas en el área de texto — los resultados se calculan en tiempo real</li>
+</ol>
+
+<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Formato de entrada</h3>
+<p style="color:var(--muted)">Tres columnas separadas por tab:</p>
+<div style="font-family:var(--mono);font-size:11px;background:var(--surface2);padding:12px;border-radius:5px;border:1px solid var(--border2);color:var(--muted)">
+10	7326,20	400,001<br>
+-15	7926,20	198,999<br>
+10	7326,20	510,000
+</div>
+<ul style="color:var(--muted);padding-left:18px;margin-top:10px">
+  <li><strong>CANT</strong>: lotes. Positivo = compra, negativo = venta.</li>
+  <li><strong>BASE</strong>: strike del contrato (informativo, no afecta el cálculo).</li>
+  <li><strong>PRIMA</strong>: precio unitario de la opción.</li>
+</ul>
+
+<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Fórmulas</h3>
+<div style="font-family:var(--mono);font-size:11px;background:var(--surface2);padding:12px;border-radius:5px;border:1px solid var(--border2);color:var(--muted)">
+comFactor = (com% + 0.2%) × IVA<br><br>
+Prima c/Comi (compra) = prima × (1 + comFactor)<br>
+Prima c/Comi (venta)  = prima × (1 − comFactor)<br><br>
+Costo total = cant × prima c/Comi × 100<br><br>
+Promedio ponderado = Σ(|cant_i| × prima_i) / Σ|cant_i|
+</div>
+
+<h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Resultados</h3>
+<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Campo</th><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted)">Descripción</th></tr>
+  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--green)">Prima promedio</td><td style="padding:6px 10px;color:var(--muted)">Promedio ponderado por lotes de la prima pura (sin comisión).</td></tr>
+  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px;color:var(--amber)">Prima prom. c/Comi</td><td style="padding:6px 10px;color:var(--muted)">Promedio ponderado ya con comisión e IVA incluidos. Es el costo real por contrato.</td></tr>
+  <tr style="border-bottom:1px solid var(--border2)"><td style="padding:6px 10px">Costo total c/Comi</td><td style="padding:6px 10px;color:var(--muted)">Suma total en $ de todos los desembolsos o ingresos de ese lado.</td></tr>
+  <tr><td style="padding:6px 10px;color:var(--amber)">Resultado neto</td><td style="padding:6px 10px;color:var(--muted)">Balance total de compras + ventas. Positivo = ganancia o crédito neto.</td></tr>
+</table>
+`,
+
 config:`
 <h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">⚙️ Configuración</h2>
 <p style="color:var(--muted);font-size:12px;margin:0 0 20px">Cómo conectar el dashboard a tu Google Sheet.</p>
@@ -2463,6 +2507,114 @@ function tutShow(page){
   });
 }
 
+/* ===== MÓDULO PRECIO PROMEDIO ===== */
+
+function promClear(){
+  const inp=document.getElementById('prom-input');
+  if(inp)inp.value='';
+  calcPromedio();
+}
+
+function calcPromedio(){
+  const raw=document.getElementById('prom-input')?.value||'';
+  const com=parseFloat(document.getElementById('prom-com')?.value)||0.5;
+  const iva=parseFloat(document.getElementById('prom-iva')?.value)||1.21;
+  const comFactor=(com/100+0.002)*iva;
+
+  // Parse rows
+  const rows=[];
+  const lines=raw.trim().split('\n');
+  let parsed=0,errors=0;
+  lines.forEach(line=>{
+    if(!line.trim())return;
+    const cols=line.split('\t');
+    if(cols.length<3){errors++;return;}
+    const cant=parseARSNum(cols[0].trim());
+    const base=parseARSNum(cols[1].trim());
+    const prima=parseARSNum(cols[2].trim());
+    if(isNaN(cant)||isNaN(prima)){errors++;return;}
+    rows.push({cant,base:isNaN(base)?0:base,prima});
+    parsed++;
+  });
+
+  const statusEl=document.getElementById('prom-parse-status');
+  if(statusEl)statusEl.textContent=parsed?`${parsed} fila${parsed>1?'s':''} cargada${parsed>1?'s':''}${errors?` · ${errors} con error`:''}`:errors?`${errors} filas con error`:'';
+
+  // Separate buys and sells
+  const buys=rows.filter(r=>r.cant>0);
+  const sells=rows.filter(r=>r.cant<0);
+
+  // Weighted average helpers
+  function wavg(arr){
+    const totalLotes=arr.reduce((s,r)=>s+Math.abs(r.cant),0);
+    if(!totalLotes)return{lotes:0,avgPrima:0,avgPrimaCom:0,total:0};
+    const sumPrima=arr.reduce((s,r)=>s+Math.abs(r.cant)*r.prima,0);
+    const isBuy=arr[0]?.cant>0;
+    // Cost per row with commission
+    const costs=arr.map(r=>{
+      const sign=isBuy?1:-1;
+      const primaCom=r.prima*(1+sign*comFactor);
+      const costo=-Math.abs(r.cant)*primaCom*100*sign; // negative = outflow for buy
+      return{...r,primaCom,costo};
+    });
+    const totalCost=costs.reduce((s,r)=>s+r.costo,0);
+    const sumPrimaCom=costs.reduce((s,r)=>s+Math.abs(r.cant)*r.primaCom,0);
+    return{
+      lotes:totalLotes,
+      avgPrima:sumPrima/totalLotes,
+      avgPrimaCom:sumPrimaCom/totalLotes,
+      total:totalCost,
+      rows:costs
+    };
+  }
+
+  const b=buys.length?wavg(buys):{lotes:0,avgPrima:0,avgPrimaCom:0,total:0,rows:[]};
+  const s=sells.length?wavg(sells):{lotes:0,avgPrima:0,avgPrimaCom:0,total:0,rows:[]};
+
+  // Update buy card
+  const set=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=val;};
+  set('prom-buy-lotes',  b.lotes?b.lotes:'--');
+  set('prom-buy-avg',    b.lotes?fmtN(b.avgPrima):'--');
+  set('prom-buy-avg-com',b.lotes?fmtN(b.avgPrimaCom):'--');
+  set('prom-buy-total',  b.lotes?fmtN(b.total):'--');
+
+  // Update sell card
+  set('prom-sell-lotes',  s.lotes?s.lotes:'--');
+  set('prom-sell-avg',    s.lotes?fmtN(s.avgPrima):'--');
+  set('prom-sell-avg-com',s.lotes?fmtN(s.avgPrimaCom):'--');
+  set('prom-sell-total',  s.lotes?fmtN(Math.abs(s.total)):'--');
+
+  // Net result: buy total (negative) + sell total (positive credit)
+  const netTotal=b.total+s.total; // already signed correctly
+  const netLotes=(b.lotes||0)-(s.lotes||0);
+  const netAvg=rows.length?(b.lotes*b.avgPrimaCom-s.lotes*s.avgPrimaCom)/(b.lotes+s.lotes||1):0;
+  const netColor=netTotal>=0?'var(--green)':'var(--red)';
+
+  set('prom-net-lotes', rows.length?(b.lotes||0)+' C / '+(s.lotes||0)+' V':'--');
+  const netEl=document.getElementById('prom-net-total');
+  if(netEl){netEl.textContent=rows.length?fmtN(netTotal):'--';netEl.style.color=netColor;}
+  set('prom-net-avg', rows.length?fmtN(netAvg):'--');
+
+  // Detail table
+  const tb=document.getElementById('prom-body');
+  if(!tb)return;
+  tb.innerHTML='';
+  const allRows=[...(b.rows||[]).map(r=>({...r,isBuy:true})),...(s.rows||[]).map(r=>({...r,isBuy:false}))];
+  allRows.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.style.borderBottom='1px solid var(--border2)';
+    const col=r.isBuy?'var(--green)':'var(--red)';
+    const costColor=r.costo>=0?'var(--green)':'var(--red)';
+    tr.innerHTML=`
+      <td style="padding:4px 10px;text-align:center;color:${col};font-weight:500">${r.cant>0?'+':''}${r.cant}</td>
+      <td style="padding:4px 10px;text-align:center;color:var(--muted)">${r.base?fmtStrike(r.base):'--'}</td>
+      <td style="padding:4px 10px;text-align:center">${fmtN(r.prima)}</td>
+      <td style="padding:4px 10px;text-align:center;color:var(--amber)">${fmtN(r.primaCom)}</td>
+      <td style="padding:4px 10px;text-align:center;color:${costColor};font-weight:500">${fmtN(r.costo)}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
 (async function init(){
   selectSource('sheets');
   document.getElementById('spot-input').value=ST.spot;
@@ -2505,7 +2657,6 @@ function tutShow(page){
     document.getElementById('data-badge').textContent='demo';
     document.getElementById('data-badge').className='badge badge-demo';
   }
-  // Auto-load historical data (HMD) — same pattern as options chain
   const histSheet=document.getElementById('sh-sheetname-hist')?.value.trim()||'HMD';
   if(webAppUrl){
     fetch(`${webAppUrl}?sheet=${encodeURIComponent(histSheet)}`)

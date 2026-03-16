@@ -39,6 +39,7 @@
   <div class="tab" onclick="showTab('histdata')">Datos históricos</div>
   <div class="tab" onclick="showTab('mariposa')">Mariposa</div>
   <div class="tab" onclick="showTab('analisis')" style="display:none">Análisis</div>
+  <div class="tab" onclick="showTab('promedio')">Precio Promedio</div>
   <div class="tab" onclick="showTab('tutoriales')">Tutoriales</div>
 </div>
 
@@ -681,6 +682,98 @@
     <div id="ana-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
   </div>
 
+  <!-- PRECIO PROMEDIO TAB -->
+  <div id="tab-promedio" style="display:none">
+
+    <!-- Controls -->
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:14px;font-size:11px">
+      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">Comisión %</label>
+        <input type="number" id="prom-com" value="0.500" step="0.001"
+          style="width:80px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          oninput="calcPromedio()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted);white-space:nowrap">IVA</label>
+        <input type="number" id="prom-iva" value="1.21" step="0.01"
+          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          oninput="calcPromedio()" />
+      </div>
+      <button onclick="promClear()" style="padding:4px 10px;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;margin-left:auto">✕ Limpiar</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px">
+
+      <!-- Input area -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-family:var(--sans);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">
+          Pegá los datos aquí <span style="color:var(--dim);text-transform:none;font-size:10px">(CANT · BASE · PRIMA por fila)</span>
+        </div>
+        <textarea id="prom-input" rows="22" placeholder="10	7326,20	400,001&#10;-15	7926,20	198,999&#10;10	7326,20	510,000&#10;..."
+          style="width:100%;box-sizing:border-box;font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;resize:vertical;line-height:1.6"
+          oninput="calcPromedio()"></textarea>
+        <div id="prom-parse-status" style="font-size:11px;color:var(--muted)"></div>
+      </div>
+
+      <!-- Results -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Summary cards -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <!-- Compras -->
+          <div style="background:var(--surface);border:1px solid rgba(68,199,106,0.25);border-radius:8px;padding:16px">
+            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--green);margin-bottom:12px">Compras</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Cant. lotes</div><div id="prom-buy-lotes" style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--green)">--</div></div>
+              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima promedio</div><div id="prom-buy-avg" style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--green)">--</div></div>
+              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima prom. c/Comi</div><div id="prom-buy-avg-com" style="font-family:var(--mono);font-size:15px;font-weight:500;color:var(--amber)">--</div></div>
+              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Costo total c/Comi</div><div id="prom-buy-total" style="font-family:var(--mono);font-size:13px;color:var(--red)">--</div></div>
+            </div>
+          </div>
+          <!-- Ventas -->
+          <div style="background:var(--surface);border:1px solid rgba(240,90,90,0.25);border-radius:8px;padding:16px">
+            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--red);margin-bottom:12px">Ventas</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Cant. lotes</div><div id="prom-sell-lotes" style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--red)">--</div></div>
+              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima promedio</div><div id="prom-sell-avg" style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--red)">--</div></div>
+              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima prom. c/Comi</div><div id="prom-sell-avg-com" style="font-family:var(--mono);font-size:15px;font-weight:500;color:var(--amber)">--</div></div>
+              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Ingreso total c/Comi</div><div id="prom-sell-total" style="font-family:var(--mono);font-size:13px;color:var(--green)">--</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result neto -->
+        <div style="background:var(--amber-bg);border:1px solid rgba(232,184,75,0.25);border-radius:8px;padding:16px">
+          <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--amber);margin-bottom:12px">Resultado neto</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Balance lotes</div><div id="prom-net-lotes" style="font-family:var(--mono);font-size:15px;font-weight:500;color:var(--text)">--</div></div>
+            <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Resultado $</div><div id="prom-net-total" style="font-family:var(--mono);font-size:20px;font-weight:600;color:var(--amber)">--</div></div>
+            <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima neta prom.</div><div id="prom-net-avg" style="font-family:var(--mono);font-size:15px;font-weight:500;color:var(--text)">--</div></div>
+          </div>
+        </div>
+
+        <!-- Detail table -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:auto;max-height:340px">
+          <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+            <thead style="position:sticky;top:0;z-index:2">
+              <tr style="background:var(--surface2)">
+                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Cant</th>
+                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Base</th>
+                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Prima</th>
+                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Prima c/Comi</th>
+                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Costo Total</th>
+              </tr>
+            </thead>
+            <tbody id="prom-body"></tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
   <!-- TUTORIALES TAB -->
   <div id="tab-tutoriales" style="display:none">
     <div style="display:grid;grid-template-columns:220px 1fr;gap:0;min-height:600px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
@@ -693,6 +786,7 @@
         <div class="tut-item" id="tut-nav-ivsmile"  onclick="tutShow('ivsmile')"  style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📈 Smile de volatilidad</div>
         <div class="tut-item" id="tut-nav-histdata" onclick="tutShow('histdata')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🗂️ Datos históricos</div>
         <div class="tut-item" id="tut-nav-mariposa" onclick="tutShow('mariposa')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🦋 Mariposa</div>
+        <div class="tut-item" id="tut-nav-promedio" onclick="tutShow('promedio')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">⚖️ Precio Promedio</div>
         <div style="padding:16px 16px 4px;font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);margin-top:8px;border-top:1px solid var(--border2)">General</div>
         <div class="tut-item" id="tut-nav-config"   onclick="tutShow('config')"   style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">⚙️ Configuración</div>
         <div class="tut-item" id="tut-nav-formulas" onclick="tutShow('formulas')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🔢 Fórmulas y cálculos</div>
