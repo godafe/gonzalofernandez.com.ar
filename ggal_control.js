@@ -274,9 +274,9 @@ function renderControl(){
     const hdr=document.createElement('div');
     hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:6px';
     hdr.innerHTML=`
-      <div style="display:flex;align-items:center;gap:8px;min-width:160px">
+      <div style="display:flex;align-items:center;gap:8px;min-width:240px">
         <input type="text" value="${strat.name}"
-          style="font-family:var(--sans);font-size:12px;font-weight:500;color:var(--text);background:transparent;border:none;border-bottom:1px solid transparent;padding:1px 2px;width:140px;outline:none"
+          style="font-family:var(--sans);font-size:12px;font-weight:500;color:var(--text);background:transparent;border:none;border-bottom:1px solid transparent;padding:1px 2px;width:220px;outline:none"
           onfocus="this.style.borderBottomColor='var(--amber)';this.style.background='var(--bg)'"
           onblur="this.style.borderBottomColor='transparent';this.style.background='transparent';renameCtrlStrategy(${si},this.value)"
           onchange="renameCtrlStrategy(${si},this.value)" />

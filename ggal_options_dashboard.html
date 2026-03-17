@@ -823,6 +823,11 @@
           style="font-family:var(--mono);font-size:12px;padding:3px 12px;border-radius:5px;cursor:pointer;background:var(--surface);border:1px solid var(--green);color:var(--green);min-width:52px;transition:all .15s">Call</button>
         <input type="hidden" id="rat-hm-type" value="call" />
       </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted)">Base inicial</label>
+        <select id="rat-base" onchange="renderRatios()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+      </div>
     </div>
 
     <!-- Señales activas -->
@@ -846,20 +851,16 @@
       <span id="rat-heatmap-label" style="display:none"></span>
     </div>
 
-    <!-- Ratio table — below -->
-    <div style="overflow:auto;max-height:500px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+    <!-- Ratio+N table (oculta) -->
+    <div style="display:none;overflow:auto;max-height:500px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
       <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
         <thead style="position:sticky;top:0;z-index:2">
           <tr style="background:var(--surface2)">
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Strike S1</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Strike S2</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Call S1</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Call S2</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Ratio</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--blue);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Δ IV</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">PC Paridad</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Hist. RC</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Señales</th>
+            <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Strike</th>
+            <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Precio</th>
+            <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Ratio +1</th>
+            <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Ratio +2</th>
+            <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Ratio +3</th>
           </tr>
         </thead>
         <tbody id="rat-body"></tbody>
