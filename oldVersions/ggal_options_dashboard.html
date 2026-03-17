@@ -40,7 +40,6 @@
   <div class="tab" onclick="showTab('mariposa')">Mariposa</div>
   <div class="tab" onclick="showTab('analisis')" style="display:none">Análisis</div>
   <div class="tab" onclick="showTab('promedio')">Precio Promedio</div>
-  <div class="tab" onclick="showTab('ratios')">Ratios</div>
   <div class="tab" onclick="showTab('tutoriales')">Tutoriales</div>
 </div>
 
@@ -774,99 +773,6 @@
     </div>
   </div>
 
-  <!-- RATIOS TAB -->
-  <div id="tab-ratios" style="display:none">
-
-    <!-- Controls -->
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:14px;font-size:11px">
-      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Vencimiento</label>
-        <select id="rat-expiry" onchange="renderRatios()"
-          style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Umbral ratio bajo</label>
-        <input type="number" id="rat-thresh-lo" value="1.50" step="0.01" min="0"
-          style="width:70px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--green);padding:3px 6px;border-radius:4px"
-          oninput="renderRatios()" />
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Umbral ratio alto</label>
-        <input type="number" id="rat-thresh-hi" value="2.50" step="0.01" min="0"
-          style="width:70px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--red);padding:3px 6px;border-radius:4px"
-          oninput="renderRatios()" />
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Umbral Δ IV</label>
-        <input type="number" id="rat-thresh-iv" value="5.0" step="0.5" min="0"
-          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--blue);padding:3px 6px;border-radius:4px"
-          oninput="renderRatios()" />
-        <span style="color:var(--dim);font-size:10px">%</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Umbral paridad</label>
-        <input type="number" id="rat-thresh-parity" value="10" step="1" min="0"
-          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
-          oninput="renderRatios()" />
-        <span style="color:var(--dim);font-size:10px">$</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Solo oportunidades</label>
-        <input type="checkbox" id="rat-only-opps" onchange="renderRatios()"
-          style="accent-color:var(--amber);width:14px;height:14px" />
-      </div>
-      <button class="btn-primary" onclick="renderRatios()" style="padding:4px 12px;font-size:11px;margin-left:auto">⟳ Recalcular</button>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Heatmap</label>
-        <button id="rat-hm-type-btn" onclick="ratToggleHmType()"
-          style="font-family:var(--mono);font-size:12px;padding:3px 12px;border-radius:5px;cursor:pointer;background:var(--surface);border:1px solid var(--green);color:var(--green);min-width:52px;transition:all .15s">Call</button>
-        <input type="hidden" id="rat-hm-type" value="call" />
-      </div>
-    </div>
-
-    <!-- Señales activas -->
-    <div id="rat-signals" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
-
-    <!-- Heatmap — full width, first -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-        <div>
-          <span style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Mapa de calor — Ratio Call/Call</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted)">
-          <span>Bajo</span>
-          <div style="height:8px;width:180px;border-radius:4px;background:linear-gradient(to right,rgba(90,171,255,0.8),rgba(68,199,106,0.6),rgba(232,184,75,0.8),rgba(240,90,90,0.8))"></div>
-          <span>Alto</span>
-          <span style="margin-left:10px;font-size:9px">⚡ = señal activa</span>
-        </div>
-        <div id="rat-stats" style="display:flex;gap:20px;font-family:var(--mono);font-size:11px"></div>
-      </div>
-      <div id="rat-heatmap" style="overflow:auto"></div>
-      <span id="rat-heatmap-label" style="display:none"></span>
-    </div>
-
-    <!-- Ratio table — below -->
-    <div style="overflow:auto;max-height:500px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
-      <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
-        <thead style="position:sticky;top:0;z-index:2">
-          <tr style="background:var(--surface2)">
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Strike S1</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Strike S2</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Call S1</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Call S2</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Ratio</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--blue);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Δ IV</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">PC Paridad</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Hist. RC</th>
-            <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Señales</th>
-          </tr>
-        </thead>
-        <tbody id="rat-body"></tbody>
-      </table>
-    </div>
-  </div>
-
 </div>
   <!-- TUTORIALES TAB -->
   <div id="tab-tutoriales" style="display:none">
@@ -896,18 +802,6 @@
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="ggal_bs.js"></script>
-<script src="ggal_core.js"></script>
-<script src="ggal_chain.js"></script>
-<script src="ggal_strategy.js"></script>
-<script src="ggal_calc.js"></script>
-<script src="ggal_control.js"></script>
-<script src="ggal_histdata.js"></script>
-<script src="ggal_mariposa.js"></script>
-<script src="ggal_analisis.js"></script>
-<script src="ggal_tutoriales.js"></script>
-<script src="ggal_promedio.js"></script>
-<script src="ggal_ratios.js"></script>
-<script src="ggal_init.js"></script>
+<script src="ggal_dashboard.js"></script>
 </body>
 </html>
