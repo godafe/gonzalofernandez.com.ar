@@ -1,17 +1,7 @@
 /* ===== MÓDULO MARIPOSA ===== */
 
 function marPopulateExpiry(){
-  const sel=document.getElementById('mar-expiry');
-  if(!sel)return;
-  const cur=sel.value;
-  sel.innerHTML='';
-  ST.expirations.forEach(e=>{
-    const o=document.createElement('option');
-    o.value=e;o.textContent=fmtExpiry(e);
-    if(e===cur)o.selected=true;
-    sel.appendChild(o);
-  });
-  if(!sel.value&&ST.selExpiry)sel.value=ST.selExpiry;
+  // expiry driven by ST.selExpiry
 }
 
 // Commission cost for one leg (buy=+1, sell=-1)
@@ -170,15 +160,15 @@ let MAR_ROWS=[];  // flat array for button callbacks
 
 function renderMariposa(){
   marPopulateExpiry();
-  const exp=document.getElementById('mar-expiry')?.value||ST.selExpiry;
+  const exp=ST.selExpiry;
   if(!exp||!ST.chain[exp]){
     document.getElementById('mar-body-calls').innerHTML=`<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--muted)">Sin datos — cargá la cadena de opciones primero</td></tr>`;
     document.getElementById('mar-body-puts').innerHTML='';
     return;
   }
   const wings=Math.max(1,parseInt(document.getElementById('mar-wings')?.value)||3);
-  const com=parseFloat(document.getElementById('mar-com')?.value)||0.5;
-  const iva=parseFloat(document.getElementById('mar-iva')?.value)||1.21;
+  const com=siteComision();
+  const iva=siteIva();
   const lotes=1;
   const threshold=Math.max(0,parseInt(document.getElementById('mar-threshold')?.value)||5000);
   const chainRows=ST.chain[exp];

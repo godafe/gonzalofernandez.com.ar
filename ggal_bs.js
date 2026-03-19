@@ -92,7 +92,8 @@ function generateMockData(){
   ST.expirations=expirations;ST.chain=chain;
   ST.selExpiry=expirations[0];
   const atmRow=chain[expirations[0]].find(r=>r.strike===base)||chain[expirations[0]][6];
-  document.getElementById('hdr-atm-vol').textContent=(atmRow.iv*100).toFixed(1)+'%';
+  const atmVolEl=document.getElementById('hdr-atm-vol');
+  if(atmVolEl)atmVolEl.textContent=(atmRow.iv*100).toFixed(1)+'%';
   document.getElementById('hdr-time').textContent=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
 }
 

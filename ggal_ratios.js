@@ -187,7 +187,11 @@ function renderRatios(){
   // Heatmap — full width, bigger cells
   const hmType=document.getElementById('rat-hm-type')?.value||'call';
   document.getElementById('rat-heatmap-label').textContent='';
-  const hmSrc=(hmType==='call'?callRows:chainRows.filter(r=>r.putMid>0)).slice(0,16);
+  // Build hmSrc: 8 strikes below spot + 8 above, centered on current spot
+  const hmPool=(hmType==='call'?callRows:chainRows.filter(r=>r.putMid>0));
+  const below=hmPool.filter(r=>r.strike<=S).slice(-8);  // last 8 at or below spot
+  const above=hmPool.filter(r=>r.strike>S).slice(0,8);  // first 8 above spot
+  const hmSrc=[...below,...above];
   const hm=document.getElementById('rat-heatmap');
   if(!hm||hmSrc.length<2)return;
   const cellSz=Math.min(64,Math.floor((window.innerWidth-320)/hmSrc.length));

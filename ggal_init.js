@@ -10,6 +10,17 @@
     showToast(`${ctrlStrategies.length} estrategia${ctrlStrategies.length>1?'s':''} restaurada${ctrlStrategies.length>1?'s':''} ✓`);
   }
 
+  // Restore all module config from localStorage
+  cfgLoad();
+  cfgBindAutoSave();
+  siteConfigChanged(); // sync site config to BS engine
+
+  // Pre-fill local rate fields with site rate if they have no saved value
+  ['hist-rate','ah-rate'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el&&(el.value===''||el.value==='0'))el.value=siteRate();
+  });
+
   // Show demo data immediately so the page isn't blank while loading
   generateMockData();populateExpiries();renderChain();syncBSBar();
 

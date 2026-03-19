@@ -56,6 +56,11 @@ function renderChain(){
     const bgPut =isAtmRow?'rgba(232,184,75,0.15)':itmP?'rgba(240,90,90,0.10)':'';
     const bgAttr=bg=>bg?`background:${bg};`:'';
 
+    const fmtChg=v=>{
+      if(v==null||isNaN(v))return'--';
+      const color=v>0?'var(--green)':v<0?'var(--red)':'var(--muted)';
+      return`<span style="color:${color}">${v>0?'+':''}${fmtN(v)}</span>`;
+    };
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td style="${bgAttr(bgCall)}font-size:10px;font-weight:500;color:${callLabelColor}">${callLabel}</td>
@@ -65,9 +70,11 @@ function renderChain(){
       <td style="${bgAttr(bgCall)}">${fmtN(row.callBid)}</td>
       <td style="${bgAttr(bgCall)}color:var(--green)">${fmtN(row.callAsk)}</td>
       <td style="${bgAttr(bgCall)}color:var(--green);font-weight:500">${row.callMid>0?fmtN(row.callMid):'--'}</td>
+      <td style="${bgAttr(bgCall)}">${fmtChg(row.callChg)}</td>
       <td style="${bgAttr(bgCall)}" class="amber">${ivC?(volC*100).toFixed(2)+'%':'--'}</td>
       <td class="strike-col">${fmtStrike(row.strike)}</td>
       <td style="${bgAttr(bgPut)}" class="amber">${ivP?(volP*100).toFixed(2)+'%':'--'}</td>
+      <td style="${bgAttr(bgPut)}">${fmtChg(row.putChg)}</td>
       <td style="${bgAttr(bgPut)}color:var(--red);font-weight:500">${row.putMid>0?fmtN(row.putMid):'--'}</td>
       <td style="${bgAttr(bgPut)}color:var(--red)">${fmtN(row.putAsk)}</td>
       <td style="${bgAttr(bgPut)}">${fmtN(row.putBid)}</td>
@@ -77,8 +84,8 @@ function renderChain(){
       <td style="${bgAttr(bgPut)}font-size:10px;font-weight:500;color:${putLabelColor};text-align:right">${putLabel}</td>`;
     tr.addEventListener('click',(e)=>{
       const cellIdx=e.target.cellIndex;
-      if(cellIdx<=7) selectOpt(row,'call',cG,volC);
-      else if(cellIdx>=9) selectOpt(row,'put',pG,volP);
+      if(cellIdx<=8) selectOpt(row,'call',cG,volC);
+      else if(cellIdx>=10) selectOpt(row,'put',pG,volP);
     });
     tb.appendChild(tr);
   });

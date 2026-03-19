@@ -27,7 +27,8 @@ function runCalc(){
   const pr=sp.map(s=>bs(s,K,T,r,q,vol,type).price);
   const intr=sp.map(s=>type==='call'?Math.max(s-K,0):Math.max(K-s,0));
   if(ST.charts.sens)ST.charts.sens.destroy();
-  const ctx2=document.getElementById('sens-chart').getContext('2d');
+  const ctx2=document.getElementById('sens-chart')?.getContext('2d');
+  if(!ctx2)return;
   ST.charts.sens=new Chart(ctx2,{
     type:'line',
     data:{
@@ -137,7 +138,8 @@ function buildIVSensTable(S,K,T,r,q,type,mktCenter,ivCenter){
     tb.appendChild(tr);
   });
   if(ST.charts.ivSens)ST.charts.ivSens.destroy();
-  const ctx=document.getElementById('iv-sens-chart').getContext('2d');
+  const ctx=document.getElementById('iv-sens-chart')?.getContext('2d');
+  if(!ctx)return;
   ST.charts.ivSens=new Chart(ctx,{
     type:'line',
     data:{

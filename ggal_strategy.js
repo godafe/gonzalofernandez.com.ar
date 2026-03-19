@@ -157,7 +157,8 @@ function updatePnL(){
   document.getElementById('ss-be').textContent=bes.length?bes.map(b=>'$'+b.toFixed(0)).join(' / '):'--';
 
   if(ST.charts.pnl)ST.charts.pnl.destroy();
-  const ctx=document.getElementById('pnl-chart').getContext('2d');
+  const ctx=document.getElementById('pnl-chart')?.getContext('2d');
+  if(!ctx)return;
   ST.charts.pnl=new Chart(ctx,{
     type:'line',
     data:{

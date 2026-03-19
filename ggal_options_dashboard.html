@@ -17,14 +17,11 @@
     <span class="badge badge-demo" id="data-badge">demo</span>
   </div>
   <div class="hdr-stats">
-    <div class="hdr-stat"><div class="hdr-stat-label">IV Rank</div><div class="hdr-stat-val amber" id="hdr-ivr">65</div></div>
-    <div class="hdr-stat"><div class="hdr-stat-label">HV 30d</div><div class="hdr-stat-val" id="hdr-hv">70%</div></div>
-    <div class="hdr-stat"><div class="hdr-stat-label">Vol ATM</div><div class="hdr-stat-val amber" id="hdr-atm-vol">--</div></div>
-    <div class="hdr-stat"><div class="hdr-stat-label">Tasa r</div><div class="hdr-stat-val" id="hdr-rate">30%</div></div>
     <div class="hdr-stat"><div class="hdr-stat-label">Actualiz.</div><div class="hdr-stat-val" id="hdr-time">--:--</div></div>
   </div>
   <div class="hdr-actions">
     <button class="btn-primary" onclick="fetchData()">⟳ Actualizar</button>
+    <button onclick="toggleEl('site-config-wrap')">🏠 Config Sitio</button>
     <button onclick="toggleEl('api-config-wrap')">⚙ Config API</button>
   </div>
 </div>
@@ -34,22 +31,58 @@
   <div class="tab" onclick="showTab('strategy')" style="display:none">Constructor de estrategias</div>
   <div class="tab" onclick="showTab('control')">Control de estrategias</div>
   <div class="tab" onclick="showTab('calc')" style="display:none">Calculadora BS</div>
-  <div class="tab" onclick="showTab('ivsmile')">Smile de volatilidad</div>
   <div class="tab" onclick="showTab('ivcalc')" style="display:none">Calc. volatilidad implícita</div>
-  <div class="tab" onclick="showTab('histdata')">Datos históricos</div>
-  <div class="tab" onclick="showTab('mariposa')">Mariposa</div>
-  <div class="tab" onclick="showTab('analisis')" style="display:none">Análisis</div>
-  <div class="tab" onclick="showTab('promedio')">Precio Promedio</div>
+  <div class="tab" onclick="showTab('bullbear')">Bull/Bear</div>
   <div class="tab" onclick="showTab('ratios')">Ratios</div>
+  <div class="tab" onclick="showTab('mariposa')">Mariposa</div>
+  <div class="tab" onclick="showTab('promedio')">Precio Promedio</div>
+  <div class="tab" onclick="showTab('ivsmile')">Smile de volatilidad</div>
+  <div class="tab" onclick="showTab('histdata')">Datos históricos</div>
+  <div class="tab" onclick="showTab('analisis')" style="display:none">Análisis</div>
+  <div class="tab" onclick="showTab('promedio')" style="display:none">Precio Promedio</div>
+  <div class="tab" onclick="showTab('analhist')">Análisis Histórico</div>
   <div class="tab" onclick="showTab('tutoriales')">Tutoriales</div>
 </div>
 
 <div id="main">
 
-  <!-- API Config -->
-  <div id="api-config-wrap" style="display:none;margin-bottom:12px">
+<!-- Hidden fields for BS engine compatibility -->
+<input type="hidden" id="risk-free-rate" value="30" />
+<input type="hidden" id="div-yield" value="0" />
+
+<div id="site-config-wrap" style="display:none;margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 20px">
+  <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+    <span style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);white-space:nowrap">Config Sitio</span>
+    <div class="form-group" style="margin:0;display:flex;align-items:center;gap:8px">
+      <label style="font-size:10px;color:var(--muted);white-space:nowrap">Comisión %</label>
+      <input type="number" id="site-comision" value="0.500" step="0.001" min="0" max="10"
+        style="width:75px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+        oninput="siteConfigChanged()" />
+    </div>
+    <div class="form-group" style="margin:0;display:flex;align-items:center;gap:8px">
+      <label style="font-size:10px;color:var(--muted);white-space:nowrap">IVA</label>
+      <input type="number" id="site-iva" value="1.21" step="0.01" min="1" max="2"
+        style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+        oninput="siteConfigChanged()" />
+    </div>
+    <div class="form-group" style="margin:0;display:flex;align-items:center;gap:8px">
+      <label style="font-size:10px;color:var(--muted);white-space:nowrap">Tasa %</label>
+      <input type="number" id="site-rate" value="30" step="0.1" min="0" max="300"
+        style="width:75px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+        oninput="siteConfigChanged()" />
+    </div>
+    <div class="form-group" style="margin:0;display:flex;align-items:center;gap:8px">
+      <label style="font-size:10px;color:var(--muted);white-space:nowrap">Dividendos %</label>
+      <input type="number" id="site-dividends" value="0" step="0.1" min="0"
+        style="width:75px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+        oninput="siteConfigChanged()" />
+    </div>
+  </div>
+</div>
+
+
+<div id="api-config-wrap" style="display:none;margin-bottom:12px">
     <div class="panel">
-      <div class="panel-title">Fuente de datos</div>
 
       <!-- Source selector -->
       <div style="display:flex;gap:6px;margin-bottom:14px">
@@ -72,14 +105,6 @@
 
       <!-- Sheets source -->
       <div id="src-sheets" style="display:none">
-        <div style="margin-bottom:10px;padding:11px;background:var(--surface2);border-radius:6px;border:1px solid var(--border2);font-size:11px;color:var(--muted);line-height:2">
-          <span style="color:var(--amber);font-weight:500">Configuración (una sola vez — 3 minutos):</span><br>
-          1. Abrí tu hoja → <b>Extensiones → Apps Script</b><br>
-          2. Borrá el contenido y pegá el script del archivo <code style="background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--text)">ggal_appscript.js</code><br>
-          3. <b>Implementar → Nueva implementación</b> → Tipo: <b>Aplicación web</b><br>
-          4. Ejecutar como: <b>Yo</b> · Quién tiene acceso: <b>Cualquier persona</b> → Implementar<br>
-          5. Copiá la URL que aparece y pegala abajo
-        </div>
         <div class="form-grid" style="margin-bottom:8px">
           <div class="form-group" style="grid-column:1/-1">
             <label>URL de tu Apps Script (web app)</label>
@@ -110,6 +135,7 @@
             <div class="form-group"><label>Ask</label><input type="text" id="sh-col-ask" value="E" style="width:60px" /></div>
             <div class="form-group"><label>Last (precio IV)</label><input type="text" id="sh-col-last" value="F" style="width:60px" /></div>
             <div class="form-group"><label>Last VE (%)</label><input type="text" id="sh-col-lastve" value="G" style="width:60px" /></div>
+            <div class="form-group"><label>CHG (variación)</label><input type="text" id="sh-col-chg" value="G" style="width:60px" /></div>
           </div>
         </div>
 
@@ -145,21 +171,6 @@
         </div>
       </div>
 
-      <!-- Shared params -->
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border2)">
-        <div class="panel-title" style="margin-bottom:8px">Parámetros Black-Scholes <span style="color:var(--dim);font-size:9px;text-transform:none;font-weight:400">— afectan IV, Greeks y todos los cálculos</span></div>
-        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
-          <div class="form-group" style="margin:0">
-            <label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px">Tasa libre de riesgo (%)</label>
-            <input type="number" id="risk-free-rate" value="30" step="0.1" min="0" max="300" style="width:90px" />
-          </div>
-          <div class="form-group" style="margin:0">
-            <label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px">Dividendos (%)</label>
-            <input type="number" id="div-yield" value="0" step="0.1" min="0" style="width:80px" />
-          </div>
-        </div>
-      </div>
-
       <!-- Auto-refresh -->
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border2);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:8px">
@@ -184,7 +195,7 @@
         <button onclick="selectSource('demo');generateMockAndRender();toggleEl('api-config-wrap')">Usar datos demo</button>
       </div>
     </div>
-  </div>
+</div><!-- end api-config-wrap -->
 
   <!-- CHAIN TAB -->
   <div id="tab-chain">
@@ -245,9 +256,11 @@
           <th>Bid</th>
           <th>Ask</th>
           <th style="color:var(--green)">Last</th>
+          <th style="color:var(--amber)">CHG</th>
           <th>IV</th>
           <th class="strike-col" style="border-left:1px solid var(--border);border-right:1px solid var(--border);text-align:center">STRIKE</th>
           <th>IV</th>
+          <th style="color:var(--amber)">CHG</th>
           <th style="color:var(--red)">Last</th>
           <th>Ask</th>
           <th>Bid</th>
@@ -322,24 +335,7 @@
     <!-- Config bar -->
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:12px;font-size:11px">
       <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted);white-space:nowrap">Comisión %</label>
-        <input type="number" id="ctrl-comision" value="0.500" step="0.001" min="0" max="10"
-          style="width:75px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
-          onchange="renderControl()" />
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted);white-space:nowrap">IVA</label>
-        <input type="number" id="ctrl-iva" value="1.21" step="0.01" min="1" max="2"
-          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
-          onchange="renderControl()" />
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted);white-space:nowrap">Vencimiento</label>
-        <select id="ctrl-expiry" onchange="renderControl()"
-          style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
-      </div>
-      <button class="btn-primary" onclick="addCtrlStrategy()" style="margin-left:auto;padding:4px 14px;font-size:11px">+ Agregar estrategia</button>
+      <button class="btn-primary" onclick="addCtrlStrategy()" style="padding:4px 14px;font-size:11px">+ Agregar estrategia</button>
       <button onclick="ctrlClearSaved()" title="Eliminar todas las estrategias guardadas" style="padding:4px 10px;font-size:11px;background:var(--red-bg);border:1px solid var(--red);color:var(--red);border-radius:5px;cursor:pointer">✕ Limpiar guardado</button>
     </div>
 
@@ -599,28 +595,11 @@
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:12px;font-size:11px">
       <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
       <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted);white-space:nowrap">Vencimiento</label>
-        <select id="mar-expiry" onchange="renderMariposa()"
-          style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
         <label style="color:var(--muted);white-space:nowrap">Strikes alrededor</label>
         <input type="number" id="mar-wings" value="3" min="1" max="6" step="1"
           style="width:55px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
           onchange="renderMariposa()" />
         <span style="font-size:10px;color:var(--dim)">por lado del ATM</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted);white-space:nowrap">Comisión %</label>
-        <input type="number" id="mar-com" value="0.500" step="0.001"
-          style="width:75px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
-          onchange="renderMariposa()" />
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted);white-space:nowrap">IVA</label>
-        <input type="number" id="mar-iva" value="1.21" step="0.01"
-          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
-          onchange="renderMariposa()" />
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <label style="color:var(--muted);white-space:nowrap">Threshold color</label>
@@ -689,89 +668,23 @@
     <!-- Controls -->
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:14px;font-size:11px">
       <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted);white-space:nowrap">Comisión %</label>
-        <input type="number" id="prom-com" value="0.500" step="0.001"
-          style="width:80px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
-          oninput="calcPromedio()" />
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted);white-space:nowrap">IVA</label>
-        <input type="number" id="prom-iva" value="1.21" step="0.01"
-          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
-          oninput="calcPromedio()" />
-      </div>
       <button onclick="promClear()" style="padding:4px 10px;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;margin-left:auto">✕ Limpiar</button>
     </div>
 
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px">
-
-      <!-- Input area -->
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div style="font-family:var(--sans);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">
-          Pegá los datos aquí <span style="color:var(--dim);text-transform:none;font-size:10px">(CANT · BASE · PRIMA por fila)</span>
-        </div>
-        <textarea id="prom-input" rows="22" placeholder="10	7326,20	400,001&#10;-15	7926,20	198,999&#10;10	7326,20	510,000&#10;..."
-          style="width:100%;box-sizing:border-box;font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;resize:vertical;line-height:1.6"
-          oninput="calcPromedio()"></textarea>
-        <div id="prom-parse-status" style="font-size:11px;color:var(--muted)"></div>
+    <!-- Input area — full width -->
+    <div style="margin-bottom:12px">
+      <div style="font-family:var(--sans);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">
+        Pegá los datos aquí <span style="color:var(--dim);text-transform:none;font-size:10px">(CANT · BASE · PRIMA por fila)</span>
       </div>
-
-      <!-- Results -->
-      <div style="display:flex;flex-direction:column;gap:14px">
-
-        <!-- Summary cards -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <!-- Compras -->
-          <div style="background:var(--surface);border:1px solid rgba(68,199,106,0.25);border-radius:8px;padding:16px">
-            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--green);margin-bottom:12px">Compras</div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Cant. lotes</div><div id="prom-buy-lotes" style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--green)">--</div></div>
-              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima promedio</div><div id="prom-buy-avg" style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--green)">--</div></div>
-              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima prom. c/Comi</div><div id="prom-buy-avg-com" style="font-family:var(--mono);font-size:15px;font-weight:500;color:var(--amber)">--</div></div>
-              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Costo total c/Comi</div><div id="prom-buy-total" style="font-family:var(--mono);font-size:13px;color:var(--red)">--</div></div>
-            </div>
-          </div>
-          <!-- Ventas -->
-          <div style="background:var(--surface);border:1px solid rgba(240,90,90,0.25);border-radius:8px;padding:16px">
-            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--red);margin-bottom:12px">Ventas</div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Cant. lotes</div><div id="prom-sell-lotes" style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--red)">--</div></div>
-              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima promedio</div><div id="prom-sell-avg" style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--red)">--</div></div>
-              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima prom. c/Comi</div><div id="prom-sell-avg-com" style="font-family:var(--mono);font-size:15px;font-weight:500;color:var(--amber)">--</div></div>
-              <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Ingreso total c/Comi</div><div id="prom-sell-total" style="font-family:var(--mono);font-size:13px;color:var(--green)">--</div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Result neto -->
-        <div style="background:var(--amber-bg);border:1px solid rgba(232,184,75,0.25);border-radius:8px;padding:16px">
-          <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--amber);margin-bottom:12px">Resultado neto</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-            <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Balance lotes</div><div id="prom-net-lotes" style="font-family:var(--mono);font-size:15px;font-weight:500;color:var(--text)">--</div></div>
-            <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Resultado $</div><div id="prom-net-total" style="font-family:var(--mono);font-size:20px;font-weight:600;color:var(--amber)">--</div></div>
-            <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Prima neta prom.</div><div id="prom-net-avg" style="font-family:var(--mono);font-size:15px;font-weight:500;color:var(--text)">--</div></div>
-          </div>
-        </div>
-
-        <!-- Detail table -->
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:auto;max-height:340px">
-          <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
-            <thead style="position:sticky;top:0;z-index:2">
-              <tr style="background:var(--surface2)">
-                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Cant</th>
-                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Base</th>
-                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Prima</th>
-                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Prima c/Comi</th>
-                <th style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Costo Total</th>
-              </tr>
-            </thead>
-            <tbody id="prom-body"></tbody>
-          </table>
-        </div>
-
-      </div>
+      <textarea id="prom-input" rows="8" placeholder="10	7326,20	400,001&#10;-15	7926,20	198,999&#10;10	7326,20	510,000&#10;..."
+        style="width:100%;box-sizing:border-box;font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;resize:vertical;line-height:1.6"
+        oninput="calcPromedio()"></textarea>
+      <div id="prom-parse-status" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
     </div>
+
+    <!-- Results: 2 per row grid -->
+    <div id="prom-results" style="display:grid;grid-template-columns:1fr 1fr;gap:14px"></div>
+
   </div>
 
   <!-- RATIOS TAB -->
@@ -869,7 +782,150 @@
   </div>
 
 </div>
-  <!-- TUTORIALES TAB -->
+  <!-- BULL/BEAR TAB -->
+  <div id="tab-bullbear" style="display:none">
+
+    <!-- Controls -->
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:14px;font-size:11px">
+      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted)">Vencimiento</label>
+        <select id="bb-expiry" onchange="renderBullBear()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted)">Strike Base</label>
+        <select id="bb-base" onchange="renderBullBear()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted)">Tipo</label>
+        <button id="bb-type-btn" onclick="bbToggleType()"
+          style="font-family:var(--mono);font-size:12px;padding:3px 12px;border-radius:5px;cursor:pointer;background:var(--surface);border:1px solid var(--green);color:var(--green);min-width:52px;transition:all .15s">Call</button>
+        <input type="hidden" id="bb-type" value="call" />
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted)">Lotes</label>
+        <input type="number" id="bb-lotes" value="10" min="1" step="1"
+          style="width:60px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          oninput="renderBullBear()" />
+      </div>
+      <button class="btn-primary" onclick="renderBullBear()" style="padding:4px 12px;font-size:11px;margin-left:auto">⟳ Recalcular</button>
+    </div>
+
+    <!-- Summary bar -->
+    <div id="bb-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:11px"></div>
+
+    <!-- Cards grid -->
+    <div id="bb-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
+
+  </div>
+
+  <!-- ANÁLISIS HISTÓRICO TAB -->
+  <div id="tab-analhist" style="display:none">
+
+    <!-- Controls (same as histdata) -->
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:12px;font-size:11px">
+      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">S1</label>
+        <button id="ah-type1-btn" onclick="ahToggleType(1)"
+          style="font-family:var(--mono);font-size:12px;padding:3px 10px;border-radius:5px;cursor:pointer;background:var(--surface);border:1px solid var(--green);color:var(--green);min-width:46px;transition:all .15s">Call</button>
+        <input type="hidden" id="ah-type1" value="call" />
+        <select id="ah-strike1" onchange="renderAnalHist()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+      </div>
+      <button onclick="ahSwapStrikes()" title="Intercambiar S1 y S2"
+        style="font-size:13px;padding:2px 8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer"
+        onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">⇄</button>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">S2</label>
+        <button id="ah-type2-btn" onclick="ahToggleType(2)"
+          style="font-family:var(--mono);font-size:12px;padding:3px 10px;border-radius:5px;cursor:pointer;background:var(--surface);border:1px solid var(--green);color:var(--green);min-width:46px;transition:all .15s">Call</button>
+        <input type="hidden" id="ah-type2" value="call" />
+        <select id="ah-strike2" onchange="renderAnalHist()"
+          style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">Tasa %</label>
+        <input type="number" id="ah-rate" value="0" step="0.1"
+          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderAnalHist()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">Vencimiento</label>
+        <input type="text" id="ah-expiry" placeholder="YYYY-MM-DD"
+          style="width:100px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px"
+          onchange="renderAnalHist()" />
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">Relación RI</label>
+        <input type="number" id="ah-ri" value="2.0" step="0.1" min="0.1" max="4"
+          style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
+          onchange="renderAnalHist()" />
+      </div>
+      <button class="btn-primary" onclick="fetchAnalHist()" style="padding:4px 12px;font-size:11px">⟳ Actualizar HMD</button>
+      <span id="ah-status" style="font-size:11px;color:var(--muted)"></span>
+    </div>
+
+    <!-- Two tables side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div style="overflow:auto;max-height:320px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+          <thead style="position:sticky;top:0;z-index:2">
+            <tr style="background:var(--surface2)">
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Fecha</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">GGAL</th>
+              <th id="ah-th1-price" style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Precio</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">VI</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Vega</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Gamma</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Delta</th>
+            </tr>
+          </thead>
+          <tbody id="ah-body1"></tbody>
+        </table>
+      </div>
+      <div style="overflow:auto;max-height:320px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+          <thead style="position:sticky;top:0;z-index:2">
+            <tr style="background:var(--surface2)">
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Fecha</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">GGAL</th>
+              <th id="ah-th2-price" style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Precio</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">VI</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Vega</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Gamma</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Delta</th>
+            </tr>
+          </thead>
+          <tbody id="ah-body2"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Charts 2x2 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="chart-wrap" style="padding:14px">
+        <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Ratio Vega S1/S2</div>
+        <div style="position:relative;height:300px"><canvas id="ah-chart-vega"></canvas></div>
+      </div>
+      <div class="chart-wrap" style="padding:14px">
+        <div id="ah-chart-bull-title" style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Costo Bull S1/S2</div>
+        <div style="position:relative;height:300px"><canvas id="ah-chart-bull"></canvas></div>
+      </div>
+      <div class="chart-wrap" style="padding:14px">
+        <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Costo Ratio Común (RC)</div>
+        <div style="position:relative;height:300px"><canvas id="ah-chart-rc"></canvas></div>
+      </div>
+      <div class="chart-wrap" style="padding:14px">
+        <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Costo Ratio Invertido (RI)</div>
+        <div style="position:relative;height:300px"><canvas id="ah-chart-ri"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</div>
   <div id="tab-tutoriales" style="display:none">
     <div style="display:grid;grid-template-columns:220px 1fr;gap:0;min-height:600px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
 
@@ -878,11 +934,12 @@
         <div style="padding:0 16px 12px;font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim)">Módulos</div>
         <div class="tut-item" id="tut-nav-cadena"   onclick="tutShow('cadena')"   style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📊 Cadena de opciones</div>
         <div class="tut-item" id="tut-nav-control"  onclick="tutShow('control')"  style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🎛️ Control de estrategias</div>
-        <div class="tut-item" id="tut-nav-ivsmile"  onclick="tutShow('ivsmile')"  style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📈 Smile de volatilidad</div>
-        <div class="tut-item" id="tut-nav-histdata" onclick="tutShow('histdata')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🗂️ Datos históricos</div>
+        <div class="tut-item" id="tut-nav-bullbear" onclick="tutShow('bullbear')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📈 Bull/Bear</div>
+        <div class="tut-item" id="tut-nav-ratios"   onclick="tutShow('ratios')"   style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📐 Ratios</div>
         <div class="tut-item" id="tut-nav-mariposa" onclick="tutShow('mariposa')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🦋 Mariposa</div>
         <div class="tut-item" id="tut-nav-promedio" onclick="tutShow('promedio')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">⚖️ Precio Promedio</div>
-        <div style="padding:16px 16px 4px;font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);margin-top:8px;border-top:1px solid var(--border2)">General</div>
+        <div class="tut-item" id="tut-nav-ivsmile"  onclick="tutShow('ivsmile')"  style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">〰️ Smile de volatilidad</div>
+        <div class="tut-item" id="tut-nav-histdata" onclick="tutShow('histdata')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🗂️ Datos históricos</div>
         <div class="tut-item" id="tut-nav-config"   onclick="tutShow('config')"   style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">⚙️ Configuración</div>
         <div class="tut-item" id="tut-nav-formulas" onclick="tutShow('formulas')" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🔢 Fórmulas y cálculos</div>
       </div>
@@ -909,6 +966,8 @@
 <script src="ggal_tutoriales.js"></script>
 <script src="ggal_promedio.js"></script>
 <script src="ggal_ratios.js"></script>
+<script src="ggal_bullbear.js"></script>
+<script src="ggal_analhist.js"></script>
 <script src="ggal_init.js"></script>
 </body>
 </html>

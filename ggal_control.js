@@ -93,21 +93,11 @@ function copyCtrlStrategy(si){
 }
 
 function ctrlPopulateExpiry(){
-  const sel=document.getElementById('ctrl-expiry');
-  if(!sel)return;
-  const cur=sel.value;
-  sel.innerHTML='';
-  ST.expirations.forEach(e=>{
-    const o=document.createElement('option');
-    o.value=e;o.textContent=fmtExpiry(e);
-    if(e===cur)o.selected=true;
-    sel.appendChild(o);
-  });
-  if(!sel.value&&ST.selExpiry)sel.value=ST.selExpiry;
+  // expiry driven by ST.selExpiry (set from chain tab)
 }
 
 function ctrlGetLast(strike,type){
-  const exp=document.getElementById('ctrl-expiry')?.value||ST.selExpiry;
+  const exp=ST.selExpiry;
   if(!exp||!ST.chain[exp])return 0;
   const row=ST.chain[exp].find(r=>r.strike===strike);
   if(!row)return 0;
@@ -250,8 +240,8 @@ function handleCtrlPaste(e,si){
 
 function renderControl(){
   ctrlPopulateExpiry();
-  const com=parseFloat(document.getElementById('ctrl-comision')?.value)||0.5;
-  const iva=parseFloat(document.getElementById('ctrl-iva')?.value)||1.21;
+  const com=siteComision();
+  const iva=siteIva();
   const strikes=getAvailableStrikes();
   const container=document.getElementById('ctrl-strategies-container');
   if(!container)return;
@@ -349,17 +339,46 @@ function renderControl(){
 function renderIVSmile(){
   if(!ST.expirations.length)return;
   const S=ST.spot;
-  const colors=['#e8b84b','#5aabff','#44c76a'];
-  const datasets=ST.expirations.map((exp,i)=>{
+  const callColors=['#e8b84b','#5aabff','#44c76a'];
+  const putColors= ['#f06060','#b088f0','#60c0a0'];
+
+  const datasets=[];
+  ST.expirations.forEach((exp,i)=>{
     const rows=ST.chain[exp]||[];
-    return{
-      label:fmtExpiry(exp),
-      data:rows.map(r=>({x:r.strike,y:parseFloat((r.iv*100).toFixed(2))})),
-      borderColor:colors[i%3],borderWidth:2,pointRadius:3,fill:false,tension:0.3
-    };
+    // Calls — use callMid for IV
+    const callData=rows
+      .filter(r=>r.callMid>0)
+      .map(r=>({x:r.strike,y:parseFloat((r.iv*100).toFixed(2))}));
+    datasets.push({
+      label:`${fmtExpiry(exp)} Call`,
+      data:callData,
+      borderColor:callColors[i%3],borderWidth:2,pointRadius:3,fill:false,tension:0.3,
+      borderDash:[],
+    });
+    // Puts — recalculate IV from putMid
+    const T=rows[0]?.T||(30/365);
+    const putData=rows
+      .filter(r=>r.putMid>0)
+      .map(r=>{
+        const iv=impliedVol(S,r.strike,T,ST.rate,ST.q,r.putMid,'put')||null;
+        return iv?{x:r.strike,y:parseFloat((iv*100).toFixed(2))}:null;
+      }).filter(Boolean);
+    datasets.push({
+      label:`${fmtExpiry(exp)} Put`,
+      data:putData,
+      borderColor:putColors[i%3],borderWidth:2,pointRadius:3,fill:false,tension:0.3,
+      borderDash:[4,3],
+    });
   });
+
   if(ST.charts.iv)ST.charts.iv.destroy();
-  const ctx=document.getElementById('iv-chart').getContext('2d');
+  const ctx=document.getElementById('iv-chart')?.getContext('2d');
+  if(!ctx)return;
+
+  // Collect all actual strikes from all expirations
+  const abbrStrike=v=>v>=10000?Math.floor(v).toString().slice(0,3):Math.floor(v).toString().slice(0,2);
+  const allStrikes=[...new Set(ST.expirations.flatMap(exp=>(ST.chain[exp]||[]).map(r=>r.strike)))].sort((a,b)=>a-b);
+
   ST.charts.iv=new Chart(ctx,{
     type:'line',
     data:{datasets},
@@ -367,11 +386,34 @@ function renderIVSmile(){
       responsive:true,maintainAspectRatio:false,animation:false,
       plugins:{
         legend:{display:true,labels:{color:'#7a8fa6',font:{size:11},boxWidth:10,padding:14}},
-        tooltip:{backgroundColor:'#131920',borderColor:'#2a3444',borderWidth:1,titleColor:'#7a8fa6',bodyColor:'#d8e3ef',callbacks:{label:c=>` IV: ${c.raw.y}%`,title:c=>`Strike: $${c[0].raw.x}`}}
+        tooltip:{backgroundColor:'#131920',borderColor:'#2a3444',borderWidth:1,titleColor:'#7a8fa6',bodyColor:'#d8e3ef',
+          callbacks:{
+            label:c=>` IV: ${c.raw.y}%`,
+            title:c=>`Strike: ${fmtStrike(c[0].raw.x)}`
+          }
+        }
       },
       scales:{
-        x:{type:'linear',ticks:{color:'#7a8fa6',font:{size:10},callback:v=>'$'+(v/1000).toFixed(1)+'k'},grid:{color:'#1a2230'},title:{display:true,text:'Strike',color:'#7a8fa6',font:{size:10}}},
-        y:{ticks:{color:'#7a8fa6',font:{size:10},callback:v=>v+'%'},grid:{color:'#1a2230'},title:{display:true,text:'Volatilidad implícita (%)',color:'#7a8fa6',font:{size:10}}}
+        x:{type:'linear',
+          ticks:{color:'#7a8fa6',font:{size:10},
+            callback:v=>{
+              // Only show label if v matches an actual strike
+              const match=allStrikes.find(s=>Math.abs(s-v)<0.1);
+              return match!=null?abbrStrike(match):null;
+            },
+            maxTicksLimit:allStrikes.length,
+            autoSkip:false,
+          },
+          afterBuildTicks:(axis)=>{
+            // Replace Chart.js generated ticks with actual strike positions
+            axis.ticks=allStrikes.map(s=>({value:s}));
+          },
+          grid:{color:'#1a2230'},
+          title:{display:true,text:'Strike',color:'#7a8fa6',font:{size:10}}
+        },
+        y:{ticks:{color:'#7a8fa6',font:{size:10},callback:v=>v+'%'},grid:{color:'#1a2230'},
+          title:{display:true,text:'Volatilidad implícita (%)',color:'#7a8fa6',font:{size:10}}
+        }
       }
     }
   });
