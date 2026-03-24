@@ -77,6 +77,13 @@
         style="width:75px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
         oninput="siteConfigChanged()" />
     </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:10px;padding-left:10px;border-left:1px solid var(--border)">
+      <label style="font-size:10px;color:var(--muted);white-space:nowrap">Tema</label>
+      <button id="site-theme-btn" onclick="siteToggleTheme()"
+        style="font-family:var(--sans);font-size:11px;padding:3px 12px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);min-width:90px;transition:all .2s">
+        🌙 Oscuro
+      </button>
+    </div>
   </div>
 </div>
 
@@ -86,11 +93,12 @@
 
       <!-- Source selector -->
       <div style="display:flex;gap:6px;margin-bottom:14px">
-        <button id="src-btn-sheets" class="src-btn active" onclick="selectSource('sheets')">Google Sheets</button>
-        <button id="src-btn-demo" class="src-btn" onclick="selectSource('demo')">Demo</button>
+        <!-- Source selector (hidden) -->
+        <div id="src-btn-sheets" style="display:none"></div>
+        <div id="src-btn-demo" style="display:none"></div>
       </div>
 
-      <!-- Python source (hidden, kept for parseApiData compatibility) -->
+      <!-- Python source (hidden) -->
       <div id="src-python" style="display:none">
         <input type="hidden" id="api-url" value="http://localhost:5000" />
         <input type="hidden" id="api-token" value="" />
@@ -103,76 +111,46 @@
         <input type="hidden" id="map-expiry" value="expiry" />
       </div>
 
-      <!-- Sheets source -->
-      <div id="src-sheets" style="display:none">
+      <!-- Hidden URL field -->
+      <input type="hidden" id="sh-webapp-url" value="https://script.google.com/macros/s/AKfycbzK14QSqJxUp4p5KGWuBH3uzE-qlQhwcrap9SGNfZPITYoQGZiUWgHjDB0jwLbSvJXI/exec" />
+      <input type="hidden" id="sh-header-row" value="1" />
+      <input type="hidden" id="sh-col-strike" value="A" />
+      <input type="hidden" id="sh-col-type" value="B" />
+      <input type="hidden" id="sh-col-bid" value="C" />
+      <input type="hidden" id="sh-col-ask" value="D" />
+      <input type="hidden" id="sh-col-last" value="E" />
+      <input type="hidden" id="sh-col-chg" value="F" />
+      <input type="hidden" id="sh-col-expiry" value="G" />
+      <input type="hidden" id="sh-col-lastve" value="" />
+      <input type="hidden" id="sh-header-row-hist" value="1" />
+      <input type="hidden" id="hist-col-date" value="A" />
+      <input type="hidden" id="hist-col-type" value="C" />
+      <input type="hidden" id="hist-col-strike" value="F" />
+      <input type="hidden" id="hist-col-last" value="E" />
+
+      <div id="src-sheets">
         <div class="form-grid" style="margin-bottom:8px">
-          <div class="form-group" style="grid-column:1/-1">
-            <label>URL de tu Apps Script (web app)</label>
-            <input type="text" id="sh-webapp-url" value="https://script.google.com/macros/s/AKfycbzK14QSqJxUp4p5KGWuBH3uzE-qlQhwcrap9SGNfZPITYoQGZiUWgHjDB0jwLbSvJXI/exec" style="font-size:11px;font-family:var(--mono)" />
-          </div>
-        </div>
-        <div class="form-grid">
+          <!-- Datos cotizaciones -->
           <div class="form-group">
-            <label>Nombre de la pestaña — Datos cotizaciones</label>
+            <label>Datos cotizaciones</label>
             <select id="sh-sheetname" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:4px">
               <option value="DMD_Bot" selected>DMD_Bot</option>
               <option value="DMD_Sabro">DMD_Sabro</option>
               <option value="DMD_Mock">DMD_Mock</option>
             </select>
           </div>
+          <!-- Datos históricos -->
           <div class="form-group">
-            <label>Fila encabezado</label>
-            <input type="number" id="sh-header-row" value="1" min="0" style="width:60px" />
-          </div>
-        </div>
-        <div style="margin-top:10px">
-          <div class="panel-title" style="margin-bottom:8px">Mapeo de columnas <span style="color:var(--dim);font-size:9px;text-transform:none">(se detectan solas si hay encabezados — solo ajustá si falla)</span></div>
-          <div class="form-grid">
-            <div class="form-group"><label>Strike</label><input type="text" id="sh-col-strike" value="A" style="width:60px" /></div>
-            <div class="form-group"><label>Expiry</label><input type="text" id="sh-col-expiry" value="B" style="width:60px" /></div>
-            <div class="form-group"><label>Tipo (call/put)</label><input type="text" id="sh-col-type" value="C" style="width:60px" /></div>
-            <div class="form-group"><label>Bid</label><input type="text" id="sh-col-bid" value="D" style="width:60px" /></div>
-            <div class="form-group"><label>Ask</label><input type="text" id="sh-col-ask" value="E" style="width:60px" /></div>
-            <div class="form-group"><label>Last (precio IV)</label><input type="text" id="sh-col-last" value="F" style="width:60px" /></div>
-            <div class="form-group"><label>Last VE (%)</label><input type="text" id="sh-col-lastve" value="G" style="width:60px" /></div>
-            <div class="form-group"><label>CHG (variación)</label><input type="text" id="sh-col-chg" value="G" style="width:60px" /></div>
-          </div>
-        </div>
-
-        <!-- Datos históricos -->
-        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border2)">
-          <div class="panel-title" style="margin-bottom:8px">Datos históricos</div>
-          <div class="form-grid">
-            <div class="form-group" style="max-width:280px">
-              <label>Nombre de la pestaña — Datos históricos</label>
-              <input type="text" id="sh-sheetname-hist" value="HMD" style="width:120px" />
-            </div>
-            <div class="form-group">
-              <label>Fila encabezado</label>
-              <input type="number" id="sh-header-row-hist" value="1" min="0" style="width:60px" />
-            </div>
-          </div>
-          <div style="margin-top:8px">
-            <div class="panel-title" style="margin-bottom:6px;font-size:9px">Mapeo de columnas <span style="color:var(--dim);font-size:9px;text-transform:none;font-weight:400">— formato: una fila por instrumento por fecha</span></div>
-            <div class="form-grid">
-              <div class="form-group"><label>Fecha</label><input type="text" id="hist-col-date" value="A" style="width:60px" /></div>
-              <div class="form-group"><label>Tipo (Call/Put/Suby)</label><input type="text" id="hist-col-type" value="C" style="width:60px" /></div>
-              <div class="form-group"><label>Strike</label><input type="text" id="hist-col-strike" value="F" style="width:60px" /></div>
-              <div class="form-group"><label>Último precio</label><input type="text" id="hist-col-last" value="E" style="width:60px" /></div>
-            </div>
+            <label>Datos históricos</label>
+            <input type="text" id="sh-sheetname-hist" value="HMD" style="width:120px" />
           </div>
         </div>
       </div>
 
-      <!-- Demo source -->
-      <div id="src-demo" style="display:none">
-        <div style="padding:12px;background:var(--surface2);border-radius:6px;border:1px solid var(--border2);font-size:12px;color:var(--muted)">
-          Modo demo activo — datos generados con Black-Scholes. Spot $8.200, vol ATM 70%, tasa 30%, skew negativo realista.
-        </div>
-      </div>
+      <div id="src-demo" style="display:none"></div>
 
       <!-- Auto-refresh -->
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border2);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="margin-top:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:8px">
           <label style="font-size:11px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:6px">
             <input type="checkbox" id="auto-refresh-chk" onchange="toggleAutoRefresh()" style="accent-color:var(--amber);width:14px;height:14px" />
@@ -190,9 +168,8 @@
         <span id="refresh-status" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
       </div>
 
-      <div style="display:flex;gap:8px;margin-top:12px">
+      <div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn-primary" onclick="applyAndFetch()">⟳ Aplicar y actualizar</button>
-        <button onclick="selectSource('demo');generateMockAndRender();toggleEl('api-config-wrap')">Usar datos demo</button>
       </div>
     </div>
 </div><!-- end api-config-wrap -->
@@ -525,6 +502,16 @@
           style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
           onchange="renderHistData()" />
       </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">Fecha desde</label>
+        <input type="date" id="hist-date-from"
+          style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;color-scheme:dark"
+          onchange="renderHistData()" />
+        <button onclick="document.getElementById('hist-date-from').value='';renderHistData()"
+          style="padding:2px 7px;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--dim);border-radius:4px;cursor:pointer"
+          title="Limpiar filtro">✕</button>
+        <span id="hist-date-range" style="font-size:10px;color:var(--dim)"></span>
+      </div>
       <span id="hist-status" style="font-size:11px;color:var(--muted)"></span>
     </div>
 
@@ -781,7 +768,6 @@
     </div>
   </div>
 
-</div>
   <!-- BULL/BEAR TAB -->
   <div id="tab-bullbear" style="display:none">
 
@@ -864,6 +850,16 @@
           style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px"
           onchange="renderAnalHist()" />
       </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <label style="color:var(--muted);white-space:nowrap">Fecha desde</label>
+        <input type="date" id="ah-date-from"
+          style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;color-scheme:dark"
+          onchange="renderAnalHist()" />
+        <button onclick="document.getElementById('ah-date-from').value='';renderAnalHist()"
+          style="padding:2px 7px;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--dim);border-radius:4px;cursor:pointer"
+          title="Limpiar filtro">✕</button>
+        <span id="ah-date-range" style="font-size:10px;color:var(--dim)"></span>
+      </div>
       <button class="btn-primary" onclick="fetchAnalHist()" style="padding:4px 12px;font-size:11px">⟳ Actualizar HMD</button>
       <span id="ah-status" style="font-size:11px;color:var(--muted)"></span>
     </div>
@@ -925,7 +921,6 @@
     </div>
   </div>
 
-</div>
   <div id="tab-tutoriales" style="display:none">
     <div style="display:grid;grid-template-columns:220px 1fr;gap:0;min-height:600px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
 

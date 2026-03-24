@@ -18,7 +18,7 @@ function applyAndFetch(){
   fetchData();
 }
 
-/* ===== BS PARAMS BAR (inline in chain tab) ===== */
+/* ===== BS PARAMS BAR ===== */
 function applyBSParams(){
   const spot=parseFloat(document.getElementById('bs-spot').value);
   const rate=parseFloat(document.getElementById('bs-rate').value);
@@ -33,27 +33,22 @@ function applyBSParams(){
   document.getElementById('risk-free-rate').value=isNaN(rate)?ST.rate*100:rate;
   const hdrRateEl=document.getElementById('hdr-rate');
   if(hdrRateEl)hdrRateEl.textContent=(ST.rate*100).toFixed(1)+'%';
-  // Override T for all chain rows if days manually set
   const daysEl=document.getElementById('bs-days');
   const days=parseFloat(daysEl.value);
   if(!isNaN(days)&&days>0&&ST.selExpiry&&ST.chain[ST.selExpiry]){
-    const T=days/365;
-    ST.chain[ST.selExpiry].forEach(r=>r.T=T);
+    ST.chain[ST.selExpiry].forEach(r=>r.T=days/365);
   }
   renderChain();
   showToast(`Recalculado — Spot $${spot||ST.spot} · Tasa ${(ST.rate*100).toFixed(1)}%`);
 }
 
 function syncBSBar(){
-  const spot=ST.spot;
-  document.getElementById('bs-spot').value=spot;
+  document.getElementById('bs-spot').value=ST.spot;
   document.getElementById('bs-rate').value=(ST.rate*100).toFixed(1);
   document.getElementById('bs-q').value=(ST.q*100).toFixed(1);
-  // Calculate days to selected expiry
   if(ST.selExpiry){
     const T=(new Date(ST.selExpiry+'T12:00:00')-new Date())/(365*24*3600*1000);
-    const days=Math.max(1,Math.round(T*365));
-    document.getElementById('bs-days').value=days;
+    document.getElementById('bs-days').value=Math.max(1,Math.round(T*365));
   }
 }
 
@@ -63,7 +58,7 @@ let autoRefreshTimer=null;
 function toggleAutoRefresh(){
   const chk=document.getElementById('auto-refresh-chk');
   const interval=+document.getElementById('auto-refresh-interval').value;
-  clearInterval(autoRefreshTimer);autoRefreshTimer=null;
+  clearInterval(autoRefreshTimer); autoRefreshTimer=null;
   if(chk.checked){
     autoRefreshTimer=setInterval(()=>fetchData(true),interval);
     document.getElementById('refresh-status').textContent='Próx. actualización en '+interval/1000+'s';
@@ -72,7 +67,7 @@ function toggleAutoRefresh(){
   }
 }
 
-/* ===== API (Python server) ===== */
+/* ===== API ===== */
 async function fetchData(silent=false){
   if(currentSource==='demo'){generateMockAndRender();return;}
   if(currentSource==='sheets'){fetchSheets(silent);return;}
@@ -82,7 +77,9 @@ async function fetchData(silent=false){
   if(!silent)showToast('Conectando al servidor Python...');
   try{
     const ticker=document.getElementById('api-ticker').value||'GGAL';
-    const res=await fetch(`${url}/options?ticker=${ticker}`,{headers:token?{Authorization:`Bearer ${token}`,'Content-Type':'application/json'}:{}});
+    const res=await fetch(`${url}/options?ticker=${ticker}`,{
+      headers:token?{Authorization:`Bearer ${token}`,'Content-Type':'application/json'}:{}
+    });
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
     const data=await res.json();
     parseApiData(data);
@@ -134,13 +131,10 @@ async function fetchSheets(silent=false){
 }
 
 function parseSheetsRows(rows){
-  if(!rows||!rows.length){showToast('La hoja no tiene datos');return;}
-
+  if(!rows?.length){showToast('La hoja no tiene datos');return;}
   const headerRowIdx=(+document.getElementById('sh-header-row').value||1)-1;
   const headerRow=rows[headerRowIdx]||[];
   const dataRows=rows.slice(headerRowIdx+1);
-
-  // Auto-detect columns by header name
   const autoMap={};
   const synonyms={
     strike:['strike','strikes','ejercicio','k'],
@@ -149,6 +143,7 @@ function parseSheetsRows(rows){
     bid:['bid','compra'],
     ask:['ask','venta'],
     last:['last','ultimo','último','cierre','precio','spot','subyacente','ggal'],
+    chg:['chg','change'],
   };
   headerRow.forEach((h,i)=>{
     const norm=(h||'').toLowerCase().trim().replace(/\s+/g,'_');
@@ -156,7 +151,6 @@ function parseSheetsRows(rows){
       if(syns.some(s=>norm===s||norm.startsWith(s)))autoMap[field]=i;
     });
   });
-
   const ci={
     strike: autoMap.strike??colLetterToIndex(document.getElementById('sh-col-strike').value),
     expiry: autoMap.expiry??colLetterToIndex(document.getElementById('sh-col-expiry').value),
@@ -165,94 +159,56 @@ function parseSheetsRows(rows){
     ask:    autoMap.ask   ??colLetterToIndex(document.getElementById('sh-col-ask').value),
     last:   autoMap.last  ??colLetterToIndex(document.getElementById('sh-col-last').value),
     lastve: colLetterToIndex(document.getElementById('sh-col-lastve')?.value||'G'),
-    chg:    colLetterToIndex(document.getElementById('sh-col-chg')?.value||'G'),
+    chg:    autoMap.chg??colLetterToIndex(document.getElementById('sh-col-chg')?.value||'F'),
   };
-
   console.log('Columnas mapeadas:', ci, '| Auto-detectadas:', autoMap);
-
-  // Parse número — detecta automáticamente el formato:
-  // Formato ARS: "10.950,00" (punto=miles, coma=decimal)
-  // Formato estándar: "10950.00" o "519.99" (punto=decimal)
-  function parseARS(s){
-    if(s===null||s===undefined||s==='')return NaN;
-    const str=String(s).trim();
-    if(!str)return NaN;
-    // Si tiene coma → formato ARS: quitar puntos de miles, cambiar coma a punto
-    if(str.includes(',')){
-      return parseFloat(str.replace(/\./g,'').replace(',','.'));
-    }
-    // Sin coma → ya es formato estándar (el Apps Script serializa números con punto)
-    return parseFloat(str);
-  }
 
   let spot=null, spotChg=null;
   const opts=[];
   let skipped=0;
 
   dataRows.forEach(cols=>{
-    if(!cols||!cols.length)return;
+    if(!cols?.length)return;
     const rawStrike=(cols[ci.strike]||'').toString().trim();
     const rawType=(cols[ci.type]||'').toString().trim().toUpperCase();
-
-    // ── Fila del subyacente (TYPE="SUBY") ──
-    // Solo tomamos el precio como spot si el strike dice "GGAL" (o está vacío).
-    // Filas SUBY de otros subyacentes (PAMP, etc.) se descartan sin modificar el spot.
     if(rawType==='SUBY'){
       const isGGAL=rawStrike.toUpperCase()==='GGAL'||rawStrike==='';
       if(isGGAL){
-        const s=parseARS(cols[ci.last]);
-        if(!isNaN(s)&&s>0){
-          spot=s;
-          console.log('Spot detectado de fila SUBY/GGAL:', spot);
-        }
-        const c=parseARS(cols[ci.chg]);
+        const s=parseARSNum(cols[ci.last]);
+        if(!isNaN(s)&&s>0){spot=s;}
+        const c=parseARSNum(cols[ci.chg]);
         if(!isNaN(c))spotChg=c;
       }
       return;
     }
     if(rawStrike.toUpperCase()==='GGAL'){
-      const s=parseARS(cols[ci.last]);
-      if(!isNaN(s)&&s>0){spot=s;console.log('Spot detectado de fila GGAL:', spot);}
-      const c=parseARS(cols[ci.chg]);
+      const s=parseARSNum(cols[ci.last]);
+      if(!isNaN(s)&&s>0)spot=s;
+      const c=parseARSNum(cols[ci.chg]);
       if(!isNaN(c))spotChg=c;
       return;
     }
-
-    const K=parseARS(rawStrike);
+    const K=parseARSNum(rawStrike);
     const exp=normalizeExpiry((cols[ci.expiry]||'').toString().trim());
     const tp=rawType.toLowerCase();
-    const bid=parseARS(cols[ci.bid]);
-    const ask=parseARS(cols[ci.ask]);
-    const last=parseARS(cols[ci.last]);
-    const lastve=parseARS(cols[ci.lastve]); // valor extrínseco % del spot
-    const chg=parseARS(cols[ci.chg]);       // variación del día
-
+    const bid=parseARSNum(cols[ci.bid]);
+    const ask=parseARSNum(cols[ci.ask]);
+    const last=parseARSNum(cols[ci.last]);
+    const lastve=parseARSNum(cols[ci.lastve]);
+    const chg=parseARSNum(cols[ci.chg]);
     if(isNaN(K)||K<=0||!exp){skipped++;return;}
-
-    const safeBid=isNaN(bid)?0:bid;
-    const safeAsk=isNaN(ask)?0:ask;
-
-    // mid = LAST únicamente. Si no hay last, queda en 0 → se muestra "---" y no se calcula IV
-    const mid=(!isNaN(last)&&last>0) ? last : 0;
-
     opts.push({
-      strike:K,
-      expiry:exp,
+      strike:K, expiry:exp,
       optionType:tp.includes('put')||tp==='p'?'put':'call',
-      bid:safeBid,
-      ask:safeAsk,
-      mid, // ← este valor alimenta impliedVol()
+      bid:isNaN(bid)?0:bid, ask:isNaN(ask)?0:ask,
+      mid:(!isNaN(last)&&last>0)?last:0,
       lastve:isNaN(lastve)?null:lastve,
       chg:isNaN(chg)?null:chg,
     });
   });
 
   console.log(`Sheets parseado: spot=${spot}, opciones=${opts.length}, salteadas=${skipped}`);
-
-  if(!opts.length){
-    showToast(`Sin opciones válidas. ${skipped} filas salteadas — revisá columnas.`);
-    return;
-  }
+  if(!opts.length){showToast(`Sin opciones válidas. ${skipped} filas salteadas — revisá columnas.`);return;}
   if(spot&&spot>0){
     ST.spot=spot;
     document.getElementById('spot-display').textContent='$ '+spot.toLocaleString('es-AR');
@@ -275,11 +231,11 @@ function normalizeExpiry(s){
   const parts=s.split(/[\/\-]/);
   if(parts.length===3){
     if(parts[0].length===4)return `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
-    // DD/MM/YYYY (formato argentino)
     return `${parts[2].padStart(4,'20')}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
   }
   return s;
 }
+
 function parseApiData(data){
   const sf=document.getElementById('map-spot').value;
   const kf=document.getElementById('map-strike').value;
@@ -292,18 +248,16 @@ function parseApiData(data){
   if(!Array.isArray(opts)){generateMockAndRender();return;}
   const byExp={};
   opts.forEach(o=>{
-    const e=o[ef];if(!byExp[e])byExp[e]=[];
-    const bid=parseFloat(o[bf])||0;
-    const ask=parseFloat(o[af])||0;
-    // Only use LAST — no bid/ask fallback
-    const mid= o.mid>0 ? o.mid : 0;
+    const e=o[ef]; if(!byExp[e])byExp[e]=[];
+    const bid=parseFloat(o[bf])||0, ask=parseFloat(o[af])||0;
+    const mid=o.mid>0?o.mid:0;
     byExp[e].push({strike:parseFloat(o[kf]),type:o[tf],bid,ask,mid,lastve:o.lastve??null,chg:o.chg??null});
   });
-  ST.expirations=Object.keys(byExp).sort();ST.chain={};
+  ST.expirations=Object.keys(byExp).sort(); ST.chain={};
   ST.expirations.forEach(exp=>{
     const T=(new Date(exp+'T12:00:00')-new Date())/(365*24*3600*1000);
     const calls=byExp[exp].filter(o=>o.type.toLowerCase().includes('call'));
-    const puts=byExp[exp].filter(o=>o.type.toLowerCase().includes('put'));
+    const puts =byExp[exp].filter(o=>o.type.toLowerCase().includes('put'));
     const strikes=[...new Set([...calls,...puts].map(o=>o.strike))].sort((a,b)=>a-b);
     ST.chain[exp]=strikes.map(K=>{
       const c=calls.find(x=>x.strike===K)||{};
@@ -319,24 +273,18 @@ function parseApiData(data){
 }
 
 function applyConfig(){
-  // Read from site config globals, hidden fields kept in sync by siteConfigChanged()
   ST.rate=siteRate()/100;
   ST.q=siteDivYield()/100;
-  // Keep hidden compat fields in sync
-  const rEl=document.getElementById('risk-free-rate');
-  const dEl=document.getElementById('div-yield');
+  const rEl=document.getElementById('risk-free-rate'), dEl=document.getElementById('div-yield');
   if(rEl)rEl.value=siteRate();
   if(dEl)dEl.value=siteDivYield();
   const hdrRate=document.getElementById('hdr-rate');
   if(hdrRate)hdrRate.textContent=(ST.rate*100).toFixed(1)+'%';
-  const ivR=document.getElementById('iv-r');
+  const ivR=document.getElementById('iv-r'), cR=document.getElementById('c-r');
   if(ivR)ivR.value=(ST.rate*100).toFixed(1);
-  const cR=document.getElementById('c-r');
   if(cR)cR.value=(ST.rate*100).toFixed(1);
   syncBSBar();
 }
-
-/* ===== HELPERS ===== */
 
 /* ===== SITE CONFIG ===== */
 function siteComision(){ return parseFloat(document.getElementById('site-comision')?.value||'0.500')||0.500; }
@@ -344,42 +292,43 @@ function siteIva(){      return parseFloat(document.getElementById('site-iva')?.
 function siteRate(){     return parseFloat(document.getElementById('site-rate')?.value||'30')||30; }
 function siteDivYield(){ return parseFloat(document.getElementById('site-dividends')?.value||'0')||0; }
 
+function siteToggleTheme(){
+  const isDark=document.body.classList.toggle('theme-dark');
+  const btn=document.getElementById('site-theme-btn');
+  if(btn)btn.textContent=isDark?'🌙 Oscuro':'☀ Claro';
+  localStorage.setItem('ggal_theme',isDark?'dark':'light');
+}
+
+function siteApplyTheme(){
+  const isDark=(localStorage.getItem('ggal_theme')||'light')==='dark';
+  document.body.classList.toggle('theme-dark',isDark);
+  const btn=document.getElementById('site-theme-btn');
+  if(btn)btn.textContent=isDark?'🌙 Oscuro':'☀ Claro';
+}
+
 function siteConfigChanged(){
-  // Sync risk-free-rate and div-yield hidden fields that the BS engine reads
-  const rEl=document.getElementById('risk-free-rate');
-  const dEl=document.getElementById('div-yield');
+  const rEl=document.getElementById('risk-free-rate'), dEl=document.getElementById('div-yield');
   if(rEl)rEl.value=siteRate();
   if(dEl)dEl.value=siteDivYield();
   applyConfig();
   cfgSave();
 }
 
-
-const CFG_KEY = 'ggal_config_v1';
-
-// Fields to persist — grouped by module
-const CFG_FIELDS = [
-  // Site config
+/* ===== CONFIG PERSISTENCE ===== */
+const CFG_KEY='ggal_config_v1';
+const CFG_FIELDS=[
   'site-comision','site-iva','site-rate','site-dividends',
-  // API / Config
   'sh-webapp-url','sh-sheetname','sh-header-row',
-  'sh-col-strike','sh-col-expiry','sh-col-type','sh-col-bid','sh-col-ask','sh-col-last','sh-col-lastve','sh-col-chg',
+  'sh-col-strike','sh-col-expiry','sh-col-type','sh-col-bid','sh-col-ask','sh-col-last','sh-col-chg',
   'sh-sheetname-hist','sh-header-row-hist',
   'hist-col-date','hist-col-type','hist-col-strike','hist-col-last',
   'auto-refresh-chk','auto-refresh-interval',
-  // Chain
   'spot-input','expiry-sel','chain-filter',
-  // Hist data
-  'hist-strike1','hist-strike2','hist-type1','hist-type2',
-  'hist-rate','hist-expiry','hist-ri',
-  // Mariposa
+  'hist-strike1','hist-strike2','hist-type1','hist-type2','hist-rate','hist-expiry','hist-ri','hist-date-from',
   'mar-wings','mar-threshold',
-  // Ratios
   'rat-expiry','rat-thresh-lo','rat-thresh-hi','rat-thresh-iv','rat-thresh-parity',
   'rat-hm-type','rat-only-opps','rat-base',
-  // Análisis histórico
-  'ah-strike1','ah-strike2','ah-type1','ah-type2',
-  'ah-rate','ah-expiry','ah-ri',
+  'ah-strike1','ah-strike2','ah-type1','ah-type2','ah-rate','ah-expiry','ah-ri','ah-date-from',
 ];
 
 function cfgSave(){
@@ -388,10 +337,9 @@ function cfgSave(){
     CFG_FIELDS.forEach(id=>{
       const el=document.getElementById(id);
       if(!el)return;
-      if(el.type==='checkbox')cfg[id]=el.checked;
-      else cfg[id]=el.value;
+      cfg[id]=el.type==='checkbox'?el.checked:el.value;
     });
-    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+    localStorage.setItem(CFG_KEY,JSON.stringify(cfg));
   }catch(e){console.warn('cfgSave:',e);}
 }
 
@@ -407,63 +355,207 @@ function cfgLoad(){
       if(el.type==='checkbox')el.checked=cfg[id];
       else el.value=cfg[id];
     });
-    // Re-sync type buttons that have a hidden input partner
-    ['hist-type1','hist-type2','ah-type1','ah-type2','rat-hm-type'].forEach(id=>{
-      const hidden=document.getElementById(id);
-      const btn=document.getElementById(id+'-btn');
-      if(!hidden||!btn)return;
-      const isCall=hidden.value==='call';
-      btn.textContent=isCall?'Call':'Put';
-      btn.style.color=isCall?'var(--green)':'var(--red)';
-      btn.style.borderColor=isCall?'var(--green)':'var(--red)';
-    });
+    // Sync all type toggle buttons from their saved hidden values
+    syncTypeBtns(['hist-type1','hist-type2','ah-type1','ah-type2','rat-hm-type']);
   }catch(e){console.warn('cfgLoad:',e);}
 }
 
-// Auto-save on any input change inside the page
 function cfgBindAutoSave(){
   CFG_FIELDS.forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
     const evt=el.type==='checkbox'?'change':'input';
     el.addEventListener(evt,()=>cfgSave(),{passive:true});
-    // Also on change for selects
     if(el.tagName==='SELECT')el.addEventListener('change',()=>cfgSave(),{passive:true});
   });
 }
 
+/* ===== HELPERS ===== */
 
 function fmtN(n,dec=2){
   if(n===undefined||n===null||isNaN(n))return '--';
   return n.toLocaleString('es-AR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
 }
-// Muestra el strike con sus decimales reales (sin trailing zeros innecesarios)
+
 function fmtStrike(n){
   if(n===undefined||n===null||isNaN(n))return '--';
-  // Si tiene decimales significativos, mostrarlos; si es entero, sin decimales
-  const dec=n%1===0?0:2;
-  return n.toLocaleString('es-AR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  return n.toLocaleString('es-AR',{minimumFractionDigits:n%1===0?0:2,maximumFractionDigits:n%1===0?0:2});
 }
+
 function fmtExpiry(s){
   const mn=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const d=new Date(s+'T12:00:00');
   return `${d.getDate()} ${mn[d.getMonth()]} ${d.getFullYear()}`;
 }
+
+// Parse números en formato argentino (1.234,56) o estándar (1234.56)
+function parseARSNum(s){
+  if(s===null||s===undefined||s==='')return NaN;
+  s=String(s).trim();
+  if(!s)return NaN;
+  if(s.includes(',')&&s.includes('.'))return parseFloat(s.replace(/\./g,'').replace(',','.'));
+  if(s.includes(','))return parseFloat(s.replace(',','.'));
+  return parseFloat(s);
+}
+
 function toggleEl(id){const e=document.getElementById(id);if(e)e.style.display=e.style.display==='none'?'block':'none';}
+
 function getAvailableStrikes(){
-  // Pull strikes from current chain data if available, else empty
   const exp=ST.selExpiry||ST.expirations[0];
   if(exp&&ST.chain[exp])return ST.chain[exp].map(r=>r.strike);
   return [];
 }
 
+/* ===== SHARED UI HELPERS ===== */
+
+// Sync a Call/Put toggle button appearance to the given state
+function syncTypeBtn(btn, isCall){
+  btn.textContent=isCall?'Call':'Put';
+  btn.style.color=isCall?'var(--green)':'var(--red)';
+  btn.style.borderColor=isCall?'var(--green)':'var(--red)';
+}
+
+// Sync multiple type buttons by reading their hidden input partners
+function syncTypeBtns(ids){
+  ids.forEach(id=>{
+    const hidden=document.getElementById(id);
+    const btn=document.getElementById(id+'-btn');
+    if(hidden&&btn)syncTypeBtn(btn, hidden.value==='call');
+  });
+}
+
+// Generic call/put toggle for hidden+button pairs
+function toggleOptionType(hiddenId, btnId, renderFn){
+  const hidden=document.getElementById(hiddenId);
+  const btn=document.getElementById(btnId);
+  if(!hidden||!btn)return;
+  hidden.value=hidden.value==='call'?'put':'call';
+  syncTypeBtn(btn, hidden.value==='call');
+  renderFn?.();
+}
+
+// Generic swap for two strike+type selector pairs
+function swapStrikeSelectors(s1Id, s2Id, t1Id, t2Id, renderFn){
+  const s1=document.getElementById(s1Id), s2=document.getElementById(s2Id);
+  if(!s1||!s2)return;
+  [s1.value, s2.value]=[s2.value, s1.value];
+  const t1=document.getElementById(t1Id), t2=document.getElementById(t2Id);
+  if(t1&&t2){
+    [t1.value, t2.value]=[t2.value, t1.value];
+    syncTypeBtns([t1Id, t2Id]);
+  }
+  renderFn?.();
+}
+
+// Populate two strike <select> elements from an array of strike values.
+// Preserves current selections; defaults to two ATM-closest strikes.
+function populateStrikeDropdowns(sel1Id, sel2Id, strikes){
+  const s1=document.getElementById(sel1Id), s2=document.getElementById(sel2Id);
+  if(!s1||!s2||!strikes.length)return;
+  const cur1=parseFloat(s1.value)||0, cur2=parseFloat(s2.value)||0;
+  [s1, s2].forEach((sel, i)=>{
+    const cur=i===0?cur1:cur2;
+    sel.innerHTML='';
+    strikes.forEach(s=>{
+      const o=document.createElement('option');
+      o.value=s; o.textContent=fmtStrike(s);
+      if(Math.round(s*100)===Math.round(cur*100))o.selected=true;
+      sel.appendChild(o);
+    });
+  });
+  if(!cur1&&!cur2&&strikes.length>=2){
+    const sorted=[...strikes].sort((a,b)=>Math.abs(a-ST.spot)-Math.abs(b-ST.spot));
+    s1.value=sorted[0]; s2.value=sorted[1];
+  }
+}
+
+// Generic line chart factory. Destroys any existing chart at chartsObj[key].
+// opts.dense=true → rotated x ticks, no autoSkip (for dense date series)
+function createLineChart(chartsObj, key, canvasId, labels, data, color, tooltipLabel, fmtFn, opts={}){
+  if(chartsObj[key])chartsObj[key].destroy();
+  const ctx=document.getElementById(canvasId)?.getContext('2d');
+  if(!ctx)return;
+  const dense=opts.dense||false;
+  const xTickCb=(v,i)=>{
+    const d=labels[i]; if(!d)return'';
+    const p=d.split('-');
+    return p.length>=3?p[2]+'-'+p[1]:d;
+  };
+  chartsObj[key]=new Chart(ctx,{
+    type:'line',
+    data:{labels, datasets:[{
+      data: data.map(v=>v!=null?parseFloat(v.toFixed(4)):null),
+      borderColor:color, borderWidth:1.5, pointRadius:3,
+      pointBackgroundColor:color, fill:false, spanGaps:true
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#131920',borderColor:'#2a3444',borderWidth:1,
+          titleColor:'#7a8fa6',bodyColor:'#d8e3ef',
+          callbacks:{label:c=>` ${tooltipLabel}: ${fmtFn(c.raw)}`}}
+      },
+      scales:{
+        x:{
+          ticks:{color:'#7a8fa6',font:{size:9},
+            maxRotation:dense?45:0, minRotation:dense?45:0,
+            autoSkip:!dense, maxTicksLimit:dense?9999:12,
+            callback:xTickCb},
+          grid:{color:'#1a2230'}
+        },
+        y:{ticks:{color:'#7a8fa6',font:{size:9},callback:fmtFn}, grid:{color:'#1a2230'}}
+      }
+    }
+  });
+}
+
+// Generic: populates any <select> with ST.expirations, preserving current selection
+function populateExpirySelect(selId){
+  const sel=document.getElementById(selId);
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='';
+  ST.expirations.forEach(e=>{
+    const o=document.createElement('option');
+    o.value=e; o.textContent=fmtExpiry(e);
+    if(e===cur)o.selected=true;
+    sel.appendChild(o);
+  });
+  if(!sel.value&&ST.selExpiry)sel.value=ST.selExpiry;
+}
+
+// Sync min/max attributes of a date-from picker from HIST.rows dates,
+// and show the available range as a hint next to the input.
+function syncDateFromPicker(inputId, rangeId){
+  const input=document.getElementById(inputId);
+  const rangeEl=document.getElementById(rangeId);
+  if(!input)return;
+  if(!window.HIST?.rows?.length){
+    input.removeAttribute('min'); input.removeAttribute('max');
+    if(rangeEl)rangeEl.textContent='';
+    return;
+  }
+  const dates=HIST.rows.map(r=>r.date).filter(Boolean).sort();
+  const minDate=dates[0], maxDate=dates[dates.length-1];
+  input.min=minDate;
+  input.max=maxDate;
+  // If current value is outside range, clamp it
+  if(input.value&&input.value<minDate) input.value=minDate;
+  if(input.value&&input.value>maxDate) input.value='';
+  if(rangeEl) rangeEl.textContent=`${minDate} – ${maxDate}`;
+}
+
+/* ===== NAVIGATION ===== */
 function showTab(name){
-  ['chain','strategy','control','calc','ivcalc','bullbear','ratios','mariposa','promedio','ivsmile','histdata','analisis','analhist','tutoriales'].forEach(t=>{
+  ['chain','strategy','control','calc','ivcalc','bullbear','ratios','mariposa','promedio',
+   'ivsmile','histdata','analisis','analhist','tutoriales'].forEach(t=>{
     const el=document.getElementById('tab-'+t);
     if(el)el.style.display=t===name?'block':'none';
   });
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active',['chain','strategy','control','calc','ivcalc','bullbear','ratios','mariposa','promedio','ivsmile','histdata','analisis','analhist','tutoriales'][i]===name);
+    t.classList.toggle('active',['chain','strategy','control','calc','ivcalc','bullbear','ratios',
+      'mariposa','promedio','ivsmile','histdata','analisis','analhist','tutoriales'][i]===name);
   });
   if(name==='strategy'&&!ST.charts.pnl)loadPreset('bull_spread',document.querySelector('[data-preset="bull_spread"]'));
   if(name==='calc')setTimeout(runCalc,50);
@@ -478,17 +570,19 @@ function showTab(name){
   if(name==='bullbear'){bbPopulateExpiry();renderBullBear();}
   if(name==='analhist'){ahPopulateStrikes();renderAnalHist();}
 }
+
 function manualSpot(){
   const v=parseFloat(document.getElementById('spot-input').value);
   if(v>0){ST.spot=v;document.getElementById('spot-display').textContent='$ '+v.toLocaleString('es-AR');generateMockAndRender();}
 }
+
 function generateMockAndRender(){
   generateMockData();populateExpiries();renderChain();
   if(ST.charts.iv)renderIVSmile();
 }
+
 function showToast(msg){
   const t=document.getElementById('toast');
-  t.textContent=msg;t.classList.add('show');
-  clearTimeout(t._tid);t._tid=setTimeout(()=>t.classList.remove('show'),3000);
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._tid); t._tid=setTimeout(()=>t.classList.remove('show'),3000);
 }
-

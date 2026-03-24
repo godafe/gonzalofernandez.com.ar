@@ -5,6 +5,9 @@
   document.getElementById('iv-r').value=(ST.rate*100).toFixed(1);
   document.getElementById('risk-free-rate').value=(ST.rate*100).toFixed(1);
 
+  // Apply saved theme immediately
+  siteApplyTheme();
+
   // Restore saved strategies from localStorage
   if(ctrlLoad()){
     showToast(`${ctrlStrategies.length} estrategia${ctrlStrategies.length>1?'s':''} restaurada${ctrlStrategies.length>1?'s':''} ✓`);
