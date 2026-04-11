@@ -77,6 +77,16 @@ function copyCtrlStrategy(si){
   );
 }
 
+function ctrlViewInSimulator(si){
+  const strategy=ctrlStrategies[si];
+  if(!strategy){showToast('No se encontro la estrategia seleccionada');return;}
+  if(typeof simLoadControlStrategy!=='function'){
+    showToast('El Simulador no esta disponible');
+    return;
+  }
+  simLoadControlStrategy(strategy,{openTab:true,selectValue:`control:${si}`,name:strategy.name});
+}
+
 function ctrlPopulateExpiry(){
   // Expiry driven by ST.selExpiry (set from chain tab)
 }
@@ -239,6 +249,7 @@ function renderControl(){
       </div>
       <div style="display:flex;gap:6px">
         <button onclick="copyCtrlStrategy(${si})" style="padding:3px 10px;font-size:11px;background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer" title="Copiar patas como TSV">⎘ Copiar</button>
+        <button onclick="ctrlViewInSimulator(${si})" style="padding:3px 10px;font-size:11px;background:var(--surface);border:1px solid var(--border);color:var(--amber);border-radius:4px;cursor:pointer" title="Cargar esta estrategia en el Simulador">Ver en Simulador</button>
         <button onclick="addCtrlRowToStrategy(${si})" style="padding:3px 10px;font-size:11px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:4px;cursor:pointer">+ Agregar pata</button>
         <button onclick="removeCtrlStrategy(${si})" style="padding:3px 8px;font-size:11px;background:var(--red-bg);border:1px solid var(--red);color:var(--red);border-radius:4px;cursor:pointer">✕ Eliminar</button>
       </div>`;
@@ -573,3 +584,4 @@ function renderIVSmile(){
     }
   });
 }
+

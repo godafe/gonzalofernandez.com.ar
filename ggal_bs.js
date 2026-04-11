@@ -53,6 +53,7 @@ const ST={
   spot:8200,rate:0.30,q:0,
   expirations:[],chain:{},
   selExpiry:null,
+  futures:{},
   legs:[],
   charts:{pnl:null,sens:null,iv:null,ivSens:null}
 };
@@ -61,6 +62,9 @@ const ST={
 function generateMockData(){
   const S=ST.spot,r=ST.rate,q=ST.q;
   const today=new Date();
+  // Mock de futuro (para el modulo Sinteticas)
+  ST.futures=ST.futures||{};
+  ST.futures['GGAL/ABR26']={last:Math.max(1, S*(0.95+Math.random()*0.05)), chg:null};
   const expirations=[];
   for(let m=1;m<=3;m++){
     const d=new Date(today);
@@ -94,7 +98,8 @@ function generateMockData(){
   const atmRow=chain[expirations[0]].find(r=>r.strike===base)||chain[expirations[0]][6];
   const atmVolEl=document.getElementById('hdr-atm-vol');
   if(atmVolEl)atmVolEl.textContent=(atmRow.iv*100).toFixed(1)+'%';
-  document.getElementById('hdr-time').textContent=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  if(typeof setHdrTime==='function')setHdrTime();
+  else document.getElementById('hdr-time').textContent=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 }
 
 function populateExpiries(){
@@ -105,4 +110,3 @@ function populateExpiries(){
     o.value=e;o.textContent=fmtExpiry(e);sel.appendChild(o);
   });
 }
-

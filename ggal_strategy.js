@@ -1,6 +1,10 @@
 /* ===== STRATEGY BUILDER ===== */
 let legs=[];
 
+function getStrategyLegsSnapshot(){
+  return legs.map(leg=>({...leg}));
+}
+
 function loadPreset(name,el){
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   if(el)el.classList.add('active');
@@ -190,4 +194,3 @@ function updatePnL(){
     }
   });
 }
-

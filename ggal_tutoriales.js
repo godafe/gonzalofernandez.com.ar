@@ -85,7 +85,7 @@ ivsmile:`
 `,
 
 histdata:`
-<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">🗂️ Datos históricos</h2>
+<h2 style="margin:0 0 6px;font-size:18px;color:var(--text)">🗂️ Costos históricos</h2>
 <p style="color:var(--muted);font-size:12px;margin:0 0 20px">Evolución histórica de precios, IV y métricas de estrategia para dos strikes seleccionados.</p>
 
 <h3 style="font-size:13px;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">Parámetros</h3>

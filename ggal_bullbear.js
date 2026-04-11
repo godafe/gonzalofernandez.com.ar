@@ -22,6 +22,23 @@ function bbPopulateBase(type, expiry){
   }
 }
 
+function bbBindCardEvents(){
+  const container=document.getElementById('bb-cards');
+  if(!container||container._bbBound)return;
+  container._bbBound=true;
+  container.addEventListener('click',e=>{
+    const btn=e.target.closest('[data-bb-create]');
+    if(!btn)return;
+    bbCreateStrategy(
+      parseFloat(btn.dataset.k1),
+      parseFloat(btn.dataset.p1),
+      parseFloat(btn.dataset.k2),
+      parseFloat(btn.dataset.p2),
+      btn.dataset.type
+    );
+  });
+}
+
 // Build the HTML for a single spread card
 function bbBuildCard(sp, baseStrike, priceBase, type, lotes){
   const isCall=type==='call';
@@ -44,8 +61,7 @@ function bbBuildCard(sp, baseStrike, priceBase, type, lotes){
     </div>`;
 
   return`
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;position:relative;transition:border-color .15s;cursor:default"
-      onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;position:relative;transition:border-color .15s;cursor:default">
 
       <!-- Header -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -94,16 +110,15 @@ function bbBuildCard(sp, baseStrike, priceBase, type, lotes){
       </div>
 
       <!-- Create strategy button -->
-      <button onclick="bbCreateStrategy(${baseStrike},${priceBase},${sp.K2},${sp.price2},'${type}')"
-        style="width:100%;margin-top:10px;padding:5px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s"
-        onmouseover="this.style.borderColor='var(--amber)';this.style.color='var(--amber)'"
-        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+      <button data-bb-create="1" data-k1="${baseStrike}" data-p1="${priceBase}" data-k2="${sp.K2}" data-p2="${sp.price2}" data-type="${type}"
+        style="width:100%;margin-top:10px;padding:5px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s">
         + Crear en Control de estrategias
       </button>
     </div>`;
 }
 
 function renderBullBear(){
+  bbBindCardEvents();
   bbPopulateExpiry();
   const exp=document.getElementById('bb-expiry')?.value||ST.selExpiry;
   const type=document.getElementById('bb-type')?.value||'call';

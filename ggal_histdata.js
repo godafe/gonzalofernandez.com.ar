@@ -1,5 +1,5 @@
 /* ===== DATOS HISTÓRICOS ===== */
-const HIST={rows:[],charts:{rc:null,vi:null,st:null,varr:null,bb:null,ri:null}};
+const HIST={rows:[],charts:{rc:null,vi:null,st:null,varr:null,bb:null,ri:null,rcband:null,lleno:null,ivpct:null}};
 
 function parseHistRows(rows){
   if(!rows||rows.length<2)return;
@@ -39,6 +39,8 @@ function parseHistRows(rows){
     .map(([date,priceMap])=>({date,prices:priceMap,spot:priceMap.__suby__||null}));
 
   histPopulateStrikes();
+  if(typeof probPopulateStrikes==='function')probPopulateStrikes();
+  if(typeof renderProbabilidades==='function'&&document.getElementById('tab-probabilidades'))renderProbabilidades();
 }
 
 function histPopulateStrikes(){
@@ -138,9 +140,12 @@ function renderHistData(){
     }
     const bb=(p1!=null&&p2!=null)?p1-p2:null;
     const riCost=(p1!=null&&p2!=null)?(-10*p1)+(p2*ri*10):null;
+    const spreadStrikes=Math.abs(K2-K1);
+    const pctLleno=(p1!=null&&p2!=null&&spreadStrikes>0)
+      ?((p1-p2)/spreadStrikes)*100:null;
     return{date:row.date, p1, p2, spot,
       ...calcHistCalcs(p1,p2,T,T,r,q,k1,k2,spot,type1,type2),
-      bb, riCost};
+      bb, riCost, pctLleno};
   });
 
   // Add % variation vs previous row
@@ -182,6 +187,15 @@ function renderHistData(){
   // Charts using shared factory
   const labels=calc.map(r=>r.date||'');
   const fP=v=>v!=null?fmtN(v):'--';
+  // Shared percentile helper used by RC-bands and IV-percentiles charts
+  const pctile=(arr,p)=>{
+    const s=[...arr].filter(v=>v!=null).sort((a,b)=>a-b);
+    if(!s.length)return null;
+    const idx=(p/100)*(s.length-1);
+    const lo=Math.floor(idx),hi=Math.ceil(idx);
+    return lo===hi?s[lo]:s[lo]+(s[hi]-s[lo])*(idx-lo);
+  };
+  const xTickCb=(v,i)=>{const d=labels[i];if(!d)return'';const p=d.split('-');return p.length>=3?p[2]+'-'+p[1]:d;};
   createLineChart(HIST.charts,'rc','hist-chart-rc',labels,calc.map(r=>r.rc),'#e8b84b','RC',v=>v!=null?v.toFixed(2):'--',{dense:true});
   createLineChart(HIST.charts,'vi','hist-chart-vi',labels,calc.map(r=>r.viProm),'#5aabff','VI prom',v=>v!=null?(v*100).toFixed(1)+'%':'--',{dense:true});
   createLineChart(HIST.charts,'st','hist-chart-st',labels,calc.map(r=>r.straddle),'#44c76a','Straddle',fP,{dense:true});
@@ -189,11 +203,7 @@ function renderHistData(){
   createLineChart(HIST.charts,'ri','hist-chart-ri',labels,calc.map(r=>r.riCost),'#b088f0','Costo RI',fP,{dense:true});
 
   // Variación chart — multi-series, not handled by shared factory
-  if(HIST.charts.varr)HIST.charts.varr.destroy();
-  const ctxV=document.getElementById('hist-chart-var')?.getContext('2d');
-  if(!ctxV)return;
-  const xTickCb=(v,i)=>{const d=labels[i];if(!d)return'';const p=d.split('-');return p.length>=3?p[2]+'-'+p[1]:d;};
-  HIST.charts.varr=new Chart(ctxV,{
+  upsertChart(HIST.charts,'varr','hist-chart-var',{
     type:'line',
     data:{labels, datasets:[
       {label:'Var VI%', data:calc.map(r=>r.varVI!=null?parseFloat((r.varVI*100).toFixed(3)):null), borderColor:'#b088f0',borderWidth:1.5,pointRadius:3,fill:false,spanGaps:true},
@@ -213,7 +223,141 @@ function renderHistData(){
     }
   });
 
-  // Update status with filtered count
+  // ── RC con bandas de percentil ──
+  const rcVals=calc.map(r=>r.rc).filter(v=>v!=null).sort((a,b)=>a-b);
+  if(rcVals.length>=4&&HIST.charts){
+    const p10=pctile(rcVals,10), p25=pctile(rcVals,25),
+          p50=pctile(rcVals,50), p75=pctile(rcVals,75), p90=pctile(rcVals,90);
+    const flat=v=>labels.map(()=>parseFloat(v.toFixed(3)));
+    upsertChart(HIST.charts,'rcband','hist-chart-rcband',{
+        type:'line',
+        data:{labels, datasets:[
+          {label:'p10', data:flat(p10), borderColor:'rgba(240,90,90,0.35)',  borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false},
+          {label:'p25', data:flat(p25), borderColor:'rgba(232,184,75,0.55)', borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false},
+          {label:'p50', data:flat(p50), borderColor:'rgba(122,143,166,0.7)', borderWidth:1.5,borderDash:[6,3],pointRadius:0,fill:false},
+          {label:'p75', data:flat(p75), borderColor:'rgba(232,184,75,0.55)', borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false},
+          {label:'p90', data:flat(p90), borderColor:'rgba(240,90,90,0.35)',  borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false},
+          {label:'RC',  data:calc.map(r=>r.rc!=null?parseFloat(r.rc.toFixed(3)):null),
+            borderColor:'#e8b84b',borderWidth:2,pointRadius:3,pointBackgroundColor:'#e8b84b',fill:false,spanGaps:true},
+        ]},
+        options:{
+          responsive:true,maintainAspectRatio:false,animation:false,
+          plugins:{
+            legend:{display:true,labels:{color:'#7a8fa6',font:{size:9},boxWidth:8,padding:6}},
+            tooltip:{backgroundColor:'#131920',borderColor:'#2a3444',borderWidth:1,
+              titleColor:'#7a8fa6',bodyColor:'#d8e3ef',
+              callbacks:{label:c=>` ${c.dataset.label}: ${c.raw!=null?c.raw.toFixed(3):'--'}`}},
+          },
+          scales:{
+            x:{ticks:{color:'#7a8fa6',font:{size:8},maxRotation:45,minRotation:45,autoSkip:false,callback:xTickCb},grid:{color:'#1a2230'}},
+            y:{ticks:{color:'#7a8fa6',font:{size:9},callback:v=>v.toFixed(2)},grid:{color:'#1a2230'}},
+          }
+        }
+      });
+  }
+
+  // ── % Lleno del spread ──
+  const llenoData=calc.map(r=>r.pctLleno!=null?parseFloat(r.pctLleno.toFixed(2)):null);
+  const llenoColors=llenoData.map(v=>v==null?'#3d4f63':v<33?'#44c76a':v<60?'#e8b84b':'#f05a5a');
+  upsertChart(HIST.charts,'lleno','hist-chart-lleno',{
+      type:'bar',
+      data:{labels, datasets:[{
+        label:'% Lleno', data:llenoData,
+        backgroundColor:llenoColors, borderColor:llenoColors, borderWidth:0,
+      }]},
+      options:{
+        responsive:true,maintainAspectRatio:false,animation:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{backgroundColor:'#131920',borderColor:'#2a3444',borderWidth:1,
+            titleColor:'#7a8fa6',bodyColor:'#d8e3ef',
+            callbacks:{
+              label:c=>` % Lleno: ${c.raw!=null?c.raw.toFixed(1)+'%':'--'}`,
+              afterLabel:c=>{
+                const v=c.raw;
+                return v==null?'':v<33?' → Barato (< 33%)':v<60?' → Normal (33–60%)':' → Caro (> 60%)';
+              }
+            }},
+        },
+        scales:{
+          x:{ticks:{color:'#7a8fa6',font:{size:8},maxRotation:45,minRotation:45,autoSkip:false,callback:xTickCb},grid:{color:'#1a2230'}},
+          y:{ticks:{color:'#7a8fa6',font:{size:9},callback:v=>v.toFixed(0)+'%'},grid:{color:'#1a2230'},
+            min:0, max:100,
+          },
+        }
+      }
+    });
+
+  // ── Percentiles de IV — S1 y S2 ──
+  const iv1Vals=calc.map(r=>r.iv1!=null?r.iv1*100:null);
+  const iv2Vals=calc.map(r=>r.iv2!=null?r.iv2*100:null);
+  const iv1Clean=iv1Vals.filter(v=>v!=null);
+  const iv2Clean=iv2Vals.filter(v=>v!=null);
+  if((iv1Clean.length>=4||iv2Clean.length>=4)){
+    {
+      const flatLine=(val,col,lbl)=>({
+        label:lbl, data:labels.map(()=>val!=null?parseFloat(val.toFixed(2)):null),
+        borderColor:col, borderWidth:1, borderDash:[4,3],
+        pointRadius:0, fill:false, spanGaps:true,
+      });
+      const ivDatasets=[];
+      // S1 bands — amber
+      if(iv1Clean.length>=4){
+        ivDatasets.push(flatLine(pctile(iv1Clean,90),'rgba(232,184,75,0.20)','S1 p90'));
+        ivDatasets.push(flatLine(pctile(iv1Clean,75),'rgba(232,184,75,0.40)','S1 p75'));
+        ivDatasets.push(flatLine(pctile(iv1Clean,50),'rgba(232,184,75,0.80)','S1 p50'));
+        ivDatasets.push(flatLine(pctile(iv1Clean,25),'rgba(232,184,75,0.40)','S1 p25'));
+        ivDatasets.push(flatLine(pctile(iv1Clean,10),'rgba(232,184,75,0.20)','S1 p10'));
+      }
+      // S2 bands — blue
+      if(iv2Clean.length>=4){
+        ivDatasets.push(flatLine(pctile(iv2Clean,90),'rgba(90,171,255,0.20)','S2 p90'));
+        ivDatasets.push(flatLine(pctile(iv2Clean,75),'rgba(90,171,255,0.40)','S2 p75'));
+        ivDatasets.push(flatLine(pctile(iv2Clean,50),'rgba(90,171,255,0.80)','S2 p50'));
+        ivDatasets.push(flatLine(pctile(iv2Clean,25),'rgba(90,171,255,0.40)','S2 p25'));
+        ivDatasets.push(flatLine(pctile(iv2Clean,10),'rgba(90,171,255,0.20)','S2 p10'));
+      }
+      // Actual IV lines on top — hex colors (Chart.js doesn't support CSS vars)
+      const hex1='#e8b84b';  // amber for S1
+      const hex2='#5aabff';  // blue for S2
+      if(iv1Clean.length>=4){
+        ivDatasets.push({
+          label:`IV ${colAbbr(type1,K1)}`,
+          data:iv1Vals.map(v=>v!=null?parseFloat(v.toFixed(2)):null),
+          borderColor:hex1, borderWidth:2.5,
+          pointRadius:2.5, pointBackgroundColor:hex1, fill:false, spanGaps:true,
+        });
+      }
+      if(iv2Clean.length>=4){
+        ivDatasets.push({
+          label:`IV ${colAbbr(type2,K2)}`,
+          data:iv2Vals.map(v=>v!=null?parseFloat(v.toFixed(2)):null),
+          borderColor:hex2, borderWidth:2.5,
+          pointRadius:2.5, pointBackgroundColor:hex2, fill:false, spanGaps:true,
+        });
+      }
+      upsertChart(HIST.charts,'ivpct','hist-chart-ivpct',{
+        type:'line',
+        data:{labels, datasets:ivDatasets},
+        options:{
+          responsive:true, maintainAspectRatio:false, animation:false,
+          plugins:{
+            legend:{display:true,labels:{color:'#7a8fa6',font:{size:9},boxWidth:8,padding:5,
+              filter:item=>!item.text.includes(' p')||item.text.endsWith('p50'),
+            }},
+            tooltip:{backgroundColor:'#131920',borderColor:'#2a3444',borderWidth:1,
+              titleColor:'#7a8fa6',bodyColor:'#d8e3ef',
+              callbacks:{label:c=>` ${c.dataset.label}: ${c.raw!=null?c.raw.toFixed(2)+'%':'--'}`}},
+          },
+          scales:{
+            x:{ticks:{color:'#7a8fa6',font:{size:8},maxRotation:45,minRotation:45,autoSkip:false,callback:xTickCb},grid:{color:'#1a2230'}},
+            y:{ticks:{color:'#7a8fa6',font:{size:9},callback:v=>v.toFixed(0)+'%'},grid:{color:'#1a2230'}},
+          }
+        }
+      });
+    }
+  }
+
   const statusEl=document.getElementById('hist-status');
   if(statusEl&&HIST.rows.length){
     const total=HIST.rows.length, shown=source.length;
