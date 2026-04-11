@@ -421,7 +421,10 @@ function siteToggleTheme(){
 }
 
 function siteApplyTheme(){
-  const isDark=(localStorage.getItem('ggal_theme')||'light')==='dark';
+  const saved=localStorage.getItem('ggal_theme');
+  // Default theme = dark (if user has not chosen one yet)
+  const isDark=(saved||'dark')==='dark';
+  if(saved==null) localStorage.setItem('ggal_theme','dark');
   document.body.classList.toggle('theme-dark',isDark);
   const btn=document.getElementById('site-theme-btn');
   if(btn)btn.textContent=isDark?'Oscuro':'Claro';
