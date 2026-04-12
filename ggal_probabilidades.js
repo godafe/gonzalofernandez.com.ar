@@ -1,4 +1,4 @@
-/* ===== MODULO PROBABILIDADES ===== */
+﻿/* ===== MODULO PROBABILIDADES ===== */
 const PR = { rows: [], ui: {} };
 
 const PR_COLS = [
@@ -94,6 +94,31 @@ function probRenderTableHeader() {
   }).join('');
 }
 
+// Columns menu behavior mirrors the Chain module:
+// - stays open while toggling/reordering
+// - closes on click outside (or on the button toggling)
+let prColsMenuBound = false;
+let prColsMenuInteracting = false;
+function probInitColsMenu() {
+  if (prColsMenuBound) return;
+  prColsMenuBound = true;
+
+  document.addEventListener('pointerdown', e => {
+    prColsMenuInteracting = !!(e.target.closest('#pr-cols-pop') || e.target.closest('#pr-cols-btn'));
+  }, true);
+
+  document.addEventListener('click', e => {
+    const pop = document.getElementById('pr-cols-pop');
+    if (!pop || pop.style.display === 'none') return;
+    if (prColsMenuInteracting || e.target.closest('#pr-cols-pop') || e.target.closest('#pr-cols-btn')) {
+      prColsMenuInteracting = false;
+      return;
+    }
+    pop.style.display = 'none';
+    prColsMenuInteracting = false;
+  });
+}
+
 function probEnsureColsUI() {
   const tab = document.getElementById('tab-probabilidades');
   if (!tab) return;
@@ -105,68 +130,71 @@ function probEnsureColsUI() {
   if (!pop) {
     pop = document.createElement('div');
     pop.id = 'pr-cols-pop';
-    pop.style.position = 'fixed';
-    pop.style.zIndex = '9999';
-    pop.style.display = 'none';
-    pop.style.minWidth = '260px';
-    pop.style.maxWidth = '320px';
-    pop.style.maxHeight = '60vh';
-    pop.style.overflow = 'auto';
-    pop.style.background = 'rgba(13, 18, 24, .96)';
-    pop.style.backdropFilter = 'blur(10px)';
-    pop.style.border = '1px solid var(--border2)';
-    pop.style.borderRadius = '10px';
-    pop.style.boxShadow = '0 16px 50px rgba(0,0,0,.35)';
-    pop.style.padding = '10px';
     document.body.appendChild(pop);
-
-    document.addEventListener('mousedown', (e) => {
-      if (pop.style.display === 'none') return;
-      if (pop.contains(e.target)) return;
-      if (btn.contains(e.target)) return;
-      pop.style.display = 'none';
-    }, true);
   }
+
+  // Ensure look & feel matches the Chain columns menu.
+  pop.style.position = 'fixed';
+  pop.style.zIndex = '9999';
+  if (!pop.style.display) pop.style.display = 'none';
+  pop.style.minWidth = '280px';
+  pop.style.maxWidth = '320px';
+  pop.style.maxHeight = '60vh';
+  pop.style.overflow = 'auto';
+  pop.style.background = 'var(--surface)';
+  pop.style.border = '1px solid var(--border)';
+  pop.style.borderRadius = '8px';
+  pop.style.boxShadow = '0 10px 24px rgba(0,0,0,.18)';
+  pop.style.padding = '10px';
+
+  probInitColsMenu();
 
   const renderPop = () => {
     const cfg = probGetColsConfig();
     const map = new Map(PR_COLS.map(c => [c.key, c]));
     const rows = cfg.order.map(k => map.get(k)).filter(Boolean);
     pop.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)">Columnas</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <button id="pr-cols-reset" class="btn-sm" style="padding:2px 10px" title="Reset">Reset</button>
-          <button id="pr-cols-close" class="btn-sm" style="padding:2px 10px">×</button>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${rows.map((c, i) => {
-          const isHidden = !!cfg.hidden[c.key];
-          const eye = isHidden ? '&#128683;' : '👁️';
-          return `
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border2);border-radius:8px;padding:6px 8px;background:rgba(255,255,255,.02)">
-              <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text)">${c.label}</div>
-              <div style="display:flex;align-items:center;gap:6px;flex:0 0 auto">
-                <button class="btn-sm" data-pr-eye="${c.key}" title="${isHidden ? 'Mostrar' : 'Ocultar'}" style="padding:2px 8px">${eye}</button>
-                <button class="btn-sm" data-pr-up="${c.key}" ${i === 0 ? 'disabled' : ''} style="padding:2px 8px" title="Subir">&#9650;</button>
-                <button class="btn-sm" data-pr-down="${c.key}" ${i === rows.length - 1 ? 'disabled' : ''} style="padding:2px 8px" title="Bajar">&#9660;</button>
-              </div>
-            </div>`;
-        }).join('')}
-      </div>`;
+       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
+         <div>
+           <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)">Columnas a mostrar</div>
+         </div>
+         <button id="pr-cols-reset" type="button" style="padding:3px 8px;font-size:10px">Reset</button>
+       </div>
+       <div style="display:flex;flex-direction:column;gap:0">
+         ${rows.map((c, i) => {
+           const isHidden = !!cfg.hidden[c.key];
+           const eye = isHidden ? '--' : '👁️';
+           const upDisabled = i === 0;
+           const downDisabled = i === rows.length - 1;
+           return `
+             <div style="display:grid;grid-template-columns:30px 1fr 28px 28px;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border2)">
+               <button type="button" data-pr-eye="${c.key}" title="${isHidden ? 'Mostrar' : 'Ocultar'} columna"
+                 style="padding:2px 0;background:transparent;border:1px solid ${isHidden ? 'var(--border)' : 'var(--amber)'};color:${isHidden ? 'var(--muted)' : 'var(--amber)'};border-radius:4px;font-size:12px;cursor:pointer">
+                 ${eye}
+               </button>
+               <div style="font-size:11px;color:${isHidden ? 'var(--muted)' : 'var(--text)'}">${c.label}</div>
+               <button type="button" data-pr-up="${c.key}" ${upDisabled ? 'disabled' : ''} title="Mover arriba"
+                 style="padding:2px 0;border:1px solid var(--border);background:var(--bg);color:${upDisabled ? 'var(--dim)' : 'var(--text)'};border-radius:4px;font-size:11px;cursor:${upDisabled ? 'default' : 'pointer'}">↑</button>
+               <button type="button" data-pr-down="${c.key}" ${downDisabled ? 'disabled' : ''} title="Mover abajo"
+                 style="padding:2px 0;border:1px solid var(--border);background:var(--bg);color:${downDisabled ? 'var(--dim)' : 'var(--text)'};border-radius:4px;font-size:11px;cursor:${downDisabled ? 'default' : 'pointer'}">↓</button>
+             </div>`;
+         }).join('')}
+       </div>`;
 
     pop.querySelector('#pr-cols-reset')?.addEventListener('click', () => {
       probResetColsConfig();
       renderPop();
       renderProbabilidades();
     });
-    pop.querySelector('#pr-cols-close')?.addEventListener('click', () => { pop.style.display = 'none'; });
     pop.querySelectorAll('[data-pr-eye]').forEach(b => {
       b.addEventListener('click', () => {
         const key = b.getAttribute('data-pr-eye');
         const cfg2 = probGetColsConfig();
-        probSetColHidden(key, !cfg2.hidden[key]);
+        const visibleCount = cfg2.order.filter(k => !cfg2.hidden[k]).length;
+        const nextHidden = !cfg2.hidden[key];
+        // Avoid ending up with an empty table (mirror Chain behavior).
+        if (nextHidden && visibleCount <= 1) return;
+        probSetColHidden(key, nextHidden);
         renderPop();
         renderProbabilidades();
       });
@@ -189,15 +217,17 @@ function probEnsureColsUI() {
     });
   };
 
-  if (!btn.dataset.bound) {
-    btn.dataset.bound = '1';
+  // Bind once (don't rely on HTML attributes like data-bound).
+  if (!btn.dataset.prColsBound) {
+    btn.dataset.prColsBound = '1';
     btn.addEventListener('click', () => {
       const popEl = document.getElementById('pr-cols-pop');
       if (!popEl) return;
       if (popEl.style.display === 'block') { popEl.style.display = 'none'; return; }
       renderPop();
       const r = btn.getBoundingClientRect();
-      popEl.style.left = `${Math.max(8, Math.min(window.innerWidth - 340, r.left))}px`;
+      const W = 320;
+      popEl.style.left = `${Math.max(8, Math.min(window.innerWidth - W - 8, r.right - W))}px`;
       popEl.style.top = `${Math.min(window.innerHeight - 40, r.bottom + 8)}px`;
       popEl.style.display = 'block';
     });

@@ -122,7 +122,7 @@ function renderChainColsMenu() {
       <div style="display:grid;grid-template-columns:30px 1fr 28px 28px;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border2)">
         <button type="button" onclick="toggleChainColumn('${id}')" title="${isHidden ? 'Mostrar' : 'Ocultar'} columna"
           style="padding:2px 0;background:transparent;border:1px solid ${isHidden ? 'var(--border)' : 'var(--amber)'};color:${isHidden ? 'var(--muted)' : 'var(--amber)'};border-radius:4px;font-size:12px;cursor:pointer">
-          👁️
+          ${isHidden ? '--' : '👁️'}
         </button>
         <div style="font-size:11px;color:${isHidden ? 'var(--muted)' : 'var(--text)'}">${def?.fullTitle || def?.title || id}</div>
         <button type="button" onclick="moveChainColumn('${id}',-1)" ${idx === 0 ? 'disabled' : ''} title="Mover arriba"
