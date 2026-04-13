@@ -4,10 +4,10 @@ const PR = { rows: [], ui: {} };
 const PR_COLS = [
   { key: 'date',       label: 'Fecha' },
   { key: 'spot',       label: 'Precio GGAL' },
-  { key: 'baseCall',   label: 'Precio Call' },
-  { key: 'basePut',    label: 'Precio Put' },
+  { key: 'baseCall',   label: 'Precio Base 1' },
+  { key: 'basePut',    label: 'Precio Base 2' },
   { key: 'cost',       label: 'Straddle' },
-  { key: 'bull',       label: 'Bull' },
+  { key: 'bull',       label: 'Costo Bull' },
   { key: 'ratio',      label: 'Ratio', thColor: 'var(--amber)', strong: true },
   { key: 'deltaCall',  label: 'Delta Call' },
   { key: 'deltaPut',   label: 'Delta Put' },
@@ -15,18 +15,70 @@ const PR_COLS = [
   { key: 'vegaCall',   label: 'Vega Call' },
   { key: 'vegaPut',    label: 'Vega Put' },
   { key: 'vega',       label: 'Vega Total' },
-  { key: 'lnRatio',    label: 'LN Ratio' },
+  { key: 'lnBull',     label: 'LN Bull',  title: 'Movimiento del Bull vs ayer (log-return diario)' },
+  { key: 'lnRatio',    label: 'LN Ratio', title: 'Movimiento del Ratio vs ayer (log-return diario)' },
   { key: 'lnDelta',    label: 'LN Delta' },
   { key: 'lnVega',     label: 'LN Vega' },
-  { key: 'probRatio',  label: 'Prob Acum Ratio' },
-  { key: 'probDelta',  label: 'Prob Acum Delta' },
-  { key: 'probVega',   label: 'Prob Acum Vega' },
+  { key: 'probRatio',  label: 'ECDF Ratio' },
+  { key: 'probDelta',  label: 'ECDF Delta' },
+  { key: 'probVega',   label: 'ECDF Vega' },
+  { key: 'probBull',   label: 'ECDF Bull' },
 ];
+
+// Default columns layout (order + visibility) to match the desired initial view.
+const PR_DEFAULT_ORDER = [
+  'date',
+  'spot',
+  'baseCall',
+  'basePut',
+  'cost',
+  'bull',
+  'ratio',
+  'deltaCall',
+  'deltaPut',
+  'delta',
+  'vegaCall',
+  'vegaPut',
+  'vega',
+  'lnBull',
+  'lnRatio',
+  'lnDelta',
+  'lnVega',
+  'probBull',
+  'probRatio',
+  'probDelta',
+  'probVega',
+];
+
+const PR_DEFAULT_HIDDEN = [
+  'cost',        // Straddle (default hidden because default types = Call/Call)
+  'deltaCall',
+  'deltaPut',
+  'delta',
+  'vegaCall',
+  'vegaPut',
+  'vega',
+  'lnDelta',
+  'lnVega',
+  'probDelta',
+  'probVega',
+];
+
+function probBuildDefaultColsConfig() {
+  const allKeys = PR_COLS.map(c => c.key);
+  const order = [
+    ...PR_DEFAULT_ORDER.filter(k => allKeys.includes(k)),
+    ...allKeys.filter(k => !PR_DEFAULT_ORDER.includes(k)),
+  ];
+  const hidden = {};
+  allKeys.forEach(k => { hidden[k] = PR_DEFAULT_HIDDEN.includes(k); });
+  return { order, hidden };
+}
 
 function probLoadColsConfig() {
   try {
     const raw = localStorage.getItem('pr_cols_v1');
-    if (!raw) return null;
+    if (!raw) return probBuildDefaultColsConfig();
     const cfg = JSON.parse(raw);
     if (!cfg || typeof cfg !== 'object') return null;
     return cfg;
@@ -40,10 +92,7 @@ function probSaveColsConfig(cfg) {
 }
 
 function probResetColsConfig() {
-  const allKeys = PR_COLS.map(c => c.key);
-  const hidden = {};
-  allKeys.forEach(k => { hidden[k] = false; });
-  probSaveColsConfig({ order: allKeys, hidden });
+  probSaveColsConfig(probBuildDefaultColsConfig());
 }
 
 function probGetColsConfig() {
@@ -51,11 +100,13 @@ function probGetColsConfig() {
   const order = Array.isArray(cfg.order) ? cfg.order.filter(Boolean) : [];
   const hidden = (cfg.hidden && typeof cfg.hidden === 'object') ? cfg.hidden : {};
   const allKeys = PR_COLS.map(c => c.key);
+  const def = probBuildDefaultColsConfig();
   const fixedOrder = [
     ...order.filter(k => allKeys.includes(k)),
     ...allKeys.filter(k => !order.includes(k)),
   ];
-  return { order: fixedOrder, hidden: { ...hidden } };
+  // For missing keys (new columns), default to the desired baseline visibility.
+  return { order: fixedOrder, hidden: { ...def.hidden, ...hidden } };
 }
 
 function probSetColHidden(key, isHidden) {
@@ -90,7 +141,8 @@ function probRenderTableHeader() {
   tr.innerHTML = cols.map(c => {
     const color = c.thColor || 'var(--muted)';
     const weight = c.strong ? 'font-weight:600;' : '';
-    return `<th style="${PR_TH};color:${color};${weight}">${c.label}</th>`;
+    const title = (c.title || c.label || '').replace(/"/g, '&quot;');
+    return `<th title="${title}" style="${PR_TH};color:${color};${weight}">${c.label}</th>`;
   }).join('');
 }
 
@@ -119,6 +171,25 @@ function probInitColsMenu() {
   });
 }
 
+function probApplyTypeBasedColsVisibility(type1, type2) {
+  // Rules:
+  // - If types are different (Call+Put or Put+Call): show Straddle, hide Bull/LN Bull/Prob Bull.
+  // - If types are equal (Call+Call or Put+Put): hide Straddle, show Bull/LN Bull/Prob Bull.
+  // This is enforced each time types change / render occurs (user can toggle in the menu, but type change re-applies).
+  const same = type1 === type2;
+  const desired = [
+    { key: 'cost',     hidden: same },   // Straddle
+    { key: 'bull',     hidden: !same },  // Costo Bull
+    { key: 'lnBull',   hidden: !same },  // LN Bull
+    { key: 'probBull', hidden: !same },  // ECDF Bull
+  ];
+  const cfg = probGetColsConfig();
+  desired.forEach(({ key, hidden }) => {
+    const cur = !!cfg.hidden[key];
+    if (cur !== !!hidden) probSetColHidden(key, hidden);
+  });
+}
+
 function probEnsureColsUI() {
   const tab = document.getElementById('tab-probabilidades');
   if (!tab) return;
@@ -139,8 +210,11 @@ function probEnsureColsUI() {
   if (!pop.style.display) pop.style.display = 'none';
   pop.style.minWidth = '280px';
   pop.style.maxWidth = '320px';
-  pop.style.maxHeight = '60vh';
-  pop.style.overflow = 'auto';
+  // Use almost full viewport height so the list feels complete (less scrolling).
+  pop.style.maxHeight = 'calc(100vh - 16px)';
+  pop.style.overflowY = 'auto';
+  pop.style.overflowX = 'hidden';
+  pop.style.overscrollBehavior = 'contain';
   pop.style.background = 'var(--surface)';
   pop.style.border = '1px solid var(--border)';
   pop.style.borderRadius = '8px';
@@ -228,8 +302,13 @@ function probEnsureColsUI() {
       const r = btn.getBoundingClientRect();
       const W = 320;
       popEl.style.left = `${Math.max(8, Math.min(window.innerWidth - W - 8, r.right - W))}px`;
-      popEl.style.top = `${Math.min(window.innerHeight - 40, r.bottom + 8)}px`;
+      // Show first so we can measure height and clamp to viewport.
       popEl.style.display = 'block';
+      // Default: open below the button; if it doesn't fit, move it up.
+      const desiredTop = r.bottom + 8;
+      const h = popEl.offsetHeight || 0;
+      const maxTop = Math.max(8, window.innerHeight - h - 8);
+      popEl.style.top = `${Math.min(desiredTop, maxTop)}px`;
     });
   }
 }
@@ -269,10 +348,29 @@ function probSwapStrikes() {
 function probInjectHTML() {
   if (!document.getElementById('tab-probabilidades')) return;
   const rateEl = document.getElementById('pr-rate');
-  if (rateEl && !rateEl.dataset.bound) {
-    rateEl.addEventListener('input', () => { rateEl.dataset.userTouched = '1'; });
-    rateEl.dataset.bound = '1';
+  // Note: HTML may have data-bound="1" already; use our own binding marker.
+  if (rateEl && !rateEl.dataset.prRateBound) {
+    // Use capture so this runs before inline onchange="renderProbabilidades()"
+    rateEl.addEventListener('change', () => { rateEl.dataset.userTouched = '1'; }, true);
+    rateEl.addEventListener('input', () => { rateEl.dataset.userTouched = '1'; }, true);
+    rateEl.dataset.prRateBound = '1';
   }
+  const thrEl = document.getElementById('pr-threshold');
+  if (thrEl && !thrEl.dataset.prThrBound) {
+    thrEl.addEventListener('change', () => { thrEl.dataset.userTouched = '1'; }, true);
+    thrEl.addEventListener('input', () => { thrEl.dataset.userTouched = '1'; }, true);
+    thrEl.dataset.prThrBound = '1';
+  }
+  // If the user manually changes strikes, preserve their choice on subsequent auto-populates.
+  ['pr-strike1', 'pr-strike2'].forEach(id => {
+    const el = document.getElementById(id);
+    // Use capture so this runs before the inline onchange="renderProbabilidades()"
+    // (otherwise the first change gets overwritten by probPopulateStrikes).
+    if (el && !el.dataset.prTouchBound) {
+      el.addEventListener('change', () => { el.dataset.userTouched = '1'; }, true);
+      el.dataset.prTouchBound = '1';
+    }
+  });
   probSyncTypesUI();
   probEnsureColsUI();
   probSyncDefaults();
@@ -283,6 +381,7 @@ const PR_TH = 'padding:7px 8px;border-bottom:1px solid var(--border);color:var(-
 function probSyncDefaults() {
   const rateEl = document.getElementById('pr-rate');
   const lotsEl = document.getElementById('pr-lots');
+  const thrEl = document.getElementById('pr-threshold');
   if (rateEl) {
     const siteRateValue = isFinite(ST?.rate) && ST.rate > 0 ? ST.rate * 100 : siteRate();
     const currentValue = parseFloat(rateEl.value);
@@ -294,9 +393,12 @@ function probSyncDefaults() {
     rateEl.dataset.lastSiteRate = String(siteRateValue);
   }
   if (lotsEl && (lotsEl.value === '' || lotsEl.value === '0')) lotsEl.value = '100';
+  if (thrEl) {
+    const cur = parseFloat(thrEl.value);
+    const should = thrEl.dataset.userTouched !== '1' || !isFinite(cur);
+    if (should) thrEl.value = '80';
+  }
   probPopulateStrikes();
-  const expEl = document.getElementById('pr-expiry');
-  if (expEl) expEl.textContent = ST.selExpiry ? fmtExpiry(ST.selExpiry) : '--';
 }
 
 function probGetDefaultStrike(strikes) {
@@ -337,8 +439,18 @@ function probPopulateStrikes() {
     return;
   }
   const defaultAtm = probGetDefaultStrike(strikes);
-  const cur1 = parseFloat(s1.value) || parseFloat(document.getElementById('ah-strike1')?.value) || defaultAtm || 0;
-  const cur2 = parseFloat(s2.value) || parseFloat(document.getElementById('ah-strike2')?.value) || defaultAtm || 0;
+  const ah1 = parseFloat(document.getElementById('ah-strike1')?.value) || 0;
+  const ah2 = parseFloat(document.getElementById('ah-strike2')?.value) || 0;
+  // Ignore pre-filled HTML values unless the user has interacted with these selects.
+  const s1Cur = s1.dataset.userTouched === '1' ? (parseFloat(s1.value) || 0) : 0;
+  const s2Cur = s2.dataset.userTouched === '1' ? (parseFloat(s2.value) || 0) : 0;
+
+  // Default: S1 = ATM, S2 = ATM + 2 strikes (if possible), both Call.
+  const atmIdx = Math.max(0, strikes.findIndex(k => k === defaultAtm));
+  const default2 = strikes[Math.min(atmIdx + 2, strikes.length - 1)];
+
+  const cur1 = s1Cur || ah1 || defaultAtm || strikes[0];
+  const cur2 = s2Cur || ah2 || default2 || defaultAtm || strikes[Math.min(1, strikes.length - 1)];
   [s1, s2].forEach(sel => sel.innerHTML = '');
   strikes.forEach(k => {
     const o1 = document.createElement('option');
@@ -351,7 +463,7 @@ function probPopulateStrikes() {
     s2.appendChild(o2);
   });
   if (!s1.value && strikes.length) s1.value = String(defaultAtm || strikes[0]);
-  if (!s2.value && strikes.length) s2.value = String(defaultAtm || strikes[0]);
+  if (!s2.value && strikes.length) s2.value = String(default2 || defaultAtm || strikes[0]);
   probSyncTypesUI();
 }
 
@@ -388,9 +500,47 @@ function probFmtDate(s) {
   return `${m[3]}/${m[2]}/${m[1].slice(-2)}`;
 }
 
+function probDecisionSignal(kind, p, thr) {
+  // Returns { dotHtml, tip } or null
+  if (p == null || !isFinite(p) || thr == null || !isFinite(thr)) return null;
+  const lo = 1 - thr;
+  if (kind === 'ratio') {
+    if (p > thr) {
+      return {
+        dotHtml: `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--blue);box-shadow:0 0 0 2px rgba(90,171,255,.18)"></span>`,
+        tip: `ECDF Ratio > Umbral -> FRONT RATIO INVERTIDO (2x1)`,
+      };
+    }
+    if (p < lo) {
+      return {
+        dotHtml: `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--amber);box-shadow:0 0 0 2px rgba(232,184,75,.18)"></span>`,
+        tip: `ECDF Ratio < (1-Umbral) -> RATIO SPREAD COMUN (1x2)`,
+      };
+    }
+    return null;
+  }
+  if (kind === 'bull') {
+    if (p < lo) {
+      return {
+        dotHtml: `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--green);box-shadow:0 0 0 2px rgba(68,199,106,.18)"></span>`,
+        tip: `ECDF Costo < (1-Umbral) -> LONG BULL CALL SPREAD`,
+      };
+    }
+    if (p > thr) {
+      return {
+        dotHtml: `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--red);box-shadow:0 0 0 2px rgba(240,90,90,.18)"></span>`,
+        tip: `ECDF Costo > Umbral -> BEAR CALL SPREAD (credito)`,
+      };
+    }
+    return null;
+  }
+  return null;
+}
+
 function renderProbabilidades() {
   probSyncDefaults();
   syncDateFromPicker('pr-date-from', null);
+  syncDateFromPicker('pr-date-to', null);
   const body = document.getElementById('pr-body');
   const summary = document.getElementById('pr-summary');
   const hero = document.getElementById('pr-hero');
@@ -398,6 +548,10 @@ function renderProbabilidades() {
   if (!body || !summary || !hero) return;
 
   probEnsureColsUI();
+  probSyncTypesUI();
+  const type1 = document.getElementById('pr-type1')?.value || 'call';
+  const type2 = document.getElementById('pr-type2')?.value || 'call';
+  probApplyTypeBasedColsVisibility(type1, type2);
   probRenderTableHeader();
   const visibleCols = probGetVisibleCols();
   const colCount = Math.max(1, visibleCols.length);
@@ -410,18 +564,19 @@ function renderProbabilidades() {
     return;
   }
 
-  probSyncTypesUI();
   const K1 = parseFloat(document.getElementById('pr-strike1')?.value) || 0;
   const K2 = parseFloat(document.getElementById('pr-strike2')?.value) || 0;
-  const type1 = document.getElementById('pr-type1')?.value || 'call';
-  const type2 = document.getElementById('pr-type2')?.value || 'call';
   const r = (parseFloat(document.getElementById('pr-rate')?.value || '0') || 0) / 100;
   const lots = parseFloat(document.getElementById('pr-lots')?.value || '100') || 100;
+  const thrP = Math.max(0, Math.min(100, parseFloat(document.getElementById('pr-threshold')?.value || '80') || 80)) / 100;
   const q = ST.q || 0;
   const expiryStr = ST.selExpiry || document.getElementById('ah-expiry')?.value || '';
   const expiryMs = expiryStr ? new Date(expiryStr + 'T12:00:00').getTime() : null;
   const dateFrom = document.getElementById('pr-date-from')?.value.trim() || '';
-  const source = dateFrom ? HIST.rows.filter(rw => rw.date >= dateFrom) : HIST.rows;
+  const dateTo = document.getElementById('pr-date-to')?.value.trim() || '';
+  let source = HIST.rows;
+  if (dateFrom) source = source.filter(rw => rw.date >= dateFrom);
+  if (dateTo) source = source.filter(rw => rw.date <= dateTo);
 
   const baseRows = source.map(row => {
     const e1 = row.prices[`${type1}_${K1}`] || null;
@@ -466,21 +621,29 @@ function renderProbabilidades() {
 
   PR.rows = baseRows.map((row, idx) => {
     const prev = idx > 0 ? baseRows[idx - 1] : null;
+    // LN Ratio is a day-over-day log return: LN(Ratio_T2 / Ratio_T1) -> ln(current / prev).
     const lnRatio = prev?.ratio && row.ratio ? Math.log(row.ratio / prev.ratio) : null;
     const lnDelta = prev?.delta && row.delta && Math.abs(prev.delta) > 0 && Math.abs(row.delta) > 0
-      ? Math.log(Math.abs(row.delta) / Math.abs(prev.delta))
+      ? Math.log(Math.abs(prev.delta) / Math.abs(row.delta))
       : null;
     const lnVega = prev?.vega && row.vega && Math.abs(prev.vega) > 0 && Math.abs(row.vega) > 0
-      ? Math.log(Math.abs(row.vega) / Math.abs(prev.vega))
+      ? Math.log(Math.abs(prev.vega) / Math.abs(row.vega))
+      : null;
+    // Excel reference: LN(Bull_T+1 / Bull_T). With rows in chronological order: ln(currentBull / prevBull).
+    // If bull is <= 0 (or missing) LN is undefined -> null.
+    const lnBull = prev?.bull != null && row.bull != null && prev.bull > 0 && row.bull > 0
+      ? Math.log(row.bull / prev.bull)
       : null;
     return {
       ...row,
       lnRatio,
       lnDelta,
       lnVega,
+      lnBull,
       probRatio: null,
       probDelta: null,
       probVega: null,
+      probBull: null,
     };
   });
 
@@ -488,19 +651,31 @@ function renderProbabilidades() {
   const lnRatioSeries = lnRows.map(rw => rw.lnRatio);
   const lnDeltaSeries = lnRows.map(rw => rw.lnDelta);
   const lnVegaSeries = lnRows.map(rw => rw.lnVega);
+  const lnBullSeries = lnRows.map(rw => rw.lnBull);
   PR.rows.forEach((row, idx) => {
     if (idx === 0) {
       row.probRatio = null;
       row.probDelta = null;
       row.probVega = null;
+      row.probBull = null;
       return;
     }
     row.probRatio = probRankPct(lnRatioSeries, row.lnRatio);
     row.probDelta = probRankPct(lnDeltaSeries, row.lnDelta);
     row.probVega = probRankPct(lnVegaSeries, row.lnVega);
+    row.probBull = probRankPct(lnBullSeries, row.lnBull);
   });
 
   const latest = PR.rows[PR.rows.length - 1];
+
+  // Pseudo-probabilities: count how often the daily log-return is positive (excluding the first row where LN is null).
+  const lnRows2 = PR.rows.slice(1);
+  const denom = Math.max(0, PR.rows.length - 1);
+  const posBull = lnRows2.filter(rw => isFinite(rw.lnBull) && rw.lnBull > 0).length;
+  const posRatio = lnRows2.filter(rw => isFinite(rw.lnRatio) && rw.lnRatio > 0).length;
+  const pseudoBull = denom > 0 ? posBull / denom : null;
+  const pseudoRC = denom > 0 ? posRatio / denom : null;
+
   const summaryCards = [
     ['Muestra', `${PR.rows.length} ruedas`, 'var(--text)'],
     ['Ratio actual', latest.ratio != null ? fmtN(latest.ratio, 2) : '--', 'var(--amber)'],
@@ -514,17 +689,35 @@ function renderProbabilidades() {
     </div>`).join('');
   summary.style.display = 'none';
 
-  hero.innerHTML = [
-    ...summaryCards,
-    ['Prob. acum ratio', probFmtPct(latest.probRatio), 'var(--amber)'],
-    ['Prob. acum delta', probFmtPct(latest.probDelta), latest.probDelta >= 0.5 ? 'var(--green)' : 'var(--red)'],
-    ['Prob. acum vega', probFmtPct(latest.probVega), latest.probVega >= 0.5 ? 'var(--green)' : 'var(--red)'],
-    ['Straddle', latest.cost != null ? fmtN(latest.cost, 2) : '--', 'var(--text)'],
-  ].map(([label, value, color]) => `
-    <div style="padding:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:5px">${label}</div>
-      <div style="font-family:var(--mono);font-size:18px;color:${color};font-weight:600">${value}</div>
-    </div>`).join('');
+  // "Lectura actual": keep it focused (hide Delta/Vega/Straddle and ECDF Delta/Vega).
+  const heroCards = [
+    // Row 1
+    ['Costo Bull Actual', latest.bull != null ? fmtN(latest.bull, 2) : '--', 'var(--green)'],
+    ['ECDF Bull', probFmtPct(latest.probBull), 'var(--green)'],
+    ['Ratio Actual', latest.ratio != null ? fmtN(latest.ratio, 2) : '--', 'var(--amber)'],
+    ['ECDF Ratio', probFmtPct(latest.probRatio), 'var(--amber)'],
+    // Row 2
+    ['Muestra', `${PR.rows.length} ruedas`, 'var(--text)'],
+    ['Positivos Bull', denom ? String(posBull) : '--', 'var(--green)', 'Cantidad de ruedas con LN Bull > 0'],
+    ['Positivos Ratio', denom ? String(posRatio) : '--', 'var(--amber)', 'Cantidad de ruedas con LN Ratio > 0'],
+    // Filler so row 2 stays at 3 cards (grid is 4 columns).
+    ['__spacer__'],
+    // Row 3
+    ['Pseudo Bull', probFmtPct(pseudoBull), 'var(--green)', 'Positivos Bull / (Muestra - 1)'],
+    ['Pseudo Bear', pseudoBull == null ? '--' : probFmtPct(1 - pseudoBull), 'var(--red)', '1 - Pseudo Bull'],
+    ['Pseudo RC', probFmtPct(pseudoRC), 'var(--amber)', 'Positivos Ratio / (Muestra - 1)'],
+    ['Pseudo RI', pseudoRC == null ? '--' : probFmtPct(1 - pseudoRC), 'var(--blue)', '1 - Pseudo RC'],
+  ];
+
+  hero.innerHTML = heroCards.map(card => {
+    const [label, value, color, tip] = card;
+    if (label === '__spacer__') return `<div style="pointer-events:none"></div>`;
+    return `
+      <div style="padding:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px">
+        <div ${tip ? `title="${String(tip).replace(/\"/g,'&quot;')}"` : ''} style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:5px">${label}</div>
+        <div style="font-family:var(--mono);font-size:18px;color:${color};font-weight:600">${value}</div>
+      </div>`;
+  }).join('');
 
   const colKeys = visibleCols.map(c => c.key);
   const cell = (key, row) => {
@@ -534,7 +727,7 @@ function renderProbabilidades() {
     if (key === 'spot') return { html: row.spot != null ? fmtN(row.spot, 0) : '--' };
     if (key === 'baseCall') return { html: row.baseCall != null ? fmtN(row.baseCall, 2) : '--' };
     if (key === 'basePut') return { html: row.basePut != null ? fmtN(row.basePut, 2) : '--' };
-    if (key === 'ratio') return { html: row.ratio != null ? fmtN(row.ratio, 2) : '--', style: 'color:var(--amber);font-weight:600' };
+    if (key === 'ratio') return { html: row.ratio != null ? fmtN(row.ratio, 3) : '--', style: 'color:var(--amber);font-weight:600' };
     if (key === 'cost') return { html: row.cost != null ? fmtN(row.cost, 2) : '--' };
     if (key === 'bull') return { html: row.bull != null ? fmtN(row.bull, 2) : '--' };
     if (key === 'deltaCall') return { html: row.deltaCall != null ? fmtN(row.deltaCall, 4) : '--' };
@@ -543,12 +736,22 @@ function renderProbabilidades() {
     if (key === 'vegaCall') return { html: row.vegaCall != null ? fmtN(row.vegaCall, 4) : '--' };
     if (key === 'vegaPut') return { html: row.vegaPut != null ? fmtN(row.vegaPut, 4) : '--' };
     if (key === 'vega') return { html: row.vega != null ? fmtN(row.vega, 2) : '--', style: `color:${vegaColor}` };
+    if (key === 'lnBull') return { html: probFmtLn(row.lnBull) };
     if (key === 'lnRatio') return { html: probFmtLn(row.lnRatio) };
     if (key === 'lnDelta') return { html: probFmtLn(row.lnDelta) };
     if (key === 'lnVega') return { html: probFmtLn(row.lnVega) };
-    if (key === 'probRatio') return { html: probFmtPct(row.probRatio) };
+    if (key === 'probRatio') {
+      const sig = probDecisionSignal('ratio', row.probRatio, thrP);
+      const dot = sig ? `<span title="${sig.tip}" style="display:inline-flex;align-items:center;margin-right:6px">${sig.dotHtml}</span>` : '';
+      return { html: `${dot}${probFmtPct(row.probRatio)}` };
+    }
     if (key === 'probDelta') return { html: probFmtPct(row.probDelta) };
     if (key === 'probVega') return { html: probFmtPct(row.probVega) };
+    if (key === 'probBull') {
+      const sig = probDecisionSignal('bull', row.probBull, thrP);
+      const dot = sig ? `<span title="${sig.tip}" style="display:inline-flex;align-items:center;margin-right:6px">${sig.dotHtml}</span>` : '';
+      return { html: `${dot}${probFmtPct(row.probBull)}` };
+    }
     return { html: '--' };
   };
 
