@@ -448,11 +448,11 @@ const CFG_FIELDS=[
   'hist-col-date','hist-col-type','hist-col-strike','hist-col-last',
   'auto-refresh-chk','auto-refresh-interval',
   'spot-input','expiry-sel','chain-filter',
-  'hist-strike1','hist-strike2','hist-type1','hist-type2','hist-rate','hist-expiry','hist-ri','hist-date-from',
+  'hist-strike1','hist-strike2','hist-type1','hist-type2','hist-rate','hist-ri','hist-date-from',
   'mar-wings','mar-threshold',
   'rat-expiry','rat-thresh-lo','rat-thresh-hi','rat-thresh-iv','rat-thresh-parity',
   'rat-hm-type','rat-only-opps','rat-base',
-  'ah-strike1','ah-strike2','ah-type1','ah-type2','ah-rate','ah-expiry','ah-ri','ah-date-from',
+  'ah-strike1','ah-strike2','ah-type1','ah-type2','ah-rate','ah-ri','ah-date-from',
 ];
 
 function cfgSave(){
@@ -709,7 +709,11 @@ function showTab(name){
   if(name==='analisis'){anaPopulateExpiry();renderAnalisis();}
   if(name==='tutoriales'){tutShow('cadena');}
   if(name==='ratios'){ratPopulateExpiry();renderRatios();}
-  if(name==='bullbear'){bbPopulateExpiry();renderBullBear();}
+  if(name==='bullbear'){
+    bbPopulateExpiry();
+    window.bb2PopulateExpiry?.();
+    window.bbApplyMode?.(); // decides what to render (chain vs cards)
+  }
   if(name==='analhist'){ahPopulateStrikes();renderAnalHist();}
   if(name==='simulador'){
     simRefreshImportSel?.();

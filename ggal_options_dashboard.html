@@ -1424,7 +1424,7 @@
         <label style="color:var(--muted);white-space:nowrap;font-size:11px">Tasa %</label>
         <input type="number" id="hist-rate" value="0" step="0.1" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderHistData()">
       </div>
-      <input type="hidden" id="hist-expiry" value="2026-04-17">
+      <input type="hidden" id="hist-expiry" value="2026-06-19">
       <button class="btn-primary" onclick="fetchHistData()" style="padding:4px 12px;font-size:11px">⟳ Actualizar HMD</button>
       <div style="display:flex;align-items:center;gap:5px">
         <label style="color:var(--muted);white-space:nowrap">Relación RI</label>
@@ -2182,33 +2182,82 @@
   <div id="tab-bullbear" style="display:none">
 
     <!-- Controls -->
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:14px;font-size:11px">
-      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
-      <div style="display:flex;align-items:center;gap:5px">
-        <label style="color:var(--muted)">Vencimiento</label>
-        <select id="bb-expiry" onchange="renderBullBear()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
+    <div class="panel" style="padding:10px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px">
+        <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
+
+        <div style="display:flex;align-items:center;gap:6px">
+          <button id="bb-mode-chain" type="button" onclick="bbSetMode?.('chain')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Modo Cadena</button>
+          <button id="bb-mode-cards" type="button" onclick="bbSetMode?.('cards')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Modo Tarjetas</button>
+        </div>
+
+        <!-- Shared params (both modes) -->
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="color:var(--muted);white-space:nowrap">Lotes</label>
+          <input type="number" id="bb-lotes" value="10" min="1" step="1" style="width:70px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" oninput="bbApplyMode?.()">
+        </div>
+
+        <!-- Controls: Cadena (V2) -->
+        <div id="bb-controls-chain" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="color:var(--muted);white-space:nowrap">Vencimiento</label>
+            <select id="bb2-expiry" onchange="bb2Render()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="color:var(--muted);white-space:nowrap">Filtro</label>
+            <select id="bb2-filter" onchange="bb2Render()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px">
+              <option value="near25">Cercanos ±25%</option>
+              <option value="all">Todos</option>
+            </select>
+          </div>
+          <button class="btn-primary" onclick="bb2Render()" style="padding:4px 12px;font-size:11px;margin-left:auto">⟳ Recalcular</button>
+        </div>
+
+        <!-- Controls: Tarjetas (original) -->
+        <div id="bb-controls-cards" style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:5px">
+            <label style="color:var(--muted)">Vencimiento</label>
+            <select id="bb-expiry" onchange="renderBullBear()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <label style="color:var(--muted)">Strike Base</label>
+            <select id="bb-base" onchange="renderBullBear()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <label style="color:var(--muted)">Tipo</label>
+            <button id="bb-type-btn" onclick="bbToggleType()" style="font-family:var(--mono);font-size:12px;padding:3px 12px;border-radius:5px;cursor:pointer;background:var(--surface);border:1px solid var(--green);color:var(--green);min-width:52px;transition:all .15s">Call</button>
+            <input type="hidden" id="bb-type" value="call">
+          </div>
+          <button class="btn-primary" onclick="renderBullBear()" style="padding:4px 12px;font-size:10px;margin-left:auto;padding:3px 10px">⟳ Recalcular</button>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:5px">
-        <label style="color:var(--muted)">Strike Base</label>
-        <select id="bb-base" onchange="renderBullBear()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+    </div>
+
+    <!-- Vista Cadena (V2) -->
+    <div id="bb2-view" class="panel" style="padding:0;overflow:visible;margin-bottom:14px">
+      <div style="overflow-x:auto;overflow-y:visible;max-height:none">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+          <thead style="position:sticky;top:0;z-index:2">
+            <tr style="background:var(--surface2)">
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;width:34px"></th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Last C</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;border-right:1px solid var(--border)">Lleno</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">Strike</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Lleno</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Last P</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;width:34px"></th>
+            </tr>
+          </thead>
+          <tbody id="bb2-body"></tbody>
+        </table>
       </div>
-      <div style="display:flex;align-items:center;gap:5px">
-        <label style="color:var(--muted)">Tipo</label>
-        <button id="bb-type-btn" onclick="bbToggleType()" style="font-family:var(--mono);font-size:12px;padding:3px 12px;border-radius:5px;cursor:pointer;background:var(--surface);border:1px solid var(--green);color:var(--green);min-width:52px;transition:all .15s">Call</button>
-        <input type="hidden" id="bb-type" value="call">
-      </div>
-      <div style="display:flex;align-items:center;gap:5px">
-        <label style="color:var(--muted)">Lotes</label>
-        <input type="number" id="bb-lotes" value="10" min="1" step="1" style="width:60px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" oninput="renderBullBear()">
-      </div>
-      <button class="btn-primary" onclick="renderBullBear()" style="padding:4px 12px;font-size:10px;margin-left:auto;padding:3px 10px">⟳ Recalcular</button>
     </div>
 
     <!-- Summary bar -->
-    <div id="bb-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:11px"></div>
+    <div id="bb-summary" style="display:none;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:11px"></div>
 
     <!-- Cards grid -->
-    <div id="bb-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
+    <div id="bb-cards" style="display:none;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
 
   </div>
 
@@ -2235,7 +2284,7 @@
         <label style="color:var(--muted);white-space:nowrap;font-size:11px">Tasa %</label>
         <input type="number" id="ah-rate" value="0" step="0.1" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderAnalHist()">
       </div>
-      <input type="hidden" id="ah-expiry" value="2026-04-17">
+      <input type="hidden" id="ah-expiry" value="2026-06-19">
       <div style="display:flex;align-items:center;gap:5px">
         <label style="color:var(--muted);white-space:nowrap">Relación RI</label>
         <input type="number" id="ah-ri" value="2.0" step="0.1" min="0.1" max="4" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderAnalHist()">
