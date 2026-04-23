@@ -42,7 +42,8 @@ function simToggleSection(sectionId, btn) {
       if (header) header.style.marginBottom = '10px';
     }
   }
-  if (btn) btn.textContent = isOpen ? '▸' : '▾';
+  // Use explicit codepoints to avoid encoding issues.
+  if (btn) btn.textContent = isOpen ? '\u25B8' : '\u25BE';
 }
 
 function simMakeCollapsible(container, title, sectionId, extraNode) {
@@ -78,7 +79,8 @@ function simMakeCollapsible(container, title, sectionId, extraNode) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'btn-sm';
-  btn.textContent = '▾';
+  // Use explicit codepoints to avoid encoding issues.
+  btn.textContent = '\u25BE';
   btn.style.padding = '2px 8px';
   btn.style.minWidth = '30px';
   btn.addEventListener('click', () => simToggleSection(sectionId, btn));
@@ -92,7 +94,13 @@ function simMakeCollapsible(container, title, sectionId, extraNode) {
 
 function simEnhanceLayout() {
   const grid = document.getElementById('sim-main-grid');
-  if (!grid || grid.dataset.simEnhanced === '1') return;
+  if (!grid) return;
+  // Even if the HTML already has data-sim-enhanced="1" (because it was pre-rendered),
+  // we still need to bind drag + icons for the floating panel elements.
+  if (grid.dataset.simEnhanced === '1') {
+    simEnsureFloatingPanel();
+    return;
+  }
   grid.dataset.simEnhanced = '1';
   // Estrategia/Posicion/Metricas live in a floating overlay panel (not in the grid layout).
   grid.style.gridTemplateColumns = 'minmax(0, 1fr)';
@@ -287,6 +295,166 @@ function simEnsureFloatingPanel() {
     }, true);
   }
 
+  // Bind helpers for when the floating panel elements exist in the static HTML.
+  const bindExistingFloatUI = () => {
+    const openBtn = document.getElementById('sim-float-open');
+    const shell = document.getElementById('sim-float-panel');
+
+    // Minimized open button (drag + expand icon)
+    if (openBtn && openBtn.dataset.simFloatBound !== '1') {
+      const expand = document.getElementById('sim-float-open-expand');
+      if (expand) {
+        expand.textContent = '\u26F6'; // ⛶
+        expand.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          simShowFloatingPanel();
+        });
+      }
+
+      let dragging = false;
+      let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+      const getPx = (v) => {
+        const n = parseFloat(String(v || '').replace('px', ''));
+        return isFinite(n) ? n : 0;
+      };
+      const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+      const onMove = (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const maxLeft = Math.max(8, window.innerWidth - openBtn.offsetWidth - 8);
+        const maxTop = Math.max(8, window.innerHeight - openBtn.offsetHeight - 8);
+        openBtn.style.left = `${clamp(startLeft + dx, 8, maxLeft)}px`;
+        openBtn.style.top = `${clamp(startTop + dy, 8, maxTop)}px`;
+      };
+      const endDrag = () => {
+        if (!dragging) return;
+        dragging = false;
+        openBtn.style.cursor = 'grab';
+        try { openBtn.releasePointerCapture?.(activePointerId); } catch (_) {}
+        window.removeEventListener('pointermove', onMove, true);
+        window.removeEventListener('pointerup', onUp, true);
+        window.removeEventListener('pointercancel', onUp, true);
+      };
+      let activePointerId = null;
+      const onUp = () => endDrag();
+      openBtn.addEventListener('pointerdown', (e) => {
+        if (e.button != null && e.button !== 0) return;
+        if (e.target && (e.target.tagName === 'BUTTON' || e.target.closest?.('button'))) return;
+        dragging = true;
+        openBtn.dataset.userMoved = '1';
+        activePointerId = e.pointerId;
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = getPx(openBtn.style.left) || openBtn.getBoundingClientRect().left;
+        startTop = getPx(openBtn.style.top) || openBtn.getBoundingClientRect().top;
+        openBtn.style.cursor = 'grabbing';
+        try { openBtn.setPointerCapture?.(e.pointerId); } catch (_) {}
+        window.addEventListener('pointermove', onMove, true);
+        window.addEventListener('pointerup', onUp, true);
+        window.addEventListener('pointercancel', onUp, true);
+        e.preventDefault();
+      });
+
+      openBtn.dataset.simFloatBound = '1';
+    }
+
+    // Main shell (drag + pin/close icons)
+    if (shell && shell.dataset.simFloatBound !== '1') {
+      const header = shell.querySelector('[data-sim-drag-handle]');
+      if (header) {
+        header.style.cursor = 'grab';
+        header.style.userSelect = 'none';
+        header.style.touchAction = 'none';
+
+        const pinBtn = document.getElementById('sim-float-pin');
+        if (pinBtn) {
+          pinBtn.textContent = '\uD83D\uDCCC'; // 📌
+          pinBtn.addEventListener('click', () => {
+            SIM.ui.floatPanelPinned = !SIM.ui.floatPanelPinned;
+            simSyncFloatingVisibility();
+          });
+        }
+
+        const btns = header.querySelectorAll('button');
+        const closeBtn = btns.length ? btns[btns.length - 1] : null;
+        if (closeBtn) {
+          closeBtn.textContent = '\u274C'; // ❌
+          closeBtn.addEventListener('click', () => simHideFloatingPanel());
+        }
+
+        let dragging = false;
+        let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+        const getPx = (v) => {
+          const n = parseFloat(String(v || '').replace('px', ''));
+          return isFinite(n) ? n : 0;
+        };
+        const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+        const onMove = (e) => {
+          if (!dragging) return;
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+          const maxLeft = Math.max(8, window.innerWidth - shell.offsetWidth - 8);
+          const maxTop = Math.max(8, window.innerHeight - 60);
+          shell.style.left = `${clamp(startLeft + dx, 8, maxLeft)}px`;
+          shell.style.top = `${clamp(startTop + dy, 8, maxTop)}px`;
+        };
+        const endDrag = () => {
+          if (!dragging) return;
+          dragging = false;
+          header.style.cursor = 'grab';
+          try { header.releasePointerCapture?.(activePointerId); } catch (_) {}
+          window.removeEventListener('pointermove', onMove, true);
+          window.removeEventListener('pointerup', onUp, true);
+          window.removeEventListener('pointercancel', onUp, true);
+        };
+        let activePointerId = null;
+        const onUp = () => endDrag();
+        header.addEventListener('pointerdown', (e) => {
+          if (e.button != null && e.button !== 0) return;
+          if (e.target && (e.target.tagName === 'BUTTON' || e.target.closest?.('button'))) return;
+          dragging = true;
+          activePointerId = e.pointerId;
+          startX = e.clientX;
+          startY = e.clientY;
+          startLeft = getPx(shell.style.left) || shell.getBoundingClientRect().left;
+          startTop = getPx(shell.style.top) || shell.getBoundingClientRect().top;
+          header.style.cursor = 'grabbing';
+          try { header.setPointerCapture?.(e.pointerId); } catch (_) {}
+          window.addEventListener('pointermove', onMove, true);
+          window.addEventListener('pointerup', onUp, true);
+          window.addEventListener('pointercancel', onUp, true);
+          e.preventDefault();
+        });
+      }
+
+      shell.dataset.simFloatBound = '1';
+    }
+
+    // Fix legacy '?' carets and broken button labels inside the floating body.
+    const caretBtns = document.querySelectorAll('#sim-float-panel [data-sim-collapse-header] button.btn-sm');
+    caretBtns.forEach(b => {
+      if (!b) return;
+      const t = (b.textContent || '').trim();
+      if (t === '?' || t === '') b.textContent = '\u25BE';
+    });
+    const strategyRoot = document.getElementById('sim-section-strategy');
+    if (strategyRoot) {
+      const btns = strategyRoot.querySelectorAll('button');
+      btns.forEach(b => {
+        const t = (b.textContent || '').replace(/\?/g, '').trim();
+        if (t.match(/Importar/i)) b.textContent = 'Importar';
+        if (t.match(/Guardar/i)) b.textContent = 'Guardar';
+        if (t.match(/Copiar/i)) b.textContent = 'Copiar';
+        if (t.match(/Limpiar/i)) b.textContent = 'Limpiar';
+      });
+    }
+  };
+
+  // If elements are present in the static HTML, ensure they're interactive.
+  bindExistingFloatUI();
+
   let openBtn = document.getElementById('sim-float-open');
   if (!openBtn) {
     openBtn = document.createElement('div');
@@ -319,7 +487,8 @@ function simEnsureFloatingPanel() {
     expand.id = 'sim-float-open-expand';
     expand.type = 'button';
     expand.className = 'btn-sm';
-    expand.textContent = '⛶';
+    // Use explicit codepoints to avoid encoding issues.
+    expand.textContent = '\u26F6'; // ⛶
     expand.style.padding = '0';
     expand.style.width = '34px';
     expand.style.height = '26px';
@@ -382,6 +551,7 @@ function simEnsureFloatingPanel() {
       window.addEventListener('pointercancel', onUp, true);
       e.preventDefault();
     });
+    openBtn.dataset.simFloatBound = '1';
   }
 
   let shell = document.getElementById('sim-float-panel');
@@ -442,7 +612,8 @@ function simEnsureFloatingPanel() {
     pinBtn.style.display = 'inline-flex';
     pinBtn.style.alignItems = 'center';
     pinBtn.style.justifyContent = 'center';
-    pinBtn.textContent = '📌';
+    // Use explicit codepoints to avoid encoding issues.
+    pinBtn.textContent = '\uD83D\uDCCC'; // 📌
     pinBtn.addEventListener('click', () => {
       SIM.ui.floatPanelPinned = !SIM.ui.floatPanelPinned;
       simSyncFloatingVisibility();
@@ -451,7 +622,8 @@ function simEnsureFloatingPanel() {
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'btn-sm';
-    closeBtn.textContent = '❌';
+    // Use explicit codepoints to avoid encoding issues.
+    closeBtn.textContent = '\u274C'; // ❌
     closeBtn.style.padding = '0';
     closeBtn.style.width = '34px';
     closeBtn.style.height = '26px';
@@ -523,7 +695,11 @@ function simEnsureFloatingPanel() {
       window.addEventListener('pointercancel', onUp, true);
       e.preventDefault();
     });
+    shell.dataset.simFloatBound = '1';
   }
+
+  // Bind again (covers the newly created elements).
+  bindExistingFloatUI();
 
   simSyncFloatingVisibility();
   return { shell, body: shell.querySelector('#sim-float-body'), openBtn };
@@ -585,7 +761,8 @@ function simSyncFloatingVisibility() {
   const pinBtn = document.getElementById('sim-float-pin');
   if (pinBtn) {
     const pinned = !!SIM.ui?.floatPanelPinned;
-    pinBtn.textContent = '📌';
+    // Use explicit codepoints to avoid encoding issues.
+    pinBtn.textContent = '\uD83D\uDCCC'; // 📌
     pinBtn.style.borderColor = pinned ? 'var(--green)' : '';
     pinBtn.style.color = pinned ? 'var(--green)' : '';
   }
@@ -800,7 +977,7 @@ function simUpdateParamInput(kind, rawValue) {
     return;
   }
   const configs = {
-    dte: { slider: 'sim-sl-dte', min: 1, max: 45, step: 1 },
+    dte: { slider: 'sim-sl-dte', min: 1, max: 70, step: 1 },
     rfr: { slider: 'sim-sl-rfr', min: 0, max: 100, step: 1 },
   };
   const cfg = configs[kind];
@@ -850,7 +1027,7 @@ function simGetCurrentDTE() {
   const expiry = ST.selExpiry || document.getElementById('expiry-sel')?.value || '';
   if (!expiry) return 30;
   const days = Math.round((new Date(expiry + 'T12:00:00') - Date.now()) / 86400000);
-  return Math.max(1, Math.min(45, days));
+  return Math.max(1, Math.min(70, days));
 }
 
 function simSliderHTML(id, label, min, max, val, step, display) {
@@ -1302,7 +1479,7 @@ function simRenderLegs() {
 function simUpdateSliders() {
   simSyncSpotSliderBounds(parseFloat(document.getElementById('sim-sl-spot')?.value || ST.spot || 1));
   const simSpot = parseFloat(document.getElementById('sim-sl-spot')?.value || ST.spot || 0);
-  const dte     = Math.min(45, parseFloat(document.getElementById('sim-sl-dte')?.value || simGetCurrentDTE()));
+  const dte     = Math.min(70, parseFloat(document.getElementById('sim-sl-dte')?.value || simGetCurrentDTE()));
   const rfr     = parseFloat(document.getElementById('sim-sl-rfr')?.value   || 20);
 
   const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
@@ -1326,7 +1503,7 @@ function simUpdateSliders() {
    CORE CALCULATION HELPERS
 ───────────────────────────────────────────── */
 function simResetParams() {
-  const currentDTE = Math.min(45, simGetCurrentDTE());
+  const currentDTE = Math.min(70, simGetCurrentDTE());
   simSyncSpotSliderBounds(ST.spot || 1);
   const defaults = {
     'sim-sl-spot': Math.max(1, parseFloat(ST.spot) || 1),
@@ -1348,7 +1525,7 @@ function simResetParams() {
 
 function simGetParams() {
   const simSpot = parseFloat(document.getElementById('sim-sl-spot')?.value  || ST.spot || 0);
-  const dte     = Math.min(45, parseFloat(document.getElementById('sim-sl-dte')?.value || simGetCurrentDTE()));
+  const dte     = Math.min(70, parseFloat(document.getElementById('sim-sl-dte')?.value || simGetCurrentDTE()));
   const rfr     = parseFloat(document.getElementById('sim-sl-rfr')?.value   || 20) / 100;
   const range   = Math.min(60, Math.max(5, parseFloat(document.getElementById('sim-table-range')?.value || 20)));
   const step    = Math.max(0.5, parseFloat(document.getElementById('sim-table-step')?.value || 1));
