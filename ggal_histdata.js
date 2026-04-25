@@ -20,13 +20,15 @@ function parseHistRows(rows){
     if(!date)return;
     const tipoRaw=(r[typeIdx]||'').toString().trim().toLowerCase();
     const strikeF=parseARSNum(r[strikeIdx]);
-    const last=parseARSNum(r[lastIdx]);
+    const lastRaw=r[lastIdx];
     if(!dateMap[date])dateMap[date]={};
     if(tipoRaw==='suby'||tipoRaw==='subyacente'){
+      const last=parseARSNum(lastRaw);
       dateMap[date].__suby__=isNaN(last)?null:last;
       return;
     }
     if(isNaN(strikeF)||strikeF<=0)return;
+    const last=parseARSPrice(lastRaw);
     const type=tipoRaw.includes('put')?'put':'call';
     const key=`${type}_${strikeF}`;
     if(!colMap.has(key))colMap.set(key,{key,type,strike:strikeF});

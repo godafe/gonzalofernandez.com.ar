@@ -338,6 +338,11 @@ function bb2PctColor(p){
   return p < 33 ? 'var(--green)' : p < 60 ? 'var(--amber)' : 'var(--red)';
 }
 
+function bb2PctTextColor(p){
+  if(p==null || !isFinite(p)) return 'var(--muted)';
+  return p < 33 ? '#062e20' : p < 60 ? '#3a2600' : '#fff4f4';
+}
+
 function bb2Dots(cands, titlePrefix, baseStrike, type, expiry){
   const dots = [0,1,2,3].map(i=>{
     const c = (cands && cands[i]) ? cands[i] : null;
@@ -353,9 +358,16 @@ function bb2Dots(cands, titlePrefix, baseStrike, type, expiry){
       ? `data-bb2-jump="1" data-bb2-exp="${expiry}" data-bb2-type="${type}" data-bb2-k1="${baseStrike}" data-bb2-k2="${k2}"`
       : '';
     const cursor = (k2!=null) ? 'cursor:pointer' : 'cursor:default';
-    return `<span title="${ttl}" ${jumpAttrs} style="display:inline-block;width:8px;height:8px;border-radius:999px;background:${col};opacity:${op};box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);${cursor}"></span>`;
+    const pctTxt=(p==null || !isFinite(p)) ? '--' : `${fmtN(p,0)}%`;
+    const bg=(p==null || !isFinite(p)) ? 'rgba(255,255,255,.06)' : col;
+    const txtCol=bb2PctTextColor(p);
+    return `
+      <span title="${ttl}" ${jumpAttrs}
+        style="display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:24px;padding:0 8px;border-radius:999px;background:${bg};box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);color:${txtCol};text-shadow:0 1px 0 rgba(0,0,0,.10);font-size:10px;font-weight:700;${cursor};opacity:${op};white-space:nowrap">
+        ${pctTxt}
+      </span>`;
   }).join('');
-  return `<div style="display:flex;justify-content:center;gap:6px">${dots}</div>`;
+  return `<div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">${dots}</div>`;
 }
 
 function bb2PopulateExpiry(){
@@ -452,6 +464,7 @@ function bb2BuildSpreadsTable(title, color, rows, lotes, baseStrike, basePrice, 
           <thead style="background:var(--surface2)">
             <tr>
               <th style="${th};color:${color}">Strike 2</th>
+              <th style="${th}">Precio S2</th>
               <th style="${th}">% Lleno</th>
               <th style="${th}">Costo</th>
               <th style="${th}">Costo/Lote</th>
@@ -479,6 +492,7 @@ function bb2BuildSpreadsTable(title, color, rows, lotes, baseStrike, basePrice, 
                     ${fmtStrike(r.k2)}
                   </span>
                 </td>
+                <td style="${td};color:${color}">${fmtN(r.p2,2)}</td>
                 <td style="${td};color:${pctColor(r.pctLleno)}">${fmtN(r.pctLleno,2)}%</td>
                 <td style="${td}">${fmtN(r.netDebit,2)}</td>
                 <td style="${td}">${fmtN(r.costPerLote,2)}</td>
@@ -607,4 +621,3 @@ function bb2Render(){
     return baseRow + details;
   }).join('');
 }
-

@@ -34,17 +34,58 @@ function bs(S,K,T,r,q,sigma,type){
 
 function impliedVol(S,K,T,r,q,mktPrice,type){
   if(T<=0||mktPrice<=0)return null;
+  // Hybrid solver: Newton-Raphson with bisection fallback (more stable for deep ITM/OTM).
+  const tol=0.01;         // price tolerance (same units as mktPrice)
+  const maxIter=200;
+  const lo0=0.001, hi0=5.0;
+
+  const priceAt=(sig)=>bs(S,K,T,r,q,sig,type).price;
+  let lo=lo0, hi=hi0;
+  let plo=priceAt(lo)-mktPrice;
+  let phi=priceAt(hi)-mktPrice;
+
+  // Ensure we have a bracket; if not, widen hi a bit (up to 10) and try again.
+  if(plo*phi>0){
+    let hiTry=hi;
+    for(let j=0;j<6&&plo*phi>0;j++){
+      hiTry*=1.5;
+      if(hiTry>10)break;
+      hi=hiTry;
+      phi=priceAt(hi)-mktPrice;
+    }
+  }
+
   let sig=0.50;
-  for(let i=0;i<200;i++){
+  // If bracket exists, start from midpoint.
+  if(plo*phi<=0) sig=(lo+hi)/2;
+
+  for(let i=0;i<maxIter;i++){
     const res=bs(S,K,T,r,q,sig,type);
     const diff=res.price-mktPrice;
-    if(Math.abs(diff)<0.01)return sig;
-    const v=res.vega*100;
-    if(Math.abs(v)<1e-10)break;
-    sig-=diff/v;
-    if(sig<=0.001)sig=0.001;
-    if(sig>5)sig=5;
+    if(Math.abs(diff)<tol)return sig;
+
+    // Update bracket if we have one.
+    if(plo*phi<=0){
+      if(diff>0){ hi=sig; phi=diff; }
+      else{ lo=sig; plo=diff; }
+    }
+
+    const v=res.vega*100; // dPrice/dSigma (sigma in 1.0 units)
+    let next=sig;
+    if(Math.abs(v)>1e-10){
+      next=sig-diff/v;
+    }else if(plo*phi<=0){
+      // Vega too small, fall back to bisection
+      next=(lo+hi)/2;
+    }
+
+    // If Newton jumps outside bracket, clamp to midpoint.
+    if(plo*phi<=0 && (next<=lo || next>=hi)) next=(lo+hi)/2;
+    sig=Math.min(Math.max(next,lo0),hi);
   }
+
+  // If we had a bracket, return the midpoint as best estimate.
+  if(plo*phi<=0) return (lo+hi)/2;
   return sig;
 }
 
@@ -104,9 +145,24 @@ function generateMockData(){
 
 function populateExpiries(){
   const sel=document.getElementById('expiry-sel');
+  if(!sel||!Array.isArray(ST.expirations)||!ST.expirations.length)return;
+
+  // Pick nearest future expiry (avoid leaving the UI on an expired OPEX like 2026-04-17).
+  const now=Date.now();
+  let best=ST.expirations[ST.expirations.length-1];
+  let bestDays=Infinity;
+  ST.expirations.forEach(e=>{
+    const d=new Date(e+'T12:00:00');
+    if(!isFinite(d.getTime()))return;
+    const days=Math.round((d.getTime()-now)/86400000);
+    if(days>=1&&days<bestDays){bestDays=days;best=e;}
+  });
+  ST.selExpiry=best;
+
   sel.innerHTML='';
   ST.expirations.forEach(e=>{
     const o=document.createElement('option');
     o.value=e;o.textContent=fmtExpiry(e);sel.appendChild(o);
   });
+  sel.value=best;
 }

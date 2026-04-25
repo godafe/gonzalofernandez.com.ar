@@ -1,16 +1,149 @@
-/* ===== MÓDULO SIMULADOR DE ESTRATEGIAS ===== */
+﻿/* ===== MÃ“DULO SIMULADOR DE ESTRATEGIAS ===== */
 
-const SIM = { legs: [], chart: null, ui: { floatPanelVisible: true, floatPanelPinned: false } };
+const SIM = {
+  legs: [],
+  chart: null,
+  ui: { floatPanelVisible: true, floatPanelPinned: false },
+  // Temp strategy persistence (localStorage)
+  _tempLoaded: false,
+  _tempSaveTid: null,
+  _tempSaveSuppress: false,
+  _tempIvOverridesPending: null,
+};
 
-/* ─────────────────────────────────────────────
-   HTML estático — el tab y el pane están en
-   ggal_options_dashboard.html. Esta función
-   solo inicializa el layout y los parámetros.
-───────────────────────────────────────────── */
+function simTempKey() { return 'ggal_sim_temp_strategy_v1'; }
+
+function simReadTempState() {
+  try {
+    const raw = localStorage.getItem(simTempKey());
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || obj.v !== 1) return null;
+    return obj;
+  } catch (_) { return null; }
+}
+
+function simWriteTempState(obj) {
+  try { localStorage.setItem(simTempKey(), JSON.stringify(obj)); } catch (_) {}
+}
+
+function simRemoveTempState() {
+  try { localStorage.removeItem(simTempKey()); } catch (_) {}
+}
+
+function simGetTempSnapshot() {
+  const exp = simGetActiveExpiry();
+  const legs = (SIM.legs || []).map(l => ({
+    type: l.type,
+    qty: +l.qty || 0,
+    strike: +l.strike || 0,
+    entryPrice: +l.entryPrice || 0,
+    expiry: String(l.expiry || exp || ''),
+    iv: +l.iv || 0,
+  }));
+
+  const ivOverrides = {};
+  const seen = new Set();
+  (SIM.legs || []).forEach(l => {
+    if (!l || l.type === 'stock') return;
+    const key = simGetLegIvKey(l);
+    if (seen.has(key)) return;
+    seen.add(key);
+    const el = document.getElementById(simGetIvSliderId(key));
+    const v = parseARSNum(el?.value || '');
+    if (isFinite(v) && v > 0) ivOverrides[key] = Math.max(1, Math.min(120, v));
+  });
+
+  const p = {
+    spot: parseFloat(document.getElementById('sim-sl-spot')?.value || '') || (parseFloat(ST.spot) || 0),
+    dte: parseFloat(document.getElementById('sim-sl-dte')?.value || '') || simGetCurrentDTE(),
+    tlr: parseFloat(document.getElementById('sim-sl-rfr')?.value || '') || 20,
+    step: parseFloat(document.getElementById('sim-table-step')?.value || '') || 1,
+    range: parseFloat(document.getElementById('sim-table-range')?.value || '') || 20,
+  };
+
+  const sel = document.getElementById('sim-import-sel');
+  const src = sel?.value || '';
+
+  return { v: 1, t: Date.now(), exp: String(exp || ''), src, p, legs, ivOverrides };
+}
+
+function simApplyIvOverrides(ivOverrides) {
+  if (!ivOverrides) return;
+  Object.entries(ivOverrides).forEach(([key, v]) => {
+    const pct = Math.max(1, Math.min(120, parseFloat(v) || 0));
+    if (!isFinite(pct) || pct <= 0) return;
+    const el = document.getElementById(simGetIvSliderId(key));
+    if (el) el.value = pct.toFixed(2).replace('.', ',');
+    (SIM.legs || []).forEach(l => {
+      if (!l || l.type === 'stock') return;
+      if (simGetLegIvKey(l) === key) l.iv = pct / 100;
+    });
+  });
+}
+
+function simScheduleTempSave() {
+  if (SIM._tempSaveSuppress) return;
+  if (SIM._tempSaveTid) clearTimeout(SIM._tempSaveTid);
+  SIM._tempSaveTid = setTimeout(() => {
+    SIM._tempSaveTid = null;
+    if (SIM._tempSaveSuppress) return;
+    if (!SIM.legs || !SIM.legs.length) { simRemoveTempState(); return; }
+    simWriteTempState(simGetTempSnapshot());
+  }, 200);
+}
+
+function simTryLoadTempOnce() {
+  if (SIM._tempLoaded) return false;
+  SIM._tempLoaded = true;
+  if (SIM.legs && SIM.legs.length) return false;
+  const st = simReadTempState();
+  if (!st || !Array.isArray(st.legs) || !st.legs.length) return false;
+
+  SIM._tempSaveSuppress = true;
+  try {
+    const exp = simGetActiveExpiry() || st.exp || '';
+    SIM.legs = st.legs.map(l => simBuildImportedLeg({
+      type: l.type || 'call',
+      qty: +l.qty || 0,
+      strike: +l.strike || (ST.spot || 0),
+      entryPrice: +l.entryPrice || 0,
+      expiry: String(l.expiry || exp || ''),
+    }));
+
+    const setVal = (id, v) => {
+      const el = document.getElementById(id);
+      if (el && isFinite(v)) el.value = String(v);
+    };
+    setVal('sim-sl-spot', st.p?.spot);
+    setVal('sim-in-spot', st.p?.spot);
+    setVal('sim-sl-dte', st.p?.dte);
+    setVal('sim-in-dte', st.p?.dte);
+    setVal('sim-sl-rfr', st.p?.tlr);
+    setVal('sim-in-rfr', st.p?.tlr);
+    setVal('sim-table-step', st.p?.step);
+    setVal('sim-table-range', st.p?.range);
+
+    SIM._tempIvOverridesPending = st.ivOverrides || null;
+
+    const sel = document.getElementById('sim-import-sel');
+    if (sel && st.src) sel.value = st.src;
+  } finally {
+    SIM._tempSaveSuppress = false;
+  }
+  return true;
+}
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   HTML estÃ¡tico â€” el tab y el pane estÃ¡n en
+   ggal_options_dashboard.html. Esta funciÃ³n
+   solo inicializa el layout y los parÃ¡metros.
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function simInjectHTML() {
   if (!document.getElementById('tab-simulador')) return;
-  simPatchParamsHeader();
+  // Build/patch layout first, then normalize params header (dedup buttons + bind events).
   simEnhanceLayout();
+  simPatchParamsHeader();
   simResetParams();
 }
 
@@ -44,6 +177,33 @@ function simToggleSection(sectionId, btn) {
   }
   // Use explicit codepoints to avoid encoding issues.
   if (btn) btn.textContent = isOpen ? '\u25B8' : '\u25BE';
+}
+
+function simBindCollapseCarets(root) {
+  const scope = root || document;
+  const containers = Array.from(scope.querySelectorAll('[data-sim-collapsible=\"1\"]'));
+  containers.forEach((container) => {
+    const header = container.querySelector('[data-sim-collapse-header]');
+    if (!header) return;
+
+    // Body is the first sim-section-* div inside the container.
+    const body = container.querySelector('div[id^=\"sim-section-\"]');
+    if (!body || !body.id) return;
+
+    const btns = Array.from(header.querySelectorAll('button.btn-sm'));
+    if (!btns.length) return;
+    const caretBtn = btns[btns.length - 1];
+    if (!caretBtn || caretBtn.dataset.simCollapseBound === '1') return;
+
+    caretBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      simToggleSection(body.id, caretBtn);
+      simFitFloatingPanelToViewport?.();
+      simScheduleTempSave?.();
+    });
+    caretBtn.dataset.simCollapseBound = '1';
+  });
 }
 
 function simMakeCollapsible(container, title, sectionId, extraNode) {
@@ -299,12 +459,14 @@ function simEnsureFloatingPanel() {
   const bindExistingFloatUI = () => {
     const openBtn = document.getElementById('sim-float-open');
     const shell = document.getElementById('sim-float-panel');
+    // Ensure collapse carets inside the floating panel are bound.
+    simBindCollapseCarets?.(shell || document);
 
     // Minimized open button (drag + expand icon)
     if (openBtn && openBtn.dataset.simFloatBound !== '1') {
       const expand = document.getElementById('sim-float-open-expand');
       if (expand) {
-        expand.textContent = '\u26F6'; // ⛶
+        expand.textContent = '\u26F6'; // â›¶
         expand.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -370,7 +532,7 @@ function simEnsureFloatingPanel() {
 
         const pinBtn = document.getElementById('sim-float-pin');
         if (pinBtn) {
-          pinBtn.textContent = '\uD83D\uDCCC'; // 📌
+          pinBtn.textContent = '\uD83D\uDCCC'; // ðŸ“Œ
           pinBtn.addEventListener('click', () => {
             SIM.ui.floatPanelPinned = !SIM.ui.floatPanelPinned;
             simSyncFloatingVisibility();
@@ -380,7 +542,7 @@ function simEnsureFloatingPanel() {
         const btns = header.querySelectorAll('button');
         const closeBtn = btns.length ? btns[btns.length - 1] : null;
         if (closeBtn) {
-          closeBtn.textContent = '\u274C'; // ❌
+          closeBtn.textContent = '\u274C'; // âŒ
           closeBtn.addEventListener('click', () => simHideFloatingPanel());
         }
 
@@ -488,7 +650,7 @@ function simEnsureFloatingPanel() {
     expand.type = 'button';
     expand.className = 'btn-sm';
     // Use explicit codepoints to avoid encoding issues.
-    expand.textContent = '\u26F6'; // ⛶
+    expand.textContent = '\u26F6'; // â›¶
     expand.style.padding = '0';
     expand.style.width = '34px';
     expand.style.height = '26px';
@@ -613,7 +775,7 @@ function simEnsureFloatingPanel() {
     pinBtn.style.alignItems = 'center';
     pinBtn.style.justifyContent = 'center';
     // Use explicit codepoints to avoid encoding issues.
-    pinBtn.textContent = '\uD83D\uDCCC'; // 📌
+    pinBtn.textContent = '\uD83D\uDCCC'; // ðŸ“Œ
     pinBtn.addEventListener('click', () => {
       SIM.ui.floatPanelPinned = !SIM.ui.floatPanelPinned;
       simSyncFloatingVisibility();
@@ -623,7 +785,7 @@ function simEnsureFloatingPanel() {
     closeBtn.type = 'button';
     closeBtn.className = 'btn-sm';
     // Use explicit codepoints to avoid encoding issues.
-    closeBtn.textContent = '\u274C'; // ❌
+    closeBtn.textContent = '\u274C'; // âŒ
     closeBtn.style.padding = '0';
     closeBtn.style.width = '34px';
     closeBtn.style.height = '26px';
@@ -762,7 +924,7 @@ function simSyncFloatingVisibility() {
   if (pinBtn) {
     const pinned = !!SIM.ui?.floatPanelPinned;
     // Use explicit codepoints to avoid encoding issues.
-    pinBtn.textContent = '\uD83D\uDCCC'; // 📌
+    pinBtn.textContent = '\uD83D\uDCCC'; // ðŸ“Œ
     pinBtn.style.borderColor = pinned ? 'var(--green)' : '';
     pinBtn.style.color = pinned ? 'var(--green)' : '';
   }
@@ -829,7 +991,8 @@ function simPatchParamsHeader() {
   const panel = slider?.closest('.panel');
   if (!panel) return;
 
-  let header = panel.querySelector('[data-sim-params-header]');
+  // Prefer the existing collapsible header (static HTML). Only create our own if missing.
+  let header = panel.querySelector('[data-sim-collapse-header]') || panel.querySelector('[data-sim-params-header]');
   if (!header) {
     header = document.createElement('div');
     header.dataset.simParamsHeader = '1';
@@ -841,26 +1004,80 @@ function simPatchParamsHeader() {
     panel.prepend(header);
   }
 
-  let resetBtn = header.querySelector('#sim-reset-btn');
+  // Find/create the actions container on the right side of the header.
+  let actions = null;
+  if (header.querySelector) {
+    // In the static header structure, the right-side is the last child div.
+    const divs = header.querySelectorAll(':scope > div');
+    actions = divs.length ? divs[divs.length - 1] : null;
+  }
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.alignItems = 'center';
+    actions.style.gap = '8px';
+    header.appendChild(actions);
+  }
+
+  // De-dup & move existing buttons into the header actions.
+  const dedup = (id) => {
+    const all = Array.from(panel.querySelectorAll('#' + id));
+    const keep = all.shift() || null;
+    all.forEach(el => el.remove());
+    return keep;
+  };
+
+  let resetBtn = dedup('sim-reset-btn');
   if (!resetBtn) {
     resetBtn = document.createElement('button');
     resetBtn.id = 'sim-reset-btn';
     resetBtn.className = 'btn-sm';
     resetBtn.textContent = 'Reset';
     resetBtn.style.padding = '5px 12px';
+  }
+  if (resetBtn.dataset.simBound !== '1') {
     resetBtn.addEventListener('click', simResetParams);
-    header.appendChild(resetBtn);
+    resetBtn.dataset.simBound = '1';
   }
 
-  let recalBtn = header.querySelector('#sim-recal-iv-btn');
+  let recalBtn = dedup('sim-recal-iv-btn');
   if (!recalBtn) {
     recalBtn = document.createElement('button');
     recalBtn.id = 'sim-recal-iv-btn';
     recalBtn.className = 'btn-sm';
     recalBtn.textContent = 'Recalibrar VI';
     recalBtn.style.padding = '5px 12px';
+  }
+  if (recalBtn.dataset.simBound !== '1') {
     recalBtn.addEventListener('click', simRecalibrateIvs);
-    header.insertBefore(recalBtn, resetBtn);
+    recalBtn.dataset.simBound = '1';
+  }
+
+  // Remove any extra legacy buttons that may have been injected without ids.
+  Array.from(panel.querySelectorAll('button.btn-sm')).forEach((b) => {
+    const t = (b.textContent || '').trim();
+    if (t === 'Recalibrar VI' && b.id !== 'sim-recal-iv-btn') b.remove();
+    if (t === 'Reset' && b.id !== 'sim-reset-btn') b.remove();
+  });
+
+  // Ensure ordering: Recalibrar VI then Reset.
+  if (recalBtn.parentElement !== actions) actions.appendChild(recalBtn);
+  if (resetBtn.parentElement !== actions) actions.appendChild(resetBtn);
+  if (actions.firstChild !== recalBtn) actions.insertBefore(recalBtn, actions.firstChild);
+
+  // Fix the collapse caret button in the static header (it was rendered as '?').
+  const caretBtn = header.querySelector('button.btn-sm:not(#sim-recal-iv-btn):not(#sim-reset-btn)');
+  if (caretBtn) {
+    const t = (caretBtn.textContent || '').trim();
+    if (t === '?' || t === '') caretBtn.textContent = '\u25BE';
+    if (caretBtn.dataset.simBound !== '1') {
+      caretBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        simToggleSection('sim-section-params', caretBtn);
+      });
+      caretBtn.dataset.simBound = '1';
+    }
   }
 }
 
@@ -1023,10 +1240,82 @@ function simRenderIvSliders(r, q) {
   }).join('');
 }
 
+function simParseExpiryDate(exp) {
+  if (!exp) return null;
+  exp = String(exp).trim();
+  // Primary format used by the app: YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(exp)) {
+    const d = new Date(exp + 'T12:00:00');
+    return isFinite(d.getTime()) ? d : null;
+  }
+  // Fallback: "17 abr 2026" (avoid relying on Date.parse locale).
+  const m = String(exp).trim().toLowerCase().match(/^(\d{1,2})\s+([a-z]{3})\s+(\d{4})$/);
+  if (!m) return null;
+  const dd = parseInt(m[1], 10);
+  const mmMap = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, oct: 10, nov: 11, dic: 12 };
+  const mm = mmMap[m[2]] || 0;
+  const yy = parseInt(m[3], 10);
+  if (!dd || !mm || !yy) return null;
+  const iso = `${yy.toString().padStart(4, '0')}-${mm.toString().padStart(2, '0')}-${dd.toString().padStart(2, '0')}`;
+  const d = new Date(iso + 'T12:00:00');
+  return isFinite(d.getTime()) ? d : null;
+}
+
+function simPickNearestFutureExpiry(list) {
+  const now = Date.now();
+  const uniq = Array.from(new Set((list || []).filter(Boolean).map(s => String(s).trim()).filter(Boolean)));
+  let best = '';
+  let bestDays = Infinity;
+  uniq.forEach(exp => {
+    const d = simParseExpiryDate(exp);
+    if (!d) return;
+    const days = Math.round((d.getTime() - now) / 86400000);
+    if (days >= 1 && days < bestDays) {
+      bestDays = days;
+      best = exp;
+    }
+  });
+  return best;
+}
+
+function simGetActiveExpiry() {
+  const byLeg = (SIM?.legs || [])
+    .filter(l => l && l.type !== 'stock' && l.expiry)
+    .map(l => String(l.expiry).trim());
+  const byUI = [
+    ST.selExpiry,
+    document.getElementById('expiry-sel')?.value || '',
+  ].filter(Boolean).map(s => String(s).trim()).filter(Boolean);
+  const chainKeys = Object.keys(ST.chain || {});
+  const expList = (ST.expirations || []);
+
+  // Prefer expiries that actually exist in the chain.
+  const preferred = simPickNearestFutureExpiry([...byLeg, ...byUI].filter(e => ST.chain?.[e]));
+  if (preferred) return preferred;
+  const chainBest = simPickNearestFutureExpiry(chainKeys);
+  if (chainBest) return chainBest;
+
+  // Fallbacks (even if in the past).
+  return byLeg.find(e => ST.chain?.[e]) ||
+    byUI.find(e => ST.chain?.[e]) ||
+    chainKeys[0] ||
+    expList[0] ||
+    byUI[0] ||
+    ST.selExpiry ||
+    '';
+}
+
 function simGetCurrentDTE() {
-  const expiry = ST.selExpiry || document.getElementById('expiry-sel')?.value || '';
-  if (!expiry) return 30;
-  const days = Math.round((new Date(expiry + 'T12:00:00') - Date.now()) / 86400000);
+  // Prefer the UI-selected expiry if it parses and is in the future; otherwise use the active chain expiry.
+  const uiExp = String(document.getElementById('expiry-sel')?.value || ST.selExpiry || '').trim();
+  let d = simParseExpiryDate(uiExp);
+  let days = d ? Math.round((d.getTime() - Date.now()) / 86400000) : NaN;
+  if (!isFinite(days) || days < 1) {
+    const expiry = simGetActiveExpiry();
+    d = simParseExpiryDate(expiry);
+    days = d ? Math.round((d.getTime() - Date.now()) / 86400000) : NaN;
+  }
+  if (!isFinite(days) || days < 1) return 30;
   return Math.max(1, Math.min(70, days));
 }
 
@@ -1042,14 +1331,14 @@ function simSliderHTML(id, label, min, max, val, step, display) {
   </div>`;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    IMPORT FROM CONTROL
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function simRefreshImportSel() {
   const sel = document.getElementById('sim-import-sel');
   if (!sel) return;
   const cur = sel.value;
-  sel.innerHTML = '<option value="">— Importar de Control —</option>';
+  sel.innerHTML = '<option value="">-- Importar de Control --</option>';
   (typeof ctrlStrategies !== 'undefined' ? ctrlStrategies : []).forEach((s, i) => {
     const o = document.createElement('option');
     o.value = i;
@@ -1170,6 +1459,7 @@ function simImportFromTextRaw(raw) {
   if (ta) ta.value = '';
   simRenderLegs();
   renderSimulador();
+  simScheduleTempSave?.();
   showToast(`${parsed.length} pata${parsed.length > 1 ? 's' : ''} cargada${parsed.length > 1 ? 's' : ''} desde texto`);
   return true;
 }
@@ -1186,29 +1476,10 @@ function simImportTextInput() {
   return simImportFromTextRaw(ta.value);
 }
 
-function simImportFromControl() {
-  simRefreshImportSel();
-  const sel = document.getElementById('sim-import-sel');
-  const idx = sel ? parseInt(sel.value) : NaN;
-  const strats = typeof ctrlStrategies !== 'undefined' ? ctrlStrategies : [];
-  if (isNaN(idx) || !strats[idx]) { showToast('Seleccioná una estrategia para importar'); return; }
-  const strat = strats[idx];
-  SIM.legs = strat.rows.map(row => ({
-    type:       row.type || 'call',
-    qty:        row.lotes || 0,
-    strike:     row.strike || ST.spot,
-    entryPrice: parseFloat(row.precioManual) || row.precio || 0,
-    expiry:     ST.selExpiry || '',
-    iv:         0,
-  }));
-  simRenderLegs();
-  renderSimulador();
-  showToast(`✓ "${strat.name}" importada al Simulador`);
-}
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    LEG MANAGEMENT
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function simRefreshImportSel() {
   const sel = document.getElementById('sim-import-sel');
   if (!sel) return;
@@ -1303,6 +1574,7 @@ function simLoadControlStrategy(strategy, options = {}) {
   renderSimulador();
   if (options.openTab !== false && typeof showTab === 'function') showTab('simulador');
   showToast(`"${options.name || strategy.name || 'Estrategia'}" cargada en el Simulador`);
+  simScheduleTempSave?.();
   return true;
 }
 
@@ -1332,10 +1604,11 @@ function simUpdateLeg(i, field, rawVal) {
 
   // Auto-fill entry price from chain when strike or type changes
   if (['strike', 'type'].includes(field) && leg.type !== 'stock') {
-    const exp = ST.selExpiry;
+    const exp = ST.selExpiry || simGetActiveExpiry();
     if (exp && ST.chain[exp]) {
-      const row = ST.chain[exp].find(r => r.strike === leg.strike);
-      if (row) leg.entryPrice = leg.type === 'call' ? (row.callMid || 0) : (row.putMid || 0);
+      // Use the same "closest strike" logic as pricing to avoid float mismatch.
+      const px = simGetLegMarketPrice(leg, exp);
+      if (px > 0) leg.entryPrice = px;
     }
     leg.expiry = exp || leg.expiry || '';
     leg.iv = simInferLegMarketIV(leg, leg.expiry, simGetParams().rfr, ST.q);
@@ -1473,9 +1746,9 @@ function simRenderLegs() {
     }
   });
 }
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    SLIDERS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function simUpdateSliders() {
   simSyncSpotSliderBounds(parseFloat(document.getElementById('sim-sl-spot')?.value || ST.spot || 1));
   const simSpot = parseFloat(document.getElementById('sim-sl-spot')?.value || ST.spot || 0);
@@ -1499,9 +1772,9 @@ function simUpdateSliders() {
   renderSimulador();
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    CORE CALCULATION HELPERS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function simResetParams() {
   const currentDTE = Math.min(70, simGetCurrentDTE());
   simSyncSpotSliderBounds(ST.spot || 1);
@@ -1521,6 +1794,7 @@ function simResetParams() {
     if (slider) slider.value = Math.max(1, Math.min(120, simGetLegIV(leg, 0.20, ST.q || 0) * 100)).toFixed(2);
   });
   simUpdateSliders();
+  simScheduleTempSave?.();
 }
 
 function simGetParams() {
@@ -1539,9 +1813,30 @@ function simGetParams() {
 function simGetLegMarketPrice(leg, expiry) {
   if (!leg) return 0;
   if (leg.type === 'stock') return ST.spot || 0;
-  const exp = expiry || leg.expiry || ST.selExpiry || '';
+  const exp = expiry || leg.expiry || simGetActiveExpiry();
   if (!exp || !ST.chain?.[exp]) return 0;
-  const row = ST.chain[exp].find(r => r.strike === leg.strike);
+  const rows = ST.chain[exp];
+  const target = Math.round((parseFloat(leg.strike) || 0) * 100) / 100;
+  // Strikes may not match by strict equality due to float formatting; match by rounding.
+  let row = rows.find(r => (Math.round((r.strike || 0) * 100) / 100) === target);
+  if (!row && rows.length) {
+    // Fallback: closest strike.
+    row = rows.reduce((best, r) => {
+      if (!best) return r;
+      return Math.abs((r.strike || 0) - target) < Math.abs((best.strike || 0) - target) ? r : best;
+    }, null);
+    if (!row) return 0;
+    // If user provided a non-existent strike, allow snapping within the typical chain spacing.
+    const strikes = rows.map(r => r.strike).filter(n => isFinite(n)).sort((a, b) => a - b);
+    let minDiff = Infinity;
+    for (let i = 1; i < strikes.length; i++) {
+      const d = strikes[i] - strikes[i - 1];
+      if (d > 0 && d < minDiff) minDiff = d;
+    }
+    if (!isFinite(minDiff) || minDiff <= 0) minDiff = 999999;
+    const tol = Math.max(1, minDiff * 1.5);
+    if (Math.abs((row.strike || 0) - target) > tol) return 0;
+  }
   if (!row) return 0;
   return leg.type === 'call' ? (row.callMid || 0) : (row.putMid || 0);
 }
@@ -1549,16 +1844,22 @@ function simGetLegMarketPrice(leg, expiry) {
 function simRecalibrateIvs() {
   const { simSpot, rfr, T } = simGetParams();
   const q = ST.q || 0;
+  const exp = simGetActiveExpiry();
   const seen = new Set();
+  let anyUpdated = false;
   SIM.legs.forEach(leg => {
     if (!leg || leg.type === 'stock') return;
+    const legExp = String(leg.expiry || '').trim();
+    // If leg expiry is missing or not present in the chain, use the active expiry.
+    if (!legExp || !ST.chain?.[legExp]) leg.expiry = exp;
     const key = simGetLegIvKey(leg);
     if (seen.has(key)) return;
     seen.add(key);
 
-    const marketPrice = simGetLegMarketPrice(leg, leg.expiry || ST.selExpiry || '');
+    const marketPrice = simGetLegMarketPrice(leg, leg.expiry || exp);
     let iv = 0.5;
-    if (marketPrice > 0 && simSpot > 0 && T > 0) {
+    const canInfer = (marketPrice > 0 && simSpot > 0 && T > 0);
+    if (canInfer) {
       try {
         const inferred = impliedVol(simSpot, leg.strike, Math.max(0.001, T), rfr, q, marketPrice, leg.type);
         if (isFinite(inferred) && inferred > 0) iv = inferred;
@@ -1568,18 +1869,38 @@ function simRecalibrateIvs() {
     }
 
     SIM.legs.forEach(targetLeg => {
-      if (targetLeg?.type === leg.type && targetLeg?.strike === leg.strike) targetLeg.iv = iv;
+      const a = Math.round((parseFloat(targetLeg?.strike) || 0) * 100) / 100;
+      const b = Math.round((parseFloat(leg.strike) || 0) * 100) / 100;
+      if (targetLeg?.type === leg.type && a === b) targetLeg.iv = iv;
     });
 
     const input = document.getElementById(simGetIvSliderId(key));
     if (input) input.value = (iv * 100).toFixed(2).replace('.', ',');
+    if (canInfer) anyUpdated = true;
   });
+  if (!anyUpdated) {
+    const first = (SIM.legs || []).find(l => l && l.type !== 'stock') || null;
+    const expDbg = exp || simGetActiveExpiry() || '';
+    const hasChain = !!(expDbg && ST.chain?.[expDbg] && ST.chain[expDbg].length);
+    const pxDbg = first ? simGetLegMarketPrice(first, expDbg) : 0;
+    const dteDbg = parseFloat(document.getElementById('sim-sl-dte')?.value || '') || simGetCurrentDTE();
+    if (!expDbg || !hasChain) {
+      showToast('No se pudo recalibrar VI: sin vencimiento valido.');
+    } else if (!(simSpot > 0) || !(T > 0) || !(dteDbg > 0)) {
+      showToast('No se pudo recalibrar VI: DTE invalido.');
+    } else if (!(pxDbg > 0)) {
+      showToast(`No se pudo recalibrar VI: sin precio de mercado (${expDbg}).`);
+    } else {
+      showToast('No se pudo recalibrar VI.');
+    }
+  }
   renderSimulador();
+  simScheduleTempSave?.();
 }
 
 function simInferLegMarketIV(leg, expiry, r, q) {
   if (!leg || leg.type === 'stock') return 0;
-  const exp = expiry || leg.expiry || ST.selExpiry || '';
+  const exp = expiry || leg.expiry || simGetActiveExpiry();
   const T = simGetExpiryT(exp);
   const marketPrice = simGetLegMarketPrice(leg, exp);
   if (marketPrice <= 0 || T <= 0) return 0.5;
@@ -1587,12 +1908,22 @@ function simInferLegMarketIV(leg, expiry, r, q) {
 }
 
 function simBuildImportedLeg(base) {
-  const expiry = ST.selExpiry || base.expiry || '';
+  const expiry = simGetActiveExpiry() || base.expiry || '';
   const { rfr } = simGetParams();
+
+  // Snap strike to the closest available strike for the expiry to ensure we can price it from ST.chain.
+  let strike = base.type === 'stock' ? (base.strike || 0) : (base.strike || ST.spot);
+  if (base.type !== 'stock' && expiry && ST.chain?.[expiry]?.length) {
+    const strikes = ST.chain[expiry].map(r => r.strike).filter(n => isFinite(n));
+    const target = parseFloat(strike) || 0;
+    if (strikes.length && isFinite(target) && target > 0) {
+      strike = strikes.reduce((p, s) => Math.abs(s - target) < Math.abs(p - target) ? s : p, strikes[0]);
+    }
+  }
   const leg = {
     type: base.type || 'call',
     qty: base.qty || 0,
-    strike: base.type === 'stock' ? (base.strike || 0) : (base.strike || ST.spot),
+    strike,
     entryPrice: parseFloat(base.entryPrice) || 0,
     expiry,
     iv: 0,
@@ -1614,7 +1945,9 @@ function simGetLegIV(leg, r, q) {
 
 function simGetExpiryT(expiry) {
   if (!expiry) return 30 / 365;
-  return Math.max(0, (new Date(expiry + 'T12:00:00') - Date.now()) / (365 * 24 * 3600 * 1000));
+  const d = simParseExpiryDate(expiry);
+  if (!d) return 30 / 365;
+  return Math.max(0, (d.getTime() - Date.now()) / (365 * 24 * 3600 * 1000));
 }
 
 function simPayoffAtExpiry(spot, leg) {
@@ -1635,11 +1968,60 @@ function simPayoffTheoretical(spot, leg, T, r, q, ivOverridePct) {
   return leg.qty * (res.price - leg.entryPrice) * 100;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    MAIN RENDER
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function renderSimulador() {
   if (!document.getElementById('tab-simulador')) return;
+  // Bind/repair floating panel + header icons even if the HTML was pre-rendered.
+  simEnsureFloatingPanel?.();
+  simPatchParamsHeader?.();
+  simBindCollapseCarets?.(document.getElementById('tab-simulador'));
+
+  // Auto-restore last temp strategy (only once, only if nothing is loaded yet).
+  if (simTryLoadTempOnce?.()) {
+    setTimeout(() => renderSimulador(), 0);
+    return;
+  }
+
+  // Auto-set DTE to the active expiry (once we have chain data), unless the user edited it.
+  const dteEl = document.getElementById('sim-sl-dte');
+  const dteIn = document.getElementById('sim-in-dte');
+  const spotEl = document.getElementById('sim-sl-spot');
+  const spotIn = document.getElementById('sim-in-spot');
+
+  // Auto-set Spot to the current GGAL spot once available (HTML placeholder was 1).
+  if (spotEl && spotEl.dataset.simUserBind !== '1') {
+    spotEl.addEventListener('input', () => (spotEl.dataset.simUserEdited = '1'));
+    spotEl.addEventListener('change', () => (spotEl.dataset.simUserEdited = '1'));
+    spotIn?.addEventListener('input', () => (spotEl.dataset.simUserEdited = '1'));
+    spotEl.dataset.simUserBind = '1';
+  }
+  if (spotEl && spotEl.dataset.simUserEdited !== '1') {
+    const cur = parseFloat(spotEl.value);
+    const s = parseFloat(ST.spot) || 0;
+    if (s > 0 && (!isFinite(cur) || cur <= 1)) {
+      simSyncSpotSliderBounds(s);
+      spotEl.value = String(Math.max(1, Math.round(s)));
+      if (spotIn) spotIn.value = simFormatPlainNumber(s, 2);
+    }
+  }
+
+  if (dteEl && dteEl.dataset.simUserBind !== '1') {
+    dteEl.addEventListener('input', () => (dteEl.dataset.simUserEdited = '1'));
+    dteEl.addEventListener('change', () => (dteEl.dataset.simUserEdited = '1'));
+    dteIn?.addEventListener('input', () => (dteEl.dataset.simUserEdited = '1'));
+    dteEl.dataset.simUserBind = '1';
+  }
+  if (dteEl && dteEl.dataset.simUserEdited !== '1') {
+    const computed = Math.min(70, Math.max(1, simGetCurrentDTE()));
+    const cur = parseFloat(dteEl.value);
+    // Fix common bad defaults (expired expiry -> 1d) and pre-load placeholder (30d).
+    if (!isFinite(cur) || cur <= 1 || cur === 30) {
+      dteEl.value = String(computed);
+      if (dteIn) dteIn.value = String(computed);
+    }
+  }
   simSyncFloatingVisibility();
 
   // Keep legs table in sync
@@ -1653,18 +2035,22 @@ function renderSimulador() {
   const { simSpot, dte, rfr: r, range, step, T } = simGetParams();
   const q  = ST.q;
   simRenderIvSliders(r, q);
+  if (SIM._tempIvOverridesPending) {
+    simApplyIvOverrides(SIM._tempIvOverridesPending);
+    SIM._tempIvOverridesPending = null;
+  }
   const lo = ST.spot * (1 - range / 100);
   const hi = ST.spot * (1 + range / 100);
   const N  = 120;
   const spots = Array.from({ length: N }, (_, i) => lo + (hi - lo) * i / (N - 1));
 
-  // ── Payoff series ──
+  // â”€â”€ Payoff series â”€â”€
   const payExp = spots.map(s => SIM.legs.reduce((acc, leg) => acc + simPayoffAtExpiry(s, leg),          0));
   const payTeo = spots.map(s => SIM.legs.reduce((acc, leg) => acc + simPayoffTheoretical(s, leg, T, r, q, simGetLegIvPercent(leg, r, q)), 0));
   const payT3  = T > 3/365  ? spots.map(s => SIM.legs.reduce((acc, leg) => acc + simPayoffTheoretical(s, leg, Math.max(0.001, T - 3/365),  r, q, simGetLegIvPercent(leg, r, q)), 0)) : null;
   const payT7  = T > 7/365  ? spots.map(s => SIM.legs.reduce((acc, leg) => acc + simPayoffTheoretical(s, leg, Math.max(0.001, T - 7/365),  r, q, simGetLegIvPercent(leg, r, q)), 0)) : null;
 
-  // ── Metrics ──
+  // â”€â”€ Metrics â”€â”€
   const maxProfit = Math.max(...payExp);
   const maxLoss   = Math.min(...payExp);
   const breakevens = [];
@@ -1676,7 +2062,7 @@ function renderSimulador() {
   }
   const profitPct = payExp.filter(p => p > 0).length / payExp.length * 100;
 
-  // ── Greeks at simSpot ──
+  // â”€â”€ Greeks at simSpot â”€â”€
   let deltaNet = 0, thetaNet = 0, gammaNet = 0, vegaNet = 0;
   SIM.legs.forEach(leg => {
     if (leg.type === 'stock') { deltaNet += leg.qty; return; }
@@ -1689,18 +2075,21 @@ function renderSimulador() {
     vegaNet   += leg.qty * g.vega   * 100;
   });
 
-  // ── Spot badge ──
+  // â”€â”€ Spot badge â”€â”€
   const badge = document.getElementById('sim-spot-badge');
   if (badge) {
     const pct = ((simSpot / ST.spot - 1) * 100);
     badge.textContent = `Spot: $${fmtN(simSpot, 0)} (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`;
   }
 
-  // ── Render all panels ──
+  // â”€â”€ Render all panels â”€â”€
   simRenderParamsSummary({ simSpot, dte, T, r, q });
   _simRenderMetrics({ maxProfit, maxLoss, breakevens, profitPct, deltaNet, thetaNet, gammaNet, vegaNet });
   _simRenderChart(spots, payExp, payTeo, payT3, payT7, simSpot);
   _simRenderTable(simSpot, r, q, range, step, T);
+
+  // Persist temp strategy snapshot on every change (debounced).
+  simScheduleTempSave?.();
 }
 
 function _simClearAll() {
@@ -1709,7 +2098,7 @@ function _simClearAll() {
   const ivWrap = document.getElementById('sim-iv-sliders');
   if (ivWrap) ivWrap.innerHTML = '';
   const metricsEl = document.getElementById('sim-metrics');
-  if (metricsEl) metricsEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--dim);font-size:11px">Agregá posiciones para ver métricas</div>';
+  if (metricsEl) metricsEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--dim);font-size:11px">Agreg\\u00e1 posiciones para ver m\\u00e9tricas</div>';
   if (SIM.chart) { SIM.chart.destroy(); SIM.chart = null; }
   const tb = document.getElementById('sim-table-body');
   if (tb) tb.innerHTML = '';
@@ -1717,9 +2106,9 @@ function _simClearAll() {
   if (chartEmpty) chartEmpty.style.display = '';
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    METRICS PANEL
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function _simRenderMetrics({ maxProfit, maxLoss, breakevens, profitPct, deltaNet, thetaNet, gammaNet, vegaNet }) {
   const el = document.getElementById('sim-metrics');
   if (!el) return;
@@ -1730,12 +2119,12 @@ function _simRenderMetrics({ maxProfit, maxLoss, breakevens, profitPct, deltaNet
     : '--';
 
   const rows = [
-    ['Ganancia Máx.',  fV(maxProfit),                  maxProfit > 0 ? 'var(--green)' : 'var(--muted)', 'al vencimiento'],
-    ['Pérdida Máx.',   fV(maxLoss),                    maxLoss < 0   ? 'var(--red)'   : 'var(--muted)', 'al vencimiento'],
+    ['Ganancia M\\u00e1x.',  fV(maxProfit),                  maxProfit > 0 ? 'var(--green)' : 'var(--muted)', 'al vencimiento'],
+    ['P\\u00e9rdida M\\u00e1x.',   fV(maxLoss),                    maxLoss < 0   ? 'var(--red)'   : 'var(--muted)', 'al vencimiento'],
     ['Breakevens',     beStr,                          'var(--amber)',                                   'puntos de equilibrio'],
     ['PoP aprox.',     profitPct.toFixed(1) + '%',     profitPct > 50 ? 'var(--green)' : 'var(--amber)','log-normal aproximado'],
-    ['Delta Neto',     deltaNet.toFixed(2),            deltaNet > 0 ? 'var(--green)' : deltaNet < 0 ? 'var(--red)' : 'var(--muted)', 'exposición direccional'],
-    ['Theta / Día',    thetaNet.toFixed(2),            thetaNet > 0 ? 'var(--green)' : 'var(--red)',    'decaimiento temporal'],
+    ['Delta Neto',     deltaNet.toFixed(2),            deltaNet > 0 ? 'var(--green)' : deltaNet < 0 ? 'var(--red)' : 'var(--muted)', 'exposici\\u00f3n direccional'],
+    ['Theta / D\\u00eda',    thetaNet.toFixed(2),            thetaNet > 0 ? 'var(--green)' : 'var(--red)',    'decaimiento temporal'],
     ['Gamma Neto',     gammaNet.toFixed(5),            'var(--text)',                                    'curvatura del delta'],
     ['Vega Neto',      vegaNet.toFixed(3),             vegaNet > 0 ? 'var(--green)' : 'var(--red)',     'sensibilidad a IV'],
   ];
@@ -1750,9 +2139,9 @@ function _simRenderMetrics({ maxProfit, maxLoss, breakevens, profitPct, deltaNet
     </div>`).join('');
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    PAYOFF CHART
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function _simRenderChart(spots, payExp, payTeo, payT3, payT7, simSpot) {
   if (SIM.chart) { SIM.chart.destroy(); SIM.chart = null; }
   const chartEmpty = document.getElementById('sim-chart-empty');
@@ -1790,7 +2179,7 @@ function _simRenderChart(spots, payExp, payTeo, payT3, payT7, simSpot) {
       },
     },
     {
-      label: 'Res. Teórico',
+      label: 'Res. Te\\u00f3rico',
       data: payTeo,
       borderColor: '#5aabff', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3,
     },
@@ -1845,9 +2234,9 @@ function _simRenderChart(spots, payExp, payTeo, payT3, payT7, simSpot) {
   });
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    P&L TABLE
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function _simRenderTable(simSpot, r, q, range, step, T) {
   const tb = document.getElementById('sim-table-body');
   if (!tb) return;

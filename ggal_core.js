@@ -51,6 +51,7 @@ function applyBSParams(){
     ST.chain[ST.selExpiry].forEach(r=>r.T=days/365);
   }
   renderChain();
+  syncBullBearView();
   showToast(`Recalculado - Spot $${spot||ST.spot} - Tasa ${(ST.rate*100).toFixed(1)}%`);
 }
 
@@ -64,37 +65,61 @@ function syncBSBar(){
   }
 }
 
+function refreshLog(event, details={}){
+  const now=new Date();
+  const stamp=now.toLocaleTimeString('es-AR',{hour12:false});
+  console.info(`[refresh ${stamp}] ${event}`, details);
+}
+
 /* ===== AUTO-REFRESH ===== */
 let autoRefreshTimer=null;
 let fetchInFlight=false;
 let fetchAbortController=null;
 let fetchSeq=0;
 let lastAppliedFetchSeq=0;
+let fetchStartedAtMs=0;
 
 function toggleAutoRefresh(){
   const chk=document.getElementById('auto-refresh-chk');
   const interval=+document.getElementById('auto-refresh-interval').value;
   clearInterval(autoRefreshTimer); autoRefreshTimer=null;
   if(chk.checked){
-    autoRefreshTimer=setInterval(()=>fetchData(true),interval);
+    refreshLog('auto-refresh enabled',{intervalMs:interval,source:currentSource});
+    autoRefreshTimer=setInterval(()=>{
+      refreshLog('auto-refresh tick',{intervalMs:interval,source:currentSource});
+      fetchData(true);
+    },interval);
     document.getElementById('refresh-status').textContent='Prox. actualizacion en '+interval/1000+'s';
   }else{
+    refreshLog('auto-refresh disabled',{source:currentSource});
     document.getElementById('refresh-status').textContent='';
   }
 }
 
 /* ===== API ===== */
 async function fetchData(silent=false){
-  if(currentSource==='demo'){generateMockAndRender();return;}
-  if(fetchInFlight&&silent)return;
+  const reqSeq=fetchSeq+1;
+  refreshLog('fetch requested',{reqSeq,silent,source:currentSource,inFlight:fetchInFlight});
+  if(currentSource==='demo'){
+    refreshLog('fetch skipped (demo source)',{reqSeq});
+    generateMockAndRender();
+    return;
+  }
+  if(fetchInFlight&&silent){
+    refreshLog('fetch skipped (already in flight)',{reqSeq,silent});
+    return;
+  }
   if(fetchInFlight&&fetchAbortController){
+    refreshLog('aborting previous fetch',{activeReqSeq:fetchSeq,nextReqSeq:reqSeq});
     fetchAbortController.abort();
   }
-  const reqSeq=++fetchSeq;
+  fetchSeq=reqSeq;
+  fetchStartedAtMs=Date.now();
   fetchAbortController=new AbortController();
   fetchInFlight=true;
   if(currentSource==='sheets'){
     try{
+      refreshLog('fetch start',{reqSeq,source:'sheets'});
       await fetchSheets(silent,{signal:fetchAbortController.signal,reqSeq});
     }finally{
       if(reqSeq===fetchSeq)fetchInFlight=false;
@@ -105,12 +130,14 @@ async function fetchData(silent=false){
   const token=document.getElementById('api-token').value.trim();
   if(!url){
     fetchInFlight=false;
+    refreshLog('fetch fallback to demo (missing URL)',{reqSeq});
     showToast('Sin URL configurada - usando datos demo');
     generateMockAndRender();
     return;
   }
   if(!silent)showToast('Conectando al servidor Python...');
   try{
+    refreshLog('fetch start',{reqSeq,source:'python',url});
     const ticker=document.getElementById('api-ticker').value||'GGAL';
     const res=await fetch(`${url}/options?ticker=${ticker}`,{
       signal:fetchAbortController.signal,
@@ -118,15 +145,34 @@ async function fetchData(silent=false){
     });
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
     const data=await res.json();
-    if(reqSeq<lastAppliedFetchSeq)return;
+    if(reqSeq<lastAppliedFetchSeq){
+      refreshLog('fetch ignored (stale response)',{reqSeq,lastAppliedFetchSeq});
+      return;
+    }
     lastAppliedFetchSeq=reqSeq;
     parseApiData(data);
     document.getElementById('data-badge').textContent='live';
     document.getElementById('data-badge').className='badge badge-live';
     setHdrTime();
+    refreshLog('fetch applied',{
+      reqSeq,
+      source:'python',
+      elapsedMs:Date.now()-fetchStartedAtMs,
+      expiries:ST.expirations?.length||0,
+      spot:ST.spot
+    });
     if(!silent)showToast('Datos Python actualizados OK');
   }catch(e){
-    if(e?.name==='AbortError')return;
+    if(e?.name==='AbortError'){
+      refreshLog('fetch aborted',{reqSeq,source:'python',elapsedMs:Date.now()-fetchStartedAtMs});
+      return;
+    }
+    refreshLog('fetch error',{
+      reqSeq,
+      source:'python',
+      elapsedMs:Date.now()-fetchStartedAtMs,
+      message:e?.message||String(e)
+    });
     showToast('Error servidor Python: '+e.message);
   }finally{
     if(reqSeq===fetchSeq)fetchInFlight=false;
@@ -155,7 +201,10 @@ async function fetchSheets(silent=false,{signal,reqSeq}={}){
     if(data.error)throw new Error(data.error);
     const rows=data.values||data;
     if(!Array.isArray(rows)||!rows.length)throw new Error('Sin datos - verifica el nombre de la pestana');
-    if(reqSeq&&reqSeq<lastAppliedFetchSeq)return;
+    if(reqSeq&&reqSeq<lastAppliedFetchSeq){
+      refreshLog('fetch ignored (stale sheet response)',{reqSeq,lastAppliedFetchSeq,sheet});
+      return;
+    }
     if(reqSeq)lastAppliedFetchSeq=reqSeq;
     parseSheetsRows(rows);
     const sheetName=document.getElementById('sh-sheetname')?.value.trim()||'';
@@ -166,9 +215,28 @@ async function fetchSheets(silent=false,{signal,reqSeq}={}){
       else{badgeEl.textContent='LIVE SHEET';badgeEl.className='badge badge-live';}
     }
     setHdrTime();
+    refreshLog('fetch applied',{
+      reqSeq,
+      source:'sheets',
+      sheet:sheetName||sheet,
+      elapsedMs:Date.now()-fetchStartedAtMs,
+      rows:rows.length,
+      expiries:ST.expirations?.length||0,
+      spot:ST.spot
+    });
     if(!silent)showToast('Google Sheets cargado OK');
   }catch(e){
-    if(e?.name==='AbortError')return;
+    if(e?.name==='AbortError'){
+      refreshLog('fetch aborted',{reqSeq,source:'sheets',sheet,elapsedMs:Date.now()-fetchStartedAtMs});
+      return;
+    }
+    refreshLog('fetch error',{
+      reqSeq,
+      source:'sheets',
+      sheet,
+      elapsedMs:Date.now()-fetchStartedAtMs,
+      message:e?.message||String(e)
+    });
     showToast('Error Sheets: '+e.message);
     console.error('Apps Script error:',e);
   }
@@ -183,7 +251,9 @@ function parseSheetsRows(rows){
   const synonyms={
     symbol:['symbol','simbolo','ticker','contract','contrato','especie'],
     strike:['strike','strikes','ejercicio','k'],
-    expiry:['expiry','expiracion','vencimiento','vcto','fecha'],
+    // NOTE: Do NOT auto-map expiry from a generic "fecha" header, it often refers to trade date.
+    // Use explicit "vencimiento"/"vcto"/"expiry" style headers; otherwise fallback to the configured column letter.
+    expiry:['expiry','expiracion','vencimiento','vcto','venc','fecha_vto','fecha_venc','fecha_vencimiento'],
     type:['tipo','type','call_put','cp'],
     bid:['bid','compra'],
     ask:['ask','venta'],
@@ -263,11 +333,12 @@ function parseSheetsRows(rows){
     const K=parseARSNum(rawStrike);
     const exp=normalizeExpiry((cols[ci.expiry]||'').toString().trim());
     const tp=rawType.toLowerCase();
-    const bid=parseARSNum(cols[ci.bid]);
-    const ask=parseARSNum(cols[ci.ask]);
-    const last=parseARSNum(cols[ci.last]);
-    const lastve=parseARSNum(cols[ci.lastve]);
-    const chg=parseARSNum(cols[ci.chg]);
+    // Option quotes: parse with price-aware parser (dot may be decimal in some exports)
+    const bid=parseARSPrice(cols[ci.bid]);
+    const ask=parseARSPrice(cols[ci.ask]);
+    const last=parseARSPrice(cols[ci.last]);
+    const lastve=parseARSPrice(cols[ci.lastve]);
+    const chg=parseARSPrice(cols[ci.chg]);
     if(isNaN(K)||K<=0||!exp){skipped++;return;}
     opts.push({
       strike:K, expiry:exp,
@@ -390,7 +461,17 @@ function parseApiData(data){
     });
   });
   populateExpiries();renderChain();renderIVSmile();syncBSBar();ctrlPopulateExpiry();renderControl();
+  syncBullBearView();
   if(document.getElementById('tab-sinteticas')?.style.display!=='none')window.renderSinteticas?.();
+}
+
+function syncBullBearView(){
+  if(document.getElementById('tab-bullbear')?.style.display==='none')return;
+  if(typeof window.bbApplyMode==='function'){
+    window.bbApplyMode();
+    return;
+  }
+  if(typeof window.renderBullBear==='function')window.renderBullBear();
 }
 
 function applyConfig(){
@@ -517,8 +598,35 @@ function parseARSNum(s){
   if(s===null||s===undefined||s==='')return NaN;
   s=String(s).trim();
   if(!s)return NaN;
+  // Handle thousands separator without decimals: "6.845" => 6845 (common in es-AR)
+  // Also supports multi-group: "1.234.567" => 1234567
+  const neg = s.startsWith('-');
+  const raw = neg ? s.slice(1) : s;
+  if(!raw.includes(',') && raw.includes('.') && /^\d{1,3}(\.\d{3})+$/.test(raw)){
+    const n = parseFloat(raw.replace(/\./g,''));
+    return neg ? -n : n;
+  }
   if(s.includes(',')&&s.includes('.'))return parseFloat(s.replace(/\./g,'').replace(',','.'));
   if(s.includes(','))return parseFloat(s.replace(',','.'));
+  return parseFloat(s);
+}
+
+// Parse prices for option quotes (bid/ask/last). Some sheets export prices like "6.602" meaning 6.602 (dot as decimal),
+// while spot/strikes often use dots as thousands (e.g. "6.845" meaning 6845). Keep this parser only for option prices.
+function parseARSPrice(s){
+  if(s===null||s===undefined||s==='')return NaN;
+  s=String(s).trim();
+  if(!s)return NaN;
+  // Standard es-AR with decimals comma (and optional thousands dot)
+  if(s.includes(',')&&s.includes('.'))return parseFloat(s.replace(/\./g,'').replace(',','.'));
+  if(s.includes(','))return parseFloat(s.replace(',','.'));
+  // Dot-only: treat as decimal separator for prices (common export: 6.602)
+  const raw=s.startsWith('-')?s.slice(1):s;
+  if((raw.match(/\./g)||[]).length>1){
+    // Multi-dot likely thousands grouping: 1.234.567 -> 1234567
+    const n=parseFloat(raw.replace(/\./g,''));
+    return s.startsWith('-')?-n:n;
+  }
   return parseFloat(s);
 }
 
@@ -732,7 +840,7 @@ function manualSpot(){
     if(document.getElementById('tab-control')?.style.display!=='none')renderControl();
     if(document.getElementById('tab-histdata')?.style.display!=='none')renderHistData();
     if(document.getElementById('tab-ratios')?.style.display!=='none')renderRatios();
-    if(document.getElementById('tab-bullbear')?.style.display!=='none')renderBullBear();
+    syncBullBearView();
     if(document.getElementById('tab-analhist')?.style.display!=='none')renderAnalHist();
     if(document.getElementById('tab-probabilidades')?.style.display!=='none')renderProbabilidades?.();
     if(document.getElementById('tab-simulador')?.style.display!=='none')renderSimulador?.();
@@ -741,6 +849,7 @@ function manualSpot(){
 
 function generateMockAndRender(){
   generateMockData();populateExpiries();renderChain();
+  syncBullBearView();
   if(ST.charts.iv)renderIVSmile();
 }
 

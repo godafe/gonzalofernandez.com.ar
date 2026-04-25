@@ -192,7 +192,7 @@
 
     <div class="chain-controls">
       <div><label>Vencimiento</label>
-        <select id="expiry-sel" onchange="renderChain()"><option value="2026-04-17">17 abr 2026</option></select>
+        <select id="expiry-sel" onchange="renderChain()"></select>
       </div>
       <div><label>Spot manual</label>
         <input type="number" id="spot-input" style="width:90px" onchange="manualSpot()">
@@ -2114,15 +2114,31 @@
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:14px;font-size:11px">
       <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
       <div style="display:flex;align-items:center;gap:6px">
+        <button id="rat-mode-cuadro" type="button" onclick="ratSetMode?.('cuadro')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Vista Cuadro</button>
+        <button id="rat-mode-chain" type="button" onclick="ratSetMode?.('chain')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Vista Cadena</button>
+      </div>
+      <div id="rat-controls-cuadro" style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted)">Base</label>
+        <select id="rat-base" onchange="renderRatios()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+      </div>
+      <div style="display:none;align-items:center;gap:6px">
         <label style="color:var(--muted)">Vencimiento</label>
         <select id="rat-expiry" onchange="renderRatios()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px"></select>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Umbral ratio bajo</label>
+        <label style="color:var(--muted)">Umbral RI Bajo</label>
+        <input type="number" id="rat-thresh-ri-lo" value="0.30" step="0.01" min="0" style="width:64px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:#b088f0;padding:3px 6px;border-radius:4px" oninput="renderRatios()">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted)">Umbral RI Alto</label>
+        <input type="number" id="rat-thresh-ri-hi" value="0.50" step="0.01" min="0" style="width:64px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:#5aabff;padding:3px 6px;border-radius:4px" oninput="renderRatios()">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="color:var(--muted)">Umbral RC Bajo</label>
         <input type="number" id="rat-thresh-lo" value="1.50" step="0.01" min="0" style="width:64px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--green);padding:3px 6px;border-radius:4px" oninput="renderRatios()">
       </div>
       <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Umbral ratio alto</label>
+        <label style="color:var(--muted)">Umbral RC Alto</label>
         <input type="number" id="rat-thresh-hi" value="2.50" step="0.01" min="0" style="width:64px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--red);padding:3px 6px;border-radius:4px" oninput="renderRatios()">
       </div>
       <!-- Hidden inputs kept so JS logic doesn't break -->
@@ -2131,29 +2147,35 @@
       <input type="hidden" id="rat-only-opps" value="true">
       <button class="btn-primary" onclick="fetchData().then(()=&gt;renderRatios())" style="padding:4px 12px;font-size:10px;margin-left:auto;padding:3px 10px">⟳ Recalcular</button>
       <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Heatmap</label>
+        <label style="color:var(--muted)">Tipo</label>
         <button id="rat-hm-type-btn" onclick="ratToggleHmType()" style="font-family: var(--mono); font-size: 12px; padding: 3px 12px; border-radius: 5px; cursor: pointer; background: var(--surface); border-color: var(--green); border-top-style: ; border-top-width: ; border-right-style: ; border-right-width: ; border-bottom-style: ; border-bottom-width: ; border-left-style: ; border-left-width: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ; color: var(--green); min-width: 52px; transition: 0.15s;">Call</button>
         <input type="hidden" id="rat-hm-type" value="call">
       </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="color:var(--muted)">Base inicial</label>
-        <select id="rat-base" onchange="renderRatios()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+      <div id="rat-controls-chain" style="display:none;align-items:center;gap:6px">
+        <label style="color:var(--muted)">Filtro</label>
+        <select id="rat2-filter" onchange="renderRatios()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px">
+          <option value="near25">Cercanos ±25%</option>
+          <option value="all">Todos</option>
+        </select>
       </div>
     </div>
 
     <!-- Señales activas -->
     <div id="rat-signals" style="display:none"></div>
 
+    <div id="rat-cuadro-view">
     <!-- Heatmap — full width, first -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
         <div>
-          <span style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Mapa de calor — Ratio Call/Call</span>
+          <span id="rat-cuadro-title" style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Mapa de calor — Ratio Call/Call</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted)">
-          <span>Bajo</span>
-          <div style="height:8px;width:180px;border-radius:4px;background:linear-gradient(to right,rgba(90,171,255,0.8),rgba(68,199,106,0.6),rgba(232,184,75,0.8),rgba(240,90,90,0.8))"></div>
-          <span>Alto</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:10px;color:var(--muted)">
+          <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:rgba(176,136,240,0.88)"></span>RI Bajo</span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:rgba(90,171,255,0.85)"></span>RI Alto</span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:rgba(68,199,106,0.8)"></span>RC Bajo</span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:rgba(232,184,75,0.85)"></span>RC Alto</span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:rgba(240,90,90,0.85)"></span>RC Extremo</span>
         </div>
         <div id="rat-stats" style="display:none"></div>
       </div>
@@ -2176,6 +2198,26 @@
         <tbody id="rat-body"></tbody>
       </table>
     </div>
+    </div>
+
+    <div id="rat-chain-view" class="panel" style="display:none;padding:0;overflow:visible;margin-bottom:14px">
+      <div style="overflow-x:auto;overflow-y:visible;max-height:none">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+          <thead style="position:sticky;top:0;z-index:2">
+            <tr style="background:var(--surface2)">
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;width:34px"></th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Precio</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;border-right:1px solid var(--border)">Ratio</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">Strike</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Ratio</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Precio</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;width:34px"></th>
+            </tr>
+          </thead>
+          <tbody id="rat2-body"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- BULL/BEAR TAB -->
@@ -2187,8 +2229,8 @@
         <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Parámetros</span>
 
         <div style="display:flex;align-items:center;gap:6px">
-          <button id="bb-mode-chain" type="button" onclick="bbSetMode?.('chain')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Modo Cadena</button>
-          <button id="bb-mode-cards" type="button" onclick="bbSetMode?.('cards')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Modo Tarjetas</button>
+          <button id="bb-mode-chain" type="button" onclick="bbSetMode?.('chain')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Vista Cadena</button>
+          <button id="bb-mode-cards" type="button" onclick="bbSetMode?.('cards')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Vista Tarjetas</button>
         </div>
 
         <!-- Shared params (both modes) -->
@@ -2240,11 +2282,11 @@
           <thead style="position:sticky;top:0;z-index:2">
             <tr style="background:var(--surface2)">
               <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;width:34px"></th>
-              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Last C</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--green);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Precio</th>
               <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;border-right:1px solid var(--border)">Lleno</th>
               <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">Strike</th>
               <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Lleno</th>
-              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Last P</th>
+              <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--red);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center">Precio</th>
               <th style="padding:7px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;text-align:center;width:34px"></th>
             </tr>
           </thead>
@@ -2522,7 +2564,7 @@
     <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0px;">
 
       <!-- Chart -->
-      <div class="panel" style="padding:14px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Parametros</span><div style="display: flex; align-items: center; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><button id="sim-recal-iv-btn" class="btn-sm" style="padding: 5px 12px;">Recalibrar VI</button><button id="sim-reset-btn" class="btn-sm" style="padding: 5px 12px;">Reset</button></div><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">?</button></div></div><div id="sim-section-params" style="display: block;">
+      <div class="panel" style="padding:14px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Parametros</span><div style="display: flex; align-items: center; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><button id="sim-recal-iv-btn" class="btn-sm" style="padding: 5px 12px;">Recalibrar VI</button><button id="sim-reset-btn" class="btn-sm" style="padding: 5px 12px;">Reset</button></div><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">&#9662;</button></div></div><div id="sim-section-params" style="display: block;">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
           <div style="display:flex;flex-direction:column;gap:6px">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -2557,7 +2599,7 @@
           
         </div>
         <div id="sim-iv-sliders" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:14px"></div>
-      </div></div><div class="panel" style="padding:14px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Tabla P&amp;L Simulado</span><div style="display: flex; align-items: center; gap: 8px;"><div style="display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--muted);"><div style="display: flex; align-items: center; gap: 6px;">Escala:<input id="sim-table-step" type="number" value="2" min="0.5" max="10" step="0.5" style="width: 48px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 3px 6px; border-radius: 3px; text-align: center;" oninput="renderSimulador()"> %</div><div style="display: flex; align-items: center; gap: 6px;">Rango:<input id="sim-table-range" type="number" min="5" max="60" step="1" data-non-negative="1" style="width: 48px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 3px 6px; border-radius: 3px; text-align: center;"> %</div></div><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">?</button></div></div><div id="sim-section-table" style="display: block;">
+      </div></div><div class="panel" style="padding:14px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Tabla P&amp;L Simulado</span><div style="display: flex; align-items: center; gap: 8px;"><div style="display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--muted);"><div style="display: flex; align-items: center; gap: 6px;">Escala:<input id="sim-table-step" type="number" value="2" min="0.5" max="10" step="0.5" style="width: 48px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 3px 6px; border-radius: 3px; text-align: center;" oninput="renderSimulador()"> %</div><div style="display: flex; align-items: center; gap: 6px;">Rango:<input id="sim-table-range" type="number" min="5" max="60" step="1" data-non-negative="1" style="width: 48px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 3px 6px; border-radius: 3px; text-align: center;"> %</div></div><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">&#9662;</button></div></div><div id="sim-section-table" style="display: block;">
         
         <div style="overflow: auto visible; max-height: none;">
           <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
@@ -2574,7 +2616,7 @@
             <tbody id="sim-table-body"></tbody>
           </table>
         </div>
-      </div></div><div class="chart-wrap" style="padding:14px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Payoff al vencimiento</span><div style="display: flex; align-items: center; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"></div><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">?</button></div></div><div id="sim-section-chart" style="display: block;">
+      </div></div><div class="chart-wrap" style="padding:14px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Payoff al vencimiento</span><div style="display: flex; align-items: center; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"></div><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">&#9662;</button></div></div><div id="sim-section-chart" style="display: block;">
         
         <div style="height:260px;position:relative">
           <canvas id="sim-chart"></canvas>
@@ -2592,22 +2634,22 @@
 
     </div>
   </div>
-<div id="sim-float-open" class="btn-sm" style="position: fixed; top: 140px; z-index: 9999; padding: 6px 10px; display: none; cursor: grab; user-select: none; touch-action: none; align-items: center; justify-content: space-between; gap: 8px; width: fit-content; max-width: 520px;"><span id="sim-float-open-label" style="font-family: var(--mono); font-size: 11px; white-space: nowrap;">ESTRATEGIA/POSICION</span><button id="sim-float-open-expand" type="button" class="btn-sm" title="Expandir" style="padding: 0px; width: 34px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">?</button></div><div id="sim-float-panel" style="position: fixed; left: 14px; top: 180px; z-index: 9999; width: fit-content; min-width: 360px; max-width: 520px; overflow: hidden visible; background: rgba(13, 18, 24, 0.96); backdrop-filter: blur(10px); border: 1px solid var(--border2); border-radius: 12px; box-shadow: rgba(0, 0, 0, 0.35) 0px 20px 60px; padding: 10px; display: none; flex-direction: column; align-items: stretch;"><div data-sim-drag-handle="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; cursor: grab; user-select: none; touch-action: none;"><div style="font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Estrategia/Posicion</div><div style="display: flex; align-items: center; gap: 8px;"><button id="sim-float-pin" type="button" class="btn-sm" style="padding: 0px; width: 34px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">??</button><button type="button" class="btn-sm" style="padding: 0px; width: 34px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">?</button></div></div><div id="sim-float-body" style="display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%;"><div class="panel" style="padding: 12px; margin: 0px; min-width: 320px; width: 320px;" data-sim-expanded-min-width="320px" data-sim-expanded-width="320px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Estrategia</span><div style="display: flex; align-items: center; gap: 8px;"><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">?</button></div></div><div id="sim-section-strategy" style="display: block;">
+<div id="sim-float-open" class="btn-sm" style="position: fixed; top: 140px; z-index: 9999; padding: 6px 10px; display: none; cursor: grab; user-select: none; touch-action: none; align-items: center; justify-content: space-between; gap: 8px; width: fit-content; max-width: 520px;"><span id="sim-float-open-label" style="font-family: var(--mono); font-size: 11px; white-space: nowrap;">ESTRATEGIA/POSICION</span><button id="sim-float-open-expand" type="button" class="btn-sm" title="Expandir" style="padding: 0px; width: 34px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">&#9974;</button></div><div id="sim-float-panel" style="position: fixed; left: 14px; top: 180px; z-index: 9999; width: fit-content; min-width: 360px; max-width: 520px; overflow: hidden visible; background: rgba(13, 18, 24, 0.96); backdrop-filter: blur(10px); border: 1px solid var(--border2); border-radius: 12px; box-shadow: rgba(0, 0, 0, 0.35) 0px 20px 60px; padding: 10px; display: none; flex-direction: column; align-items: stretch;"><div data-sim-drag-handle="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; cursor: grab; user-select: none; touch-action: none;"><div style="font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Estrategia/Posicion</div><div style="display: flex; align-items: center; gap: 8px;"><button id="sim-float-pin" type="button" class="btn-sm" style="padding: 0px; width: 34px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">&#128204;</button><button type="button" class="btn-sm" style="padding: 0px; width: 34px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">&#10060;</button></div></div><div id="sim-float-body" style="display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%;"><div class="panel" style="padding: 12px; margin: 0px; min-width: 320px; width: 320px;" data-sim-expanded-min-width="320px" data-sim-expanded-width="320px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Estrategia</span><div style="display: flex; align-items: center; gap: 8px;"><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">&#9662;</button></div></div><div id="sim-section-strategy" style="display: block;">
         
         <textarea id="sim-paste" rows="1" placeholder="Pegar datos formato Planilla Sabro/Cutella" style="width:calc(100% - 8px);resize:none;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:5px;min-height:32px;margin-bottom:8px" onpaste="simHandlePaste(event)" onchange="simImportTextInput()"></textarea>
         <div style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;margin-bottom:10px;width:calc(100% - 8px)">
           <select id="sim-import-sel" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:11px;padding:4px 8px;border-radius:5px;min-width:0">
             <option value="">Importar estrategia</option>
           </select>
-          <button onclick="simImportFromControl()" class="btn-primary btn-sm" style="padding:5px 12px">? Importar</button>
+          <button onclick="simImportFromControl()" class="btn-primary btn-sm" style="padding:5px 12px">&#8595; Importar</button>
           <button onclick="simAddLeg()" class="btn-sm" style="padding:5px 12px">+ Leg</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center;width:calc(100% - 8px)">
-          <button onclick="simSaveStrategy()" class="btn-sm" style="width:100%;padding:5px 12px;background:var(--green-bg);border:1px solid var(--green);color:var(--green)">?? Guardar</button>
-          <button onclick="simCopyStrategy()" class="btn-sm" style="width:100%;padding:5px 12px;background:rgba(90,171,255,.12);border:1px solid var(--blue);color:var(--blue)">?? Copiar</button>
-          <button onclick="SIM.legs=[];simRenderLegs();renderSimulador();" class="btn-sm btn-danger" style="padding:5px 10px">?? Limpiar</button>
+          <button onclick="simSaveStrategy()" class="btn-sm" style="width:100%;padding:5px 12px;background:var(--green-bg);border:1px solid var(--green);color:var(--green)">&#128190; Guardar</button>
+          <button onclick="simCopyStrategy()" class="btn-sm" style="width:100%;padding:5px 12px;background:rgba(90,171,255,.12);border:1px solid var(--blue);color:var(--blue)">&#128203; Copiar</button>
+          <button onclick="SIM.legs=[];simRemoveTempState?.();simRenderLegs();renderSimulador();" class="btn-sm btn-danger" style="padding:5px 10px">&#128465; Limpiar</button>
         </div>
-      </div></div><div class="panel" style="padding: 12px; margin: 0px; min-width: 320px; width: 320px;" data-sim-expanded-min-width="320px" data-sim-expanded-width="320px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Posicion</span><div style="display: flex; align-items: center; gap: 8px;"><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">?</button></div></div><div id="sim-section-position-cards" style="display: block;">
+      </div></div><div class="panel" style="padding: 12px; margin: 0px; min-width: 320px; width: 320px;" data-sim-expanded-min-width="320px" data-sim-expanded-width="320px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Posicion</span><div style="display: flex; align-items: center; gap: 8px;"><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">&#9662;</button></div></div><div id="sim-section-position-cards" style="display: block;">
         
         <div id="sim-legs-cards" style="display:flex;flex-direction:column;gap:8px"></div>
         <div id="sim-legs-empty-cards" style="padding:20px;text-align:center;color:var(--dim);font-size:11px">
@@ -2617,7 +2659,7 @@
           <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">P&amp;L actual (total)</span>
           <span id="sim-pnl-total-val-cards" style="font-family:var(--mono);font-size:14px;font-weight:600"></span>
         </div>
-      </div></div><div class="panel" style="padding: 12px; margin: 0px; min-width: 320px; width: 320px;" data-sim-expanded-min-width="320px" data-sim-expanded-width="320px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Metricas</span><div style="display: flex; align-items: center; gap: 8px;"><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">?</button></div></div><div id="sim-section-metrics" style="display: block;">
+      </div></div><div class="panel" style="padding: 12px; margin: 0px; min-width: 320px; width: 320px;" data-sim-expanded-min-width="320px" data-sim-expanded-width="320px" data-sim-collapsible="1"><div data-sim-collapse-header="1" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;">Metricas</span><div style="display: flex; align-items: center; gap: 8px;"><button type="button" class="btn-sm" style="padding: 2px 8px; min-width: 30px;">&#9662;</button></div></div><div id="sim-section-metrics" style="display: block;">
         
         <div id="sim-metrics"><div style="padding:20px;text-align:center;color:var(--dim);font-size:11px">Agrega posiciones para ver metricas</div></div>
       </div></div></div></div></div>
