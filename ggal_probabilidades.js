@@ -1,28 +1,31 @@
 ﻿/* ===== MODULO PROBABILIDADES ===== */
 const PR = { rows: [], ui: {} };
+const PR_COLS_STORAGE_KEY = 'pr_cols_v2';
+const PR_LEGACY_COLS_STORAGE_KEY = 'pr_cols_v1';
+const PR_COLS_CONFIG_VERSION = 2;
 
 const PR_COLS = [
-  { key: 'date',       label: 'Fecha' },
-  { key: 'spot',       label: 'Precio GGAL' },
-  { key: 'baseCall',   label: 'Precio Base 1' },
-  { key: 'basePut',    label: 'Precio Base 2' },
-  { key: 'cost',       label: 'Straddle' },
-  { key: 'bull',       label: 'Costo Bull' },
-  { key: 'ratio',      label: 'Ratio', thColor: 'var(--amber)', strong: true },
-  { key: 'deltaCall',  label: 'Delta Call' },
-  { key: 'deltaPut',   label: 'Delta Put' },
-  { key: 'delta',      label: 'Delta Total' },
-  { key: 'vegaCall',   label: 'Vega Call' },
-  { key: 'vegaPut',    label: 'Vega Put' },
-  { key: 'vega',       label: 'Vega Total' },
-  { key: 'lnBull',     label: 'LN Bull',  title: 'Movimiento del Bull vs ayer (log-return diario)' },
-  { key: 'lnRatio',    label: 'LN Ratio', title: 'Movimiento del Ratio vs ayer (log-return diario)' },
-  { key: 'lnDelta',    label: 'LN Delta' },
-  { key: 'lnVega',     label: 'LN Vega' },
-  { key: 'probRatio',  label: 'ECDF Ratio' },
-  { key: 'probDelta',  label: 'ECDF Delta' },
-  { key: 'probVega',   label: 'ECDF Vega' },
-  { key: 'probBull',   label: 'ECDF Bull' },
+  { key: 'date',       label: 'Fecha', defaultHidden: false, appliesTo: 'always' },
+  { key: 'spot',       label: 'Precio GGAL', defaultHidden: false, appliesTo: 'always' },
+  { key: 'baseCall',   label: 'Precio Base 1', defaultHidden: false, appliesTo: 'always' },
+  { key: 'basePut',    label: 'Precio Base 2', defaultHidden: false, appliesTo: 'always' },
+  { key: 'cost',       label: 'Straddle', defaultHidden: false, appliesTo: 'mixed' },
+  { key: 'bull',       label: 'Costo Bull', defaultHidden: false, appliesTo: 'same' },
+  { key: 'ratio',      label: 'Ratio', thColor: 'var(--amber)', strong: true, defaultHidden: false, appliesTo: 'always' },
+  { key: 'deltaCall',  label: 'Delta Call', defaultHidden: true, appliesTo: 'always' },
+  { key: 'deltaPut',   label: 'Delta Put', defaultHidden: true, appliesTo: 'always' },
+  { key: 'delta',      label: 'Delta Total', defaultHidden: true, appliesTo: 'always' },
+  { key: 'vegaCall',   label: 'Vega Call', defaultHidden: true, appliesTo: 'always' },
+  { key: 'vegaPut',    label: 'Vega Put', defaultHidden: true, appliesTo: 'always' },
+  { key: 'vega',       label: 'Vega Total', defaultHidden: true, appliesTo: 'always' },
+  { key: 'lnBull',     label: 'LN Bull',  title: 'Movimiento del Bull vs ayer (log-return diario)', defaultHidden: false, appliesTo: 'same' },
+  { key: 'lnRatio',    label: 'LN Ratio', title: 'Movimiento del Ratio vs ayer (log-return diario)', defaultHidden: false, appliesTo: 'always' },
+  { key: 'lnDelta',    label: 'LN Delta', defaultHidden: true, appliesTo: 'always' },
+  { key: 'lnVega',     label: 'LN Vega', defaultHidden: true, appliesTo: 'always' },
+  { key: 'probRatio',  label: 'ECDF Ratio', defaultHidden: false, appliesTo: 'always' },
+  { key: 'probDelta',  label: 'ECDF Delta', defaultHidden: true, appliesTo: 'always' },
+  { key: 'probVega',   label: 'ECDF Vega', defaultHidden: true, appliesTo: 'always' },
+  { key: 'probBull',   label: 'ECDF Bull', defaultHidden: false, appliesTo: 'same' },
 ];
 
 // Default columns layout (order + visibility) to match the desired initial view.
@@ -50,45 +53,58 @@ const PR_DEFAULT_ORDER = [
   'probVega',
 ];
 
-const PR_DEFAULT_HIDDEN = [
-  'cost',        // Straddle (default hidden because default types = Call/Call)
-  'deltaCall',
-  'deltaPut',
-  'delta',
-  'vegaCall',
-  'vegaPut',
-  'vega',
-  'lnDelta',
-  'lnVega',
-  'probDelta',
-  'probVega',
-];
+function probGetColMeta(key) {
+  return PR_COLS.find(c => c.key === key) || null;
+}
 
-function probBuildDefaultColsConfig() {
+function probIsColApplicable(key, type1, type2) {
+  const meta = typeof key === 'string' ? probGetColMeta(key) : key;
+  if (!meta) return false;
+  const t1 = type1 || document.getElementById('pr-type1')?.value || 'call';
+  const t2 = type2 || document.getElementById('pr-type2')?.value || 'call';
+  if (meta.appliesTo === 'same') return t1 === t2;
+  if (meta.appliesTo === 'mixed') return t1 !== t2;
+  return true;
+}
+
+function probBuildDefaultHiddenMap(type1, type2) {
+  const hidden = {};
+  PR_COLS.forEach(col => {
+    hidden[col.key] = !probIsColApplicable(col, type1, type2) || !!col.defaultHidden;
+  });
+  return hidden;
+}
+
+function probBuildDefaultColsConfig(type1, type2) {
   const allKeys = PR_COLS.map(c => c.key);
   const order = [
     ...PR_DEFAULT_ORDER.filter(k => allKeys.includes(k)),
     ...allKeys.filter(k => !PR_DEFAULT_ORDER.includes(k)),
   ];
-  const hidden = {};
-  allKeys.forEach(k => { hidden[k] = PR_DEFAULT_HIDDEN.includes(k); });
-  return { order, hidden };
+  return { order, hidden: probBuildDefaultHiddenMap(type1, type2), version: PR_COLS_CONFIG_VERSION };
 }
 
 function probLoadColsConfig() {
   try {
-    const raw = localStorage.getItem('pr_cols_v1');
-    if (!raw) return probBuildDefaultColsConfig();
-    const cfg = JSON.parse(raw);
-    if (!cfg || typeof cfg !== 'object') return null;
-    return cfg;
+    const raw = localStorage.getItem(PR_COLS_STORAGE_KEY);
+    if (raw) {
+      const cfg = JSON.parse(raw);
+      if (cfg && typeof cfg === 'object') return cfg;
+    }
+    const legacyRaw = localStorage.getItem(PR_LEGACY_COLS_STORAGE_KEY);
+    if (!legacyRaw) return probBuildDefaultColsConfig();
+    const legacy = JSON.parse(legacyRaw);
+    if (!legacy || typeof legacy !== 'object') return null;
+    const migrated = { ...legacy, version: PR_COLS_CONFIG_VERSION, hidden: { ...(legacy.hidden || {}) } };
+    ['cost', 'bull', 'lnBull', 'probBull'].forEach(k => { delete migrated.hidden[k]; });
+    return migrated;
   } catch (_) {
     return null;
   }
 }
 
 function probSaveColsConfig(cfg) {
-  try { localStorage.setItem('pr_cols_v1', JSON.stringify(cfg)); } catch (_) {}
+  try { localStorage.setItem(PR_COLS_STORAGE_KEY, JSON.stringify({ order: cfg.order, hidden: cfg.hidden, version: PR_COLS_CONFIG_VERSION })); } catch (_) {}
 }
 
 function probResetColsConfig() {
@@ -106,7 +122,7 @@ function probGetColsConfig() {
     ...allKeys.filter(k => !order.includes(k)),
   ];
   // For missing keys (new columns), default to the desired baseline visibility.
-  return { order: fixedOrder, hidden: { ...def.hidden, ...hidden } };
+  return { order: fixedOrder, hidden: { ...def.hidden, ...hidden }, version: cfg.version || PR_COLS_CONFIG_VERSION };
 }
 
 function probSetColHidden(key, isHidden) {
@@ -131,7 +147,7 @@ function probGetVisibleCols() {
   return cfg.order
     .map(k => map.get(k))
     .filter(Boolean)
-    .filter(c => !cfg.hidden[c.key]);
+    .filter(c => !cfg.hidden[c.key] && probIsColApplicable(c));
 }
 
 function probRenderTableHeader() {
@@ -168,25 +184,6 @@ function probInitColsMenu() {
     }
     pop.style.display = 'none';
     prColsMenuInteracting = false;
-  });
-}
-
-function probApplyTypeBasedColsVisibility(type1, type2) {
-  // Rules:
-  // - If types are different (Call+Put or Put+Call): show Straddle, hide Bull/LN Bull/Prob Bull.
-  // - If types are equal (Call+Call or Put+Put): hide Straddle, show Bull/LN Bull/Prob Bull.
-  // This is enforced each time types change / render occurs (user can toggle in the menu, but type change re-applies).
-  const same = type1 === type2;
-  const desired = [
-    { key: 'cost',     hidden: same },   // Straddle
-    { key: 'bull',     hidden: !same },  // Costo Bull
-    { key: 'lnBull',   hidden: !same },  // LN Bull
-    { key: 'probBull', hidden: !same },  // ECDF Bull
-  ];
-  const cfg = probGetColsConfig();
-  desired.forEach(({ key, hidden }) => {
-    const cur = !!cfg.hidden[key];
-    if (cur !== !!hidden) probSetColHidden(key, hidden);
   });
 }
 
@@ -236,14 +233,18 @@ function probEnsureColsUI() {
        </div>
        <div style="display:flex;flex-direction:column;gap:0">
          ${rows.map((c, i) => {
-           const isHidden = !!cfg.hidden[c.key];
-           const eye = isHidden ? '--' : '👁️';
+           const isApplicable = probIsColApplicable(c);
+           const isHidden = !isApplicable || !!cfg.hidden[c.key];
+           const eye = !isApplicable ? '🚫' : (isHidden ? '--' : '👁️');
            const upDisabled = i === 0;
            const downDisabled = i === rows.length - 1;
+           const eyeTitle = !isApplicable
+             ? 'No aplica para la combinacion de tipos actual'
+             : `${isHidden ? 'Mostrar' : 'Ocultar'} columna`;
            return `
              <div style="display:grid;grid-template-columns:30px 1fr 28px 28px;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border2)">
-               <button type="button" data-pr-eye="${c.key}" title="${isHidden ? 'Mostrar' : 'Ocultar'} columna"
-                 style="padding:2px 0;background:transparent;border:1px solid ${isHidden ? 'var(--border)' : 'var(--amber)'};color:${isHidden ? 'var(--muted)' : 'var(--amber)'};border-radius:4px;font-size:12px;cursor:pointer">
+               <button type="button" data-pr-eye="${c.key}" ${!isApplicable ? 'disabled' : ''} title="${eyeTitle}"
+                 style="padding:2px 0;background:transparent;border:1px solid ${isHidden ? 'var(--border)' : 'var(--amber)'};color:${isHidden ? 'var(--muted)' : 'var(--amber)'};border-radius:4px;font-size:12px;cursor:${!isApplicable ? 'default' : 'pointer'};opacity:${!isApplicable ? '.65' : '1'}">
                  ${eye}
                </button>
                <div style="font-size:11px;color:${isHidden ? 'var(--muted)' : 'var(--text)'}">${c.label}</div>
@@ -263,8 +264,9 @@ function probEnsureColsUI() {
     pop.querySelectorAll('[data-pr-eye]').forEach(b => {
       b.addEventListener('click', () => {
         const key = b.getAttribute('data-pr-eye');
+        if (!probIsColApplicable(key)) return;
         const cfg2 = probGetColsConfig();
-        const visibleCount = cfg2.order.filter(k => !cfg2.hidden[k]).length;
+        const visibleCount = probGetVisibleCols().length;
         const nextHidden = !cfg2.hidden[key];
         // Avoid ending up with an empty table (mirror Chain behavior).
         if (nextHidden && visibleCount <= 1) return;
@@ -468,14 +470,7 @@ function probPopulateStrikes() {
 }
 
 async function probRefreshHist() {
-  const status = document.getElementById('pr-status');
-  if (status) status.textContent = 'Actualizando HMD...';
-  try {
-    await fetchAnalHist();
-  } finally {
-    probPopulateStrikes();
-    renderProbabilidades();
-  }
+  return window.historicosRefreshHmd?.();
 }
 
 function probRankPct(values, current) {
@@ -498,6 +493,37 @@ function probFmtDate(s) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s).trim());
   if (!m) return s;
   return `${m[3]}/${m[2]}/${m[1].slice(-2)}`;
+}
+
+function probClamp01(v) {
+  return Math.max(0, Math.min(1, v));
+}
+
+function probRatioHeatStyle(value, min, max) {
+  if (!isFinite(value)) return null;
+  if (!isFinite(min) || !isFinite(max) || max <= min) {
+    return {
+      bg: 'rgba(255,215,90,.14)',
+      txt: 'var(--amber)',
+      border: 'rgba(255,215,90,.35)',
+    };
+  }
+  const t = probClamp01((value - min) / (max - min));
+  // Cold -> warm badge colors.
+  const hue = 220 - (220 - 18) * t;
+  const sat = 82;
+  return {
+    bg: `hsla(${hue},${sat}%,50%,.16)`,
+    txt: `hsl(${hue},90%,68%)`,
+    border: `hsla(${hue},${sat}%,58%,.42)`,
+  };
+}
+
+function probRatioBadgeHtml(value, min, max) {
+  if (!isFinite(value)) return '--';
+  const palette = probRatioHeatStyle(value, min, max);
+  if (!palette) return fmtN(value, 3);
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:74px;height:24px;padding:0 10px;border-radius:999px;background:${palette.bg};box-shadow:inset 0 0 0 1px ${palette.border};color:${palette.txt};text-shadow:0 1px 0 rgba(0,0,0,.10);font-size:12px;font-weight:700;white-space:nowrap">${fmtN(value, 3)}</span>`;
 }
 
 function probDecisionSignal(kind, p, thr) {
@@ -537,6 +563,23 @@ function probDecisionSignal(kind, p, thr) {
   return null;
 }
 
+function probExtremeSignal(value, min, max) {
+  if (!isFinite(value) || !isFinite(min) || !isFinite(max) || max <= min) return null;
+  if (value === max) {
+    return {
+      dotHtml: `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--red);box-shadow:0 0 0 2px rgba(240,90,90,.18)"></span>`,
+      tip: 'Valor maximo',
+    };
+  }
+  if (value === min) {
+    return {
+      dotHtml: `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--green);box-shadow:0 0 0 2px rgba(68,199,106,.18)"></span>`,
+      tip: 'Valor minimo',
+    };
+  }
+  return null;
+}
+
 function renderProbabilidades() {
   probSyncDefaults();
   syncDateFromPicker('pr-date-from', null);
@@ -551,7 +594,6 @@ function renderProbabilidades() {
   probSyncTypesUI();
   const type1 = document.getElementById('pr-type1')?.value || 'call';
   const type2 = document.getElementById('pr-type2')?.value || 'call';
-  probApplyTypeBasedColsVisibility(type1, type2);
   probRenderTableHeader();
   const visibleCols = probGetVisibleCols();
   const colCount = Math.max(1, visibleCols.length);
@@ -667,6 +709,15 @@ function renderProbabilidades() {
   });
 
   const latest = PR.rows[PR.rows.length - 1];
+  const ratioValues = PR.rows.map(rw => rw.ratio).filter(v => isFinite(v));
+  const ratioMin = ratioValues.length ? Math.min(...ratioValues) : null;
+  const ratioMax = ratioValues.length ? Math.max(...ratioValues) : null;
+  const costValues = PR.rows.map(rw => rw.cost).filter(v => isFinite(v));
+  const costMin = costValues.length ? Math.min(...costValues) : null;
+  const costMax = costValues.length ? Math.max(...costValues) : null;
+  const bullValues = PR.rows.map(rw => rw.bull).filter(v => isFinite(v));
+  const bullMin = bullValues.length ? Math.min(...bullValues) : null;
+  const bullMax = bullValues.length ? Math.max(...bullValues) : null;
 
   // Pseudo-probabilities: count how often the daily log-return is positive (excluding the first row where LN is null).
   const lnRows2 = PR.rows.slice(1);
@@ -727,9 +778,21 @@ function renderProbabilidades() {
     if (key === 'spot') return { html: row.spot != null ? fmtN(row.spot, 0) : '--' };
     if (key === 'baseCall') return { html: row.baseCall != null ? fmtN(row.baseCall, 2) : '--' };
     if (key === 'basePut') return { html: row.basePut != null ? fmtN(row.basePut, 2) : '--' };
-    if (key === 'ratio') return { html: row.ratio != null ? fmtN(row.ratio, 3) : '--', style: 'color:var(--amber);font-weight:600' };
-    if (key === 'cost') return { html: row.cost != null ? fmtN(row.cost, 2) : '--' };
-    if (key === 'bull') return { html: row.bull != null ? fmtN(row.bull, 2) : '--' };
+    if (key === 'ratio') {
+      return {
+        html: probRatioBadgeHtml(row.ratio, ratioMin, ratioMax),
+      };
+    }
+    if (key === 'cost') {
+      const sig = probExtremeSignal(row.cost, costMin, costMax);
+      const dot = sig ? `<span title="${sig.tip}" style="display:inline-flex;align-items:center;margin-right:6px">${sig.dotHtml}</span>` : '';
+      return { html: `${dot}${row.cost != null ? fmtN(row.cost, 2) : '--'}` };
+    }
+    if (key === 'bull') {
+      const sig = probExtremeSignal(row.bull, bullMin, bullMax);
+      const dot = sig ? `<span title="${sig.tip}" style="display:inline-flex;align-items:center;margin-right:6px">${sig.dotHtml}</span>` : '';
+      return { html: `${dot}${row.bull != null ? fmtN(row.bull, 2) : '--'}` };
+    }
     if (key === 'deltaCall') return { html: row.deltaCall != null ? fmtN(row.deltaCall, 4) : '--' };
     if (key === 'deltaPut') return { html: row.deltaPut != null ? fmtN(row.deltaPut, 4) : '--' };
     if (key === 'delta') return { html: row.delta != null ? fmtN(row.delta, 2) : '--', style: `color:${deltaColor}` };

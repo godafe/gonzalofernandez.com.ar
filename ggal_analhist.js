@@ -140,25 +140,5 @@ function renderAnalHist(){
 }
 
 async function fetchAnalHist(){
-  const webAppUrl=document.getElementById('sh-webapp-url')?.value.trim();
-  const sheet=document.getElementById('sh-sheetname-hist')?.value.trim()||'HMD';
-  const statusEl=document.getElementById('ah-status');
-  if(!webAppUrl){if(statusEl)statusEl.textContent='Sin URL configurada';return;}
-  if(statusEl)statusEl.textContent='Cargando…';
-  try{
-    const res=await fetch(`${webAppUrl}?sheet=${encodeURIComponent(sheet)}`);
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);
-    const data=await res.json();
-    if(data.error)throw new Error(data.error);
-    const rows=data.values||data;
-    if(!Array.isArray(rows)||rows.length<2)throw new Error('Sin datos');
-    parseHistRows(rows);
-    ahPopulateStrikes();
-    renderAnalHist();
-    if(statusEl)statusEl.textContent=`${HIST.rows.length} registros · ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}`;
-    showToast(`HMD cargado — ${HIST.rows.length} filas`);
-  }catch(e){
-    if(statusEl)statusEl.textContent='Error: '+e.message;
-    showToast('Error HMD: '+e.message);
-  }
+  return window.historicosRefreshHmd?.();
 }

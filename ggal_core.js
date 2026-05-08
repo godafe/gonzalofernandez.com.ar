@@ -1,5 +1,70 @@
 ﻿/* ===== SOURCE SELECTOR ===== */
 let currentSource='sheets';
+const SHEET_CACHE_PREFIX='ggal_sheet_cache_v1';
+
+function sheetCacheKey(webAppUrl,sheet){
+  return `${SHEET_CACHE_PREFIX}:${webAppUrl||''}:${sheet||''}`;
+}
+
+function sheetRowsSignature(rows){
+  try{
+    const src=JSON.stringify(rows||[]);
+    let h1=0x811c9dc5;
+    for(let i=0;i<src.length;i++){
+      h1^=src.charCodeAt(i);
+      h1=Math.imul(h1,0x01000193);
+    }
+    return `${src.length.toString(36)}:${(h1>>>0).toString(36)}`;
+  }catch(_){
+    return `na:${Date.now().toString(36)}`;
+  }
+}
+
+function sheetCacheLoad(webAppUrl,sheet){
+  try{
+    const raw=localStorage.getItem(sheetCacheKey(webAppUrl,sheet));
+    if(!raw)return null;
+    const parsed=JSON.parse(raw);
+    if(!parsed||!Array.isArray(parsed.rows))return null;
+    return parsed;
+  }catch(_){
+    return null;
+  }
+}
+
+function sheetCacheSave(webAppUrl,sheet,rows){
+  try{
+    const payload={
+      rows,
+      signature:sheetRowsSignature(rows),
+      fetchedAt:Date.now(),
+      rowCount:Array.isArray(rows)?rows.length:0,
+    };
+    localStorage.setItem(sheetCacheKey(webAppUrl,sheet),JSON.stringify(payload));
+    return payload;
+  }catch(_){
+    return null;
+  }
+}
+
+function sheetResolveEndpoint(sheet){
+  const name=(sheet||'').toString().trim();
+  if(/^HMD$/i.test(name))return 'history';
+  if(/intra/i.test(name))return 'intraday';
+  return 'live';
+}
+
+async function sheetFetchRows(webAppUrl,sheet,{signal,endpoint}={}){
+  const resolvedEndpoint=(endpoint||sheetResolveEndpoint(sheet)||'live').trim();
+  const url=`${webAppUrl}?endpoint=${encodeURIComponent(resolvedEndpoint)}&sheet=${encodeURIComponent(sheet)}`;
+  const res=await fetch(url,{signal});
+  if(!res.ok)throw new Error(`HTTP ${res.status}`);
+  const data=await res.json();
+  if(data.error)throw new Error(data.error);
+  const rows=data.values||data;
+  if(!Array.isArray(rows)||!rows.length)throw new Error('Sin datos en la hoja');
+  return {rows,signature:sheetRowsSignature(rows)};
+}
 
 function selectSource(src){
   currentSource=src;
@@ -192,21 +257,21 @@ async function fetchSheets(silent=false,{signal,reqSeq}={}){
   const webAppUrl=document.getElementById('sh-webapp-url').value.trim();
   if(!webAppUrl){showToast('Pega la URL del Apps Script web app');return;}
   const sheet=document.getElementById('sh-sheetname').value.trim()||'DMD_Sabro';
-  const url=`${webAppUrl}?sheet=${encodeURIComponent(sheet)}`;
   if(!silent)showToast('Conectando a Google Sheets...');
   try{
-    const res=await fetch(url,{signal});
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);
-    const data=await res.json();
-    if(data.error)throw new Error(data.error);
-    const rows=data.values||data;
+    const cached=sheetCacheLoad(webAppUrl,sheet);
+    const {rows,signature}=await sheetFetchRows(webAppUrl,sheet,{signal});
     if(!Array.isArray(rows)||!rows.length)throw new Error('Sin datos - verifica el nombre de la pestana');
     if(reqSeq&&reqSeq<lastAppliedFetchSeq){
       refreshLog('fetch ignored (stale sheet response)',{reqSeq,lastAppliedFetchSeq,sheet});
       return;
     }
     if(reqSeq)lastAppliedFetchSeq=reqSeq;
-    parseSheetsRows(rows);
+    const unchanged=!!(cached?.signature&&cached.signature===signature);
+    if(!unchanged){
+      parseSheetsRows(rows);
+      sheetCacheSave(webAppUrl,sheet,rows);
+    }
     const sheetName=document.getElementById('sh-sheetname')?.value.trim()||'';
     const badgeEl=document.getElementById('data-badge');
     if(badgeEl){
@@ -221,10 +286,11 @@ async function fetchSheets(silent=false,{signal,reqSeq}={}){
       sheet:sheetName||sheet,
       elapsedMs:Date.now()-fetchStartedAtMs,
       rows:rows.length,
+      unchanged,
       expiries:ST.expirations?.length||0,
       spot:ST.spot
     });
-    if(!silent)showToast('Google Sheets cargado OK');
+    if(!silent)showToast(unchanged?'Google Sheets sin cambios':'Google Sheets cargado OK');
   }catch(e){
     if(e?.name==='AbortError'){
       refreshLog('fetch aborted',{reqSeq,source:'sheets',sheet,elapsedMs:Date.now()-fetchStartedAtMs});
@@ -277,8 +343,6 @@ function parseSheetsRows(rows){
     lastve: colLetterToIndex(document.getElementById('sh-col-lastve')?.value||'G'),
     chg:    autoMap.chg??colLetterToIndex(document.getElementById('sh-col-chg')?.value||'F'),
   };
-  console.log('Columnas mapeadas:', ci, '| Auto-detectadas:', autoMap);
-
   let spot=null, spotChg=null;
   const futures={}; // { [ticker]: { last:number, chg:number|null } }
   const opts=[];
@@ -350,8 +414,6 @@ function parseSheetsRows(rows){
       chg:isNaN(chg)?null:chg,
     });
   });
-
-  console.log(`Sheets parseado: spot=${spot}, opciones=${opts.length}, salteadas=${skipped}`);
   if(!opts.length){showToast(`Sin opciones validas. ${skipped} filas salteadas - revisa columnas.`);return;}
   if(spot&&spot>0){
     ST.spot=spot;
@@ -521,6 +583,12 @@ function siteConfigChanged(){
 
 /* ===== CONFIG PERSISTENCE ===== */
 const CFG_KEY='ggal_config_v1';
+const DEFAULT_WEBAPP_URL='https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec';
+const LEGACY_WEBAPP_URLS=[
+  'https://script.google.com/macros/s/AKfycbybyPULrUWjgu7XFMU2vkjnv8-AngRXKvDoH__MfcGE0e-LP1p9AhSA5enEDQyHkH1s/exec',
+  'https://script.google.com/macros/s/AKfycbzK14QSqJxUp4p5KGWuBH3uzE-qlQhwcrap9SGNfZPITYoQGZiUWgHjDB0jwLbSvJXI/exec',
+  'https://script.google.com/macros/s/AKfycbzK14QSqJxUp4p5KGWuBH3uzE-qlQhwcrap9SGNfZPITYoQGZiUWgHjDB0jwLbSvJXI/exec?sheet=DMD_Bot'
+];
 const CFG_FIELDS=[
   'site-comision','site-iva','site-rate','site-dividends',
   'sh-webapp-url','sh-sheetname','sh-header-row',
@@ -553,6 +621,12 @@ function cfgLoad(){
     const raw=localStorage.getItem(CFG_KEY);
     if(!raw)return;
     const cfg=JSON.parse(raw);
+    if(typeof cfg['sh-webapp-url']==='string'){
+      const savedUrl=cfg['sh-webapp-url'].trim();
+      if(!savedUrl||LEGACY_WEBAPP_URLS.includes(savedUrl)){
+        cfg['sh-webapp-url']=DEFAULT_WEBAPP_URL;
+      }
+    }
     CFG_FIELDS.forEach(id=>{
       if(!(id in cfg))return;
       const el=document.getElementById(id);
@@ -560,6 +634,9 @@ function cfgLoad(){
       if(el.type==='checkbox')el.checked=cfg[id];
       else el.value=cfg[id];
     });
+    const urlEl=document.getElementById('sh-webapp-url');
+    if(urlEl&&(!urlEl.value||LEGACY_WEBAPP_URLS.includes(urlEl.value.trim())))urlEl.value=DEFAULT_WEBAPP_URL;
+    localStorage.setItem(CFG_KEY,JSON.stringify(cfg));
     // Sync all type toggle buttons from their saved hidden values
     syncTypeBtns(['hist-type1','hist-type2','ah-type1','ah-type2','rat-hm-type']);
   }catch(e){console.warn('cfgLoad:',e);}
@@ -797,8 +874,19 @@ function syncDateFromPicker(inputId, rangeId){
 
 /* ===== NAVIGATION ===== */
 function showTab(name){
+  const historicosModeByLegacyTab={
+    histdata:'costos',
+    analhist:'analisis',
+    probabilidades:'probabilidades',
+  };
+  if(historicosModeByLegacyTab[name]){
+    window.historicosEnsureMounted?.();
+    window.historicosSetMode?.(historicosModeByLegacyTab[name]);
+    name='historicos';
+  }
+
   ['chain','strategy','control','calc','ivcalc','bullbear','ratios','mariposa','sinteticas','promedio',
-   'ivsmile','histdata','analisis','analhist','tutoriales','probabilidades','simulador'].forEach(t=>{
+   'ivsmile','historicos','histdata','analisis','analhist','tutoriales','probabilidades','intradiario','simulador'].forEach(t=>{
     const el=document.getElementById('tab-'+t);
     if(el)el.style.display=t===name?'block':'none';
   });
@@ -810,10 +898,12 @@ function showTab(name){
   if(name==='ivsmile')setTimeout(renderIVSmile,50);
   if(name==='ivcalc')setTimeout(runIVCalc,50);
   if(name==='control'){ctrlPopulateExpiry();renderControl();}
+  if(name==='historicos'){window.historicosApplyMode?.();}
   if(name==='histdata'){histPopulateStrikes();renderHistData();}
   if(name==='mariposa'){marPopulateExpiry();renderMariposa();}
   if(name==='sinteticas'){window.renderSinteticas?.();}
   if(name==='probabilidades'){renderProbabilidades?.();}
+  if(name==='intradiario'){window.intraEnsureData?.(); window.renderIntradiario?.();}
   if(name==='analisis'){anaPopulateExpiry();renderAnalisis();}
   if(name==='tutoriales'){tutShow('cadena');}
   if(name==='ratios'){ratPopulateExpiry();renderRatios();}
@@ -843,6 +933,7 @@ function manualSpot(){
     syncBullBearView();
     if(document.getElementById('tab-analhist')?.style.display!=='none')renderAnalHist();
     if(document.getElementById('tab-probabilidades')?.style.display!=='none')renderProbabilidades?.();
+    if(document.getElementById('tab-intradiario')?.style.display!=='none')renderIntradiario?.();
     if(document.getElementById('tab-simulador')?.style.display!=='none')renderSimulador?.();
   }
 }

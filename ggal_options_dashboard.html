@@ -38,10 +38,9 @@
   <div class="tab" data-tab="sinteticas">Sinteticas</div>
   <div class="tab" data-tab="promedio">Precio Promedio</div>
   <div class="tab" data-tab="ivsmile">Smile de volatilidad</div>
-  <div class="tab" data-tab="histdata">Costos historicos</div>
+  <div class="tab" data-tab="historicos">Historicos</div>
   <div class="tab" data-tab="analisis" style="display:none">Analisis</div>
-  <div class="tab" data-tab="analhist">Analisis Historico</div>
-  <div class="tab" data-tab="probabilidades">Probabilidades</div>
+  <div class="tab" data-tab="intradiario">Intradiario</div>
   <div class="tab" data-tab="simulador">Simulador</div>
   <div class="tab" data-tab="tutoriales">Tutoriales</div>
 </div>
@@ -103,7 +102,7 @@
       </div>
 
       <!-- Hidden URL field -->
-      <input type="hidden" id="sh-webapp-url" value="https://script.google.com/macros/s/AKfycbzK14QSqJxUp4p5KGWuBH3uzE-qlQhwcrap9SGNfZPITYoQGZiUWgHjDB0jwLbSvJXI/exec">
+      <input type="hidden" id="sh-webapp-url" value="https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec">
       <input type="hidden" id="sh-header-row" value="1">
       <input type="hidden" id="sh-col-strike" value="A">
       <input type="hidden" id="sh-col-type" value="B">
@@ -118,6 +117,17 @@
       <input type="hidden" id="hist-col-type" value="F">
       <input type="hidden" id="hist-col-strike" value="E">
       <input type="hidden" id="hist-col-last" value="C">
+      <input type="hidden" id="intra-header-row" value="1">
+      <input type="hidden" id="intra-col-datetime" value="A">
+      <input type="hidden" id="intra-col-ticker" value="B">
+      <input type="hidden" id="intra-col-last" value="C">
+      <input type="hidden" id="intra-col-strike" value="D">
+      <input type="hidden" id="intra-col-bid" value="E">
+      <input type="hidden" id="intra-col-ask" value="F">
+      <input type="hidden" id="intra-col-chg" value="G">
+      <input type="hidden" id="intra-col-high" value="H">
+      <input type="hidden" id="intra-col-low" value="I">
+      <input type="hidden" id="intra-col-volume" value="J">
 
       <div id="src-sheets" style="display: block;">
         <div class="form-grid" style="margin-bottom:8px">
@@ -134,6 +144,10 @@
           <div class="form-group">
             <label>Costos históricos</label>
             <input type="text" id="sh-sheetname-hist" value="HMD" style="width:120px">
+          </div>
+          <div class="form-group">
+            <label>Intradiario</label>
+            <input type="text" id="sh-sheetname-intra" value="Intradiario" style="width:120px">
           </div>
         </div>
       </div>
@@ -1401,6 +1415,36 @@
     </div>
   </div>
 
+  <!-- HISTORICOS TAB -->
+  <div id="tab-historicos" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 14px;margin-bottom:12px;font-size:11px">
+      <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Modo</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <button id="historicos-mode-costos" onclick="historicosSetMode('costos')" style="font-family:var(--mono);font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all .15s">Costos</button>
+        <button id="historicos-mode-analisis" onclick="historicosSetMode('analisis')" style="font-family:var(--mono);font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all .15s">Analisis</button>
+        <button id="historicos-mode-probabilidades" onclick="historicosSetMode('probabilidades')" style="font-family:var(--mono);font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all .15s">Probabilidades</button>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span id="historicos-shared-status" style="color:var(--dim);font-family:var(--sans);font-size:11px">Esperando HMD...</span>
+        <button id="historicos-refresh-btn" class="btn-primary" onclick="historicosRefreshHmd()" style="padding:4px 12px;font-size:11px">Actualizar HMD</button>
+      </div>
+    </div>
+
+    <div id="historicos-loader" style="display:none;margin:-2px 0 12px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">
+        <div id="historicos-loader-text" style="font-family:var(--sans);font-size:12px;color:var(--text)">Cargando HMD...</div>
+        <div id="historicos-loader-elapsed" style="font-family:var(--mono);font-size:14px;color:var(--amber);font-weight:600">0,0s</div>
+      </div>
+      <div style="height:7px;background:var(--bg);border:1px solid var(--border2);border-radius:999px;overflow:hidden">
+        <div id="historicos-loader-bar" style="height:100%;width:18%;background:linear-gradient(90deg,var(--amber),#f4d27a);border-radius:999px;transition:width .18s ease"></div>
+      </div>
+    </div>
+
+    <div id="historicos-view-costos" style="display:none"></div>
+    <div id="historicos-view-analisis" style="display:none"></div>
+    <div id="historicos-view-probabilidades" style="display:none"></div>
+  </div>
+
   <!-- DATOS HISTÓRICOS TAB -->
   <div id="tab-histdata" style="display:none">
 
@@ -1425,7 +1469,6 @@
         <input type="number" id="hist-rate" value="0" step="0.1" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderHistData()">
       </div>
       <input type="hidden" id="hist-expiry" value="2026-06-19">
-      <button class="btn-primary" onclick="fetchHistData()" style="padding:4px 12px;font-size:11px">⟳ Actualizar HMD</button>
       <div style="display:flex;align-items:center;gap:5px">
         <label style="color:var(--muted);white-space:nowrap">Relación RI</label>
         <input type="number" id="hist-ri" value="2.0" step="0.1" min="0.1" max="4" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderHistData()">
@@ -2337,7 +2380,6 @@
         <button onclick="document.getElementById(&#39;ah-date-from&#39;).value=&#39;&#39;;renderAnalHist()" style="padding:2px 7px;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--dim);border-radius:4px;cursor:pointer" title="Limpiar filtro">✕</button>
         <span id="ah-date-range" style="font-size:10px;color:var(--dim)"></span>
       </div>
-      <button class="btn-primary" onclick="fetchAnalHist()" style="padding:4px 12px;font-size:11px">⟳ Actualizar HMD</button>
       <span id="ah-status" style="font-size:11px;color:var(--muted)"></span>
     </div>
 
@@ -2438,7 +2480,6 @@
             <input type="date" id="pr-date-to" style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;color-scheme:dark" onchange="renderProbabilidades()">
             <button onclick="document.getElementById(&#39;pr-date-to&#39;).value=&#39;&#39;;renderProbabilidades()" style="padding:2px 7px;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--dim);border-radius:4px;cursor:pointer" title="Limpiar filtro">x</button>
           </div>
-          <button class="btn-primary" onclick="probRefreshHist()" style="padding:4px 12px;font-size:11px;margin-left:auto">Actualizar HMD</button>
           <span id="pr-status" style="font-size:10px;color:var(--dim)">23 registros</span>
         </div>
       </div>
@@ -2518,6 +2559,125 @@
     </div>
   </div>
 
+  <div id="tab-intradiario" style="display:none">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="panel" style="padding:10px 14px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px">
+          <div style="display:flex;align-items:center;gap:6px;margin-right:8px">
+            <button id="intra-mode-table" type="button" onclick="intraSetMode('table')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Vista Tabla</button>
+            <button id="intra-mode-charts" type="button" onclick="intraSetMode('charts')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Vista Graficos</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label for="intra-timeframe" style="color:var(--muted);white-space:nowrap">TF</label>
+            <select id="intra-timeframe" onchange="intraOnTimeframeChange()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:74px">
+              <option value="1">1m</option>
+              <option value="5" selected>5m</option>
+              <option value="10">10m</option>
+              <option value="30">30m</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label for="intra-filter-hour" style="color:var(--muted);white-space:nowrap">Hora</label>
+            <select id="intra-filter-hour" onchange="intraOnScopeChange()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:88px">
+              <option value="__all__">Todos</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label for="intra-filter-type" style="color:var(--muted);white-space:nowrap">Tipo</label>
+            <select id="intra-filter-type" onchange="intraOnTypeChange()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px">
+              <option value="all">Todos</option>
+              <option value="call">Calls</option>
+              <option value="put">Puts</option>
+              <option value="future">Futuros</option>
+              <option value="underlying">Subyacente</option>
+              <option value="caucion">Caucion</option>
+            </select>
+          </div>
+          <div id="intra-filter-asset-wrap" style="display:flex;align-items:center;gap:6px">
+            <label id="intra-filter-asset-label" for="intra-filter-strike" style="color:var(--muted);white-space:nowrap">Strike</label>
+            <select id="intra-filter-strike" onchange="renderIntradiario()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:110px">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <button id="intra-refresh-btn" class="btn-primary" onclick="fetchIntradiario()" style="padding:4px 12px;font-size:11px;margin-left:auto">Actualizar intradiario</button>
+          <span id="intra-status" style="font-size:10px;color:var(--dim)">Sin datos</span>
+        </div>
+      </div>
+
+      <div id="intra-loader" class="panel" style="display:none;padding:12px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:5px">Cargando intradiario</div>
+            <div id="intra-loader-text" style="font-size:12px;color:var(--text)">Descargando datos desde Google Sheets...</div>
+          </div>
+          <div id="intra-loader-elapsed" style="font-family:var(--mono);font-size:18px;color:var(--amber);font-weight:600">0,0s</div>
+        </div>
+        <div style="height:8px;background:var(--bg);border:1px solid var(--border2);border-radius:999px;overflow:hidden;margin-top:10px">
+          <div id="intra-loader-bar" style="height:100%;width:18%;background:linear-gradient(90deg,var(--amber),#f4d27a);border-radius:999px;transition:width .18s ease"></div>
+        </div>
+      </div>
+
+      <div id="intra-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px"></div>
+
+      <div id="intra-table-view" class="panel" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)">Detalle</div>
+            <div style="font-size:12px;color:var(--text)">Cotizaciones intradiarias en vivo importadas desde Google Sheets</div>
+          </div>
+        </div>
+        <div style="overflow:auto;max-height:620px">
+          <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+            <thead style="position:sticky;top:0;z-index:2;background:var(--surface2)">
+              <tr>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Hora</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Ticker</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Tipo</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Strike</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Last</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Bid</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Offer</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Mid</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Var %</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">High</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Low</th>
+                <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Vol</th>
+              </tr>
+            </thead>
+            <tbody id="intra-body">
+              <tr><td colspan="12" style="padding:24px;text-align:center;color:var(--muted)">Sin datos intradiarios cargados</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="intra-charts-view" style="display:none;flex-direction:column;gap:14px">
+        <div class="panel" style="padding:12px 14px">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:5px">Vista Graficos</div>
+          <div id="intra-chart-status" style="font-size:12px;color:var(--text)">Elegí Tipo y Subtipo para graficar la serie de Last.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr);gap:14px">
+          <div class="chart-wrap" style="padding:14px">
+            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Last vs Hora</div>
+            <div style="position:relative;height:280px"><canvas id="intra-chart-last"></canvas></div>
+          </div>
+          <div class="chart-wrap" style="padding:14px">
+            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Placeholder 2</div>
+            <div style="height:280px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border2);border-radius:10px;color:var(--muted);font-size:12px">Proximo grafico</div>
+          </div>
+          <div class="chart-wrap" style="padding:14px">
+            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Placeholder 3</div>
+            <div style="height:280px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border2);border-radius:10px;color:var(--muted);font-size:12px">Proximo grafico</div>
+          </div>
+          <div class="chart-wrap" style="padding:14px">
+            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Placeholder 4</div>
+            <div style="height:280px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border2);border-radius:10px;color:var(--muted);font-size:12px">Proximo grafico</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="tab-tutoriales" style="display:none">
     <div style="display:grid;grid-template-columns:220px 1fr;gap:0;min-height:600px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
 
@@ -2525,15 +2685,20 @@
       <div id="tut-sidebar" style="background:var(--surface2);border-right:1px solid var(--border);padding:16px 0">
         <div style="padding:0 16px 12px;font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim)">Módulos</div>
         <div class="tut-item" id="tut-nav-cadena" onclick="tutShow(&#39;cadena&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📊 Cadena de opciones</div>
+        <div class="tut-item" id="tut-nav-strategy" onclick="tutShow(&#39;strategy&#39;)" style="display:none;padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🧩 Constructor de estrategias</div>
         <div class="tut-item" id="tut-nav-control" onclick="tutShow(&#39;control&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🎛️ Control de estrategias</div>
+        <div class="tut-item" id="tut-nav-calc" onclick="tutShow(&#39;calc&#39;)" style="display:none;padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🧮 Calculadora BS</div>
+        <div class="tut-item" id="tut-nav-ivcalc" onclick="tutShow(&#39;ivcalc&#39;)" style="display:none;padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">σ Calc. VI</div>
         <div class="tut-item" id="tut-nav-bullbear" onclick="tutShow(&#39;bullbear&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📈 Bull/Bear</div>
         <div class="tut-item" id="tut-nav-ratios" onclick="tutShow(&#39;ratios&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">📐 Ratios</div>
         <div class="tut-item" id="tut-nav-mariposa" onclick="tutShow(&#39;mariposa&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🦋 Mariposa</div>
+        <div class="tut-item" id="tut-nav-sinteticas" onclick="tutShow(&#39;sinteticas&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🧬 Sinteticas</div>
         <div class="tut-item" id="tut-nav-promedio" onclick="tutShow(&#39;promedio&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">⚖️ Precio Promedio</div>
         <div class="tut-item" id="tut-nav-ivsmile" onclick="tutShow(&#39;ivsmile&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">〰️ Smile de volatilidad</div>
-        <div class="tut-item" id="tut-nav-histdata" onclick="tutShow(&#39;histdata&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🗂️ Costos históricos</div>
-        <div class="tut-item" id="tut-nav-config" onclick="tutShow(&#39;config&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">⚙️ Configuración</div>
-        <div class="tut-item" id="tut-nav-formulas" onclick="tutShow(&#39;formulas&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🔢 Fórmulas y cálculos</div>
+        <div class="tut-item" id="tut-nav-historicos" onclick="tutShow(&#39;historicos&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🗂️ Historicos</div>
+        <div class="tut-item" id="tut-nav-analisis" onclick="tutShow(&#39;analisis&#39;)" style="display:none;padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🔬 Analisis</div>
+        <div class="tut-item" id="tut-nav-intradiario" onclick="tutShow(&#39;intradiario&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">⏱️ Intradiario</div>
+        <div class="tut-item" id="tut-nav-simulador" onclick="tutShow(&#39;simulador&#39;)" style="padding:10px 16px;cursor:pointer;font-size:12px;border-left:3px solid transparent">🧪 Simulador</div>
       </div>
 
       <!-- Content -->
@@ -2676,6 +2841,7 @@
 <script defer="" src="ggal_calc.js"></script>
 <script defer="" src="ggal_control.js"></script>
 <script defer="" src="ggal_histdata.js"></script>
+<script defer="" src="ggal_historicos.js"></script>
 <script defer="" src="ggal_mariposa.js"></script>
 <script defer="" src="ggal_analisis.js"></script>
 <script defer="" src="ggal_tutoriales.js"></script>
@@ -2685,6 +2851,7 @@
 <script defer="" src="ggal_analhist.js"></script>
 <script defer="" src="ggal_sinteticas.js"></script>
 <script defer="" src="ggal_probabilidades.js"></script>
+<script defer="" src="ggal_intradiario.js"></script>
 <script defer="" src="ggal_simulador.js"></script>
 <script defer="" src="ggal_init.js"></script>
 
