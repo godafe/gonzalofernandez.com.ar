@@ -2595,12 +2595,36 @@
           </div>
           <div id="intra-filter-asset-wrap" style="display:flex;align-items:center;gap:6px">
             <label id="intra-filter-asset-label" for="intra-filter-strike" style="color:var(--muted);white-space:nowrap">Strike</label>
-            <select id="intra-filter-strike" onchange="renderIntradiario()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:110px">
+            <select id="intra-filter-strike" onchange="intraOnBuilderChange()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:110px">
               <option value="">Todos</option>
             </select>
+            <button id="intra-add-btn" type="button" onclick="intraAddSelection()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Agregar</button>
+            <button id="intra-add-atm-btn" type="button" onclick="intraAddAtmSelections()" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,215,90,.35);background:rgba(255,215,90,.08);color:var(--amber);cursor:pointer;font-size:11px">Agregar ATM</button>
           </div>
-          <button id="intra-refresh-btn" class="btn-primary" onclick="fetchIntradiario()" style="padding:4px 12px;font-size:11px;margin-left:auto">Actualizar intradiario</button>
-          <span id="intra-status" style="font-size:10px;color:var(--dim)">Sin datos</span>
+          <span id="intra-status" style="font-size:10px;color:var(--dim);margin-left:auto">Sin datos</span>
+          <button id="intra-refresh-btn" class="btn-primary" onclick="fetchIntradiario()" style="padding:4px 12px;font-size:11px">Actualizar intradiario</button>
+        </div>
+      </div>
+
+      <div id="intra-selection-panel" class="panel" style="display:none;padding:12px 14px" data-intra-collapsible="1">
+        <div data-intra-collapse-header="1" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)">
+            <span>Comparables y Cruces</span>
+            <span title="Agregá cada comparable una sola vez. Para crear un cruce, hacé click en una pata y luego click en otra. Un comparable puede participar en muchos cruces, pero no se repite el mismo cruce." style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid rgba(255,215,90,.45);background:rgba(255,215,90,.12);color:var(--amber);font-size:12px;font-weight:700;cursor:help;box-shadow:0 0 0 1px rgba(255,215,90,.08) inset">?</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button id="intra-clear-comparables-btn" type="button" onclick="intraClearComparables()" class="btn-sm" style="padding:4px 10px">Limpiar comparables</button>
+            <button id="intra-clear-crosses-btn" type="button" onclick="intraClearCrosses()" class="btn-sm" style="padding:4px 10px">Limpiar cruces</button>
+            <button type="button" class="btn-sm" style="padding:2px 8px;min-width:30px">&#9662;</button>
+          </div>
+        </div>
+        <div id="intra-section-comparables" style="display:block">
+          <div id="intra-cross-builder-status" style="font-size:12px;color:var(--dim);margin:2px 0 10px 0"></div>
+          <div id="intra-selection-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          <div id="intra-cross-list-wrap" style="display:none;margin-top:12px">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:8px">Cruces</div>
+            <div id="intra-cross-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          </div>
         </div>
       </div>
 
@@ -2652,28 +2676,8 @@
       </div>
 
       <div id="intra-charts-view" style="display:none;flex-direction:column;gap:14px">
-        <div class="panel" style="padding:12px 14px">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:5px">Vista Graficos</div>
-          <div id="intra-chart-status" style="font-size:12px;color:var(--text)">Elegí Tipo y Subtipo para graficar la serie de Last.</div>
-        </div>
-        <div style="display:grid;grid-template-columns:minmax(0,1fr);gap:14px">
-          <div class="chart-wrap" style="padding:14px">
-            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Last vs Hora</div>
-            <div style="position:relative;height:280px"><canvas id="intra-chart-last"></canvas></div>
-          </div>
-          <div class="chart-wrap" style="padding:14px">
-            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Placeholder 2</div>
-            <div style="height:280px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border2);border-radius:10px;color:var(--muted);font-size:12px">Proximo grafico</div>
-          </div>
-          <div class="chart-wrap" style="padding:14px">
-            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Placeholder 3</div>
-            <div style="height:280px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border2);border-radius:10px;color:var(--muted);font-size:12px">Proximo grafico</div>
-          </div>
-          <div class="chart-wrap" style="padding:14px">
-            <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Placeholder 4</div>
-            <div style="height:280px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border2);border-radius:10px;color:var(--muted);font-size:12px">Proximo grafico</div>
-          </div>
-        </div>
+        <div id="intra-chart-status" style="font-size:12px;color:var(--text)"></div>
+        <div id="intra-dynamic-charts" style="display:grid;grid-template-columns:minmax(0,1fr);gap:14px"></div>
       </div>
     </div>
   </div>

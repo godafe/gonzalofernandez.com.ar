@@ -7,7 +7,7 @@ function parseHistRows(rows){
   const dataRows=rows.slice(headerRowIdx+1);
   const dateIdx  =colLetterToIndex(document.getElementById('hist-col-date')?.value||'A');
   const typeIdx  =colLetterToIndex(document.getElementById('hist-col-type')?.value||'C');
-  const strikeIdx=colLetterToIndex(document.getElementById('hist-col-strike')?.value||'F');
+  const strikeIdx=colLetterToIndex(document.getElementById('hist-col-strike')?.value||'E');
   const lastIdx  =colLetterToIndex(document.getElementById('hist-col-last')?.value||'E');
 
   const dateMap={};

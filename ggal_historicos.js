@@ -3,8 +3,9 @@ const HISTORICOS={
   mode:'costos',
   mounted:false,
   storageKey:'ggal_historicos_mode',
-  cacheDbName:'ggal_hmd_cache_v1',
+  cacheDbName:'ggal_hmd_cache_v2',
   cacheStore:'hmd_cache',
+  cacheVersion:'hmd_cache_v2_strikeE',
   loading:false,
   loaderStartedAt:0,
   loaderTimer:null,
@@ -70,6 +71,23 @@ function historicosCacheKey(webAppUrl,sheet){
   return `${webAppUrl||''}::${sheet||'HMD'}`;
 }
 
+function historicosParserSignature(){
+  const headerRow=(document.getElementById('sh-header-row-hist')?.value||'1').trim();
+  const dateCol=(document.getElementById('hist-col-date')?.value||'A').trim().toUpperCase();
+  const typeCol=(document.getElementById('hist-col-type')?.value||'F').trim().toUpperCase();
+  const strikeCol=(document.getElementById('hist-col-strike')?.value||'E').trim().toUpperCase();
+  const lastCol=(document.getElementById('hist-col-last')?.value||'C').trim().toUpperCase();
+  return `header:${headerRow}|date:${dateCol}|type:${typeCol}|strike:${strikeCol}|last:${lastCol}|cache:${HISTORICOS.cacheVersion}`;
+}
+
+function historicosIsCacheCompatible(cached,webAppUrl,sheet){
+  if(!cached||!Array.isArray(cached.rows)||cached.rows.length<2)return false;
+  if(cached.cacheVersion!==HISTORICOS.cacheVersion)return false;
+  if(cached.parserSignature!==historicosParserSignature())return false;
+  if(cached.cacheKey!==historicosCacheKey(webAppUrl,sheet))return false;
+  return true;
+}
+
 function historicosOpenDb(){
   if(HISTORICOS.dbPromise)return HISTORICOS.dbPromise;
   HISTORICOS.dbPromise=new Promise((resolve,reject)=>{
@@ -108,6 +126,8 @@ async function historicosDbSave(webAppUrl,sheet,rows){
     sheet,
     webAppUrl,
     rows,
+    cacheVersion:HISTORICOS.cacheVersion,
+    parserSignature:historicosParserSignature(),
     signature:sheetRowsSignature(rows),
     fetchedAt:Date.now(),
     rowCount:Array.isArray(rows)?rows.length:0,
@@ -262,12 +282,26 @@ async function historicosEnsureHmdData({webAppUrl,sheet='HMD'}={}){
   }
   try{
     const cached=await historicosDbLoad(webAppUrl,sheet);
-    if(cached?.rows?.length>=2){
+    if(historicosIsCacheCompatible(cached,webAppUrl,sheet)){
       historicosApplyRows(cached.rows,{source:'indexeddb',fetchedAt:cached.fetchedAt});
       historicosLog('indexeddb restored',{sheet,cachedRows:cached.rows.length,fetchedAt:cached.fetchedAt});
       return true;
     }
-    historicosLog('indexeddb miss',{sheet});
+    if(cached){
+      historicosLog('indexeddb incompatible cache ignored',{
+        sheet,
+        cachedVersion:cached.cacheVersion||'none',
+        cachedParserSignature:cached.parserSignature||'none',
+        expectedParserSignature:historicosParserSignature(),
+      });
+      try{
+        await historicosDbClear(webAppUrl,sheet);
+      }catch(clearError){
+        historicosLog('indexeddb clear failed',{sheet,reason:clearError?.message||String(clearError)});
+      }
+    }else{
+      historicosLog('indexeddb miss',{sheet});
+    }
   }catch(error){
     historicosLog('indexeddb read failed',{sheet,reason:error?.message||String(error)});
   }
