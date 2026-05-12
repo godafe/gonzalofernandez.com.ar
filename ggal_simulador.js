@@ -136,7 +136,7 @@ function simTryLoadTempOnce() {
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    HTML estÃ¡tico â€” el tab y el pane estÃ¡n en
-   ggal_options_dashboard.html. Esta funciÃ³n
+   dashboard.html. Esta funciÃ³n
    solo inicializa el layout y los parÃ¡metros.
 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function simInjectHTML() {
