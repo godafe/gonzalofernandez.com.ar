@@ -36,6 +36,15 @@ const HISTORICOS={
         renderProbabilidades?.();
       },
     },
+    strat:{
+      panelId:'tab-histstrat',
+      hostId:'historicos-view-strat',
+      buttonId:'historicos-mode-strat',
+      render(){
+        histStratPopulateStrikes?.();
+        renderHistStrat?.();
+      },
+    },
   },
 };
 
@@ -199,6 +208,7 @@ function historicosSetStatus(text,tone='muted'){
     document.getElementById('hist-status'),
     document.getElementById('ah-status'),
     document.getElementById('pr-status'),
+    document.getElementById('st-status'),
   ].forEach(el=>{
     if(!el)return;
     el.textContent=text;

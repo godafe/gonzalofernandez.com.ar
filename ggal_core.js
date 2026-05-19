@@ -599,9 +599,10 @@ const CFG_FIELDS=[
   'spot-input','expiry-sel','chain-filter',
   'hist-strike1','hist-strike2','hist-type1','hist-type2','hist-rate','hist-ri','hist-date-from',
   'mar-wings','mar-threshold',
-  'rat-expiry','rat-thresh-lo','rat-thresh-hi','rat-thresh-iv','rat-thresh-parity',
+  'rat-expiry','rat-thresh-ri-lo','rat-thresh-ri-hi','rat-thresh-lo','rat-thresh-hi','rat-thresh-iv','rat-thresh-parity',
   'rat-hm-type','rat-only-opps','rat-base',
   'ah-strike1','ah-strike2','ah-type1','ah-type2','ah-rate','ah-ri','ah-date-from',
+  'st-strike1','st-strike2','st-type1','st-type2','st-ri','st-lots','st-date-from','st-date-to',
 ];
 
 function cfgSave(){
@@ -878,6 +879,7 @@ function showTab(name){
     histdata:'costos',
     analhist:'analisis',
     probabilidades:'probabilidades',
+    histstrat:'strat',
   };
   if(historicosModeByLegacyTab[name]){
     window.historicosEnsureMounted?.();
@@ -933,6 +935,7 @@ function manualSpot(){
     syncBullBearView();
     if(document.getElementById('tab-analhist')?.style.display!=='none')renderAnalHist();
     if(document.getElementById('tab-probabilidades')?.style.display!=='none')renderProbabilidades?.();
+    if(document.getElementById('tab-histstrat')?.style.display!=='none')renderHistStrat?.();
     if(document.getElementById('tab-intradiario')?.style.display!=='none')renderIntradiario?.();
     if(document.getElementById('tab-simulador')?.style.display!=='none')renderSimulador?.();
   }

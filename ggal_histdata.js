@@ -42,7 +42,10 @@ function parseHistRows(rows){
 
   histPopulateStrikes();
   if(typeof probPopulateStrikes==='function')probPopulateStrikes();
+  if(typeof histStratPopulateStrikes==='function')histStratPopulateStrikes();
   if(typeof renderProbabilidades==='function'&&document.getElementById('tab-probabilidades'))renderProbabilidades();
+  if(typeof histStratOnHmdUpdated==='function'&&document.getElementById('tab-histstrat'))histStratOnHmdUpdated();
+  else if(typeof renderHistStrat==='function'&&document.getElementById('tab-histstrat'))renderHistStrat();
 }
 
 function histPopulateStrikes(){

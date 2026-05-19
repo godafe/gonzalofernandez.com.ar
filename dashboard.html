@@ -1423,6 +1423,7 @@
         <button id="historicos-mode-costos" onclick="historicosSetMode('costos')" style="font-family:var(--mono);font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all .15s">Costos</button>
         <button id="historicos-mode-analisis" onclick="historicosSetMode('analisis')" style="font-family:var(--mono);font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all .15s">Analisis</button>
         <button id="historicos-mode-probabilidades" onclick="historicosSetMode('probabilidades')" style="font-family:var(--mono);font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all .15s">Probabilidades</button>
+        <button id="historicos-mode-strat" onclick="historicosSetMode('strat')" style="font-family:var(--mono);font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all .15s">Strat</button>
       </div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <span id="historicos-shared-status" style="color:var(--dim);font-family:var(--sans);font-size:11px">Esperando HMD...</span>
@@ -1443,6 +1444,7 @@
     <div id="historicos-view-costos" style="display:none"></div>
     <div id="historicos-view-analisis" style="display:none"></div>
     <div id="historicos-view-probabilidades" style="display:none"></div>
+    <div id="historicos-view-strat" style="display:none"></div>
   </div>
 
   <!-- DATOS HISTÓRICOS TAB -->
@@ -2559,6 +2561,52 @@
     </div>
   </div>
 
+  <div id="tab-histstrat" style="display:none">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="panel" style="padding:8px 14px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="color:var(--muted);white-space:nowrap">Base</span>
+            <button id="st-type1-btn" onclick="histStratToggleType(1)" style="padding:3px 10px;border-radius:7px;border:1px solid var(--green);background:transparent;color:var(--green);font-family:var(--mono);font-size:12px;cursor:pointer">Call</button>
+            <input type="hidden" id="st-type1" value="call">
+            <select id="st-strike1" onchange="renderHistStrat()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="color:var(--muted);white-space:nowrap">Comparar</span>
+            <button id="st-type2-btn" onclick="histStratToggleType(2)" style="padding:3px 10px;border-radius:7px;border:1px solid var(--red);background:transparent;color:var(--red);font-family:var(--mono);font-size:12px;cursor:pointer">Call</button>
+            <input type="hidden" id="st-type2" value="call">
+            <select id="st-strike2" onchange="renderHistStrat()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:90px"></select>
+            <button onclick="histStratAddCompare()" title="Agregar comparable al gráfico" style="padding:3px 10px;background:rgba(68,199,106,.10);border:1px solid rgba(68,199,106,.38);color:var(--green);border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px">+</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <label style="color:var(--muted);white-space:nowrap">Relación RC/RI</label>
+            <input type="number" id="st-ri" value="2.00" step="0.01" min="1" max="5" style="width:72px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderHistStrat()">
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <label style="color:var(--muted);white-space:nowrap">Lotes</label>
+            <input type="number" id="st-lots" value="100" step="1" min="1" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderHistStrat()">
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <label style="color:var(--muted);white-space:nowrap">Fecha desde</label>
+            <input type="date" id="st-date-from" style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;color-scheme:dark" onchange="renderHistStrat()">
+            <button onclick="histStratClearDate('from')" style="padding:2px 7px;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--dim);border-radius:4px;cursor:pointer" title="Limpiar filtro">x</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <label style="color:var(--muted);white-space:nowrap">Fecha hasta</label>
+            <input type="date" id="st-date-to" style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;color-scheme:dark" onchange="renderHistStrat()">
+            <button onclick="histStratClearDate('to')" style="padding:2px 7px;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--dim);border-radius:4px;cursor:pointer" title="Limpiar filtro">x</button>
+          </div>
+          <span id="st-status" style="font-size:10px;color:var(--dim)">Sin datos</span>
+        </div>
+        <div id="st-compare-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+      </div>
+
+      <div id="st-hero" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"></div>
+      <div id="st-hero-ratio" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"></div>
+      <div id="st-body"></div>
+    </div>
+  </div>
+
   <div id="tab-intradiario" style="display:none">
     <div style="display:flex;flex-direction:column;gap:14px">
       <div class="panel" style="padding:10px 14px">
@@ -2599,8 +2647,8 @@
               <option value="">Todos</option>
             </select>
             <button id="intra-add-btn" type="button" onclick="intraAddSelection()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Agregar</button>
-            <button id="intra-add-atm-btn" type="button" onclick="intraAddAtmSelections()" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,215,90,.35);background:rgba(255,215,90,.08);color:var(--amber);cursor:pointer;font-size:11px">Agregar ATM</button>
           </div>
+          <button id="intra-add-atm-btn" type="button" onclick="intraAddAtmSelections()" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,215,90,.35);background:rgba(255,215,90,.08);color:var(--amber);cursor:pointer;font-size:11px">Agregar ATM</button>
           <span id="intra-status" style="font-size:10px;color:var(--dim);margin-left:auto">Sin datos</span>
           <button id="intra-refresh-btn" class="btn-primary" onclick="fetchIntradiario()" style="padding:4px 12px;font-size:11px">Actualizar intradiario</button>
         </div>
@@ -2855,6 +2903,7 @@
 <script defer="" src="ggal_analhist.js"></script>
 <script defer="" src="ggal_sinteticas.js"></script>
 <script defer="" src="ggal_probabilidades.js"></script>
+<script defer="" src="ggal_histstrat.js"></script>
 <script defer="" src="ggal_intradiario.js"></script>
 <script defer="" src="ggal_simulador.js"></script>
 <script defer="" src="ggal_init.js"></script>

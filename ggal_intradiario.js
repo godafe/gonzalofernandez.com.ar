@@ -22,6 +22,7 @@ const INTRA_SERIAL_EPOCH_UTC=Date.UTC(1899,11,30);
 const INTRA_DB_NAME='ggal_intradiario_cache_v2';
 const INTRA_DB_META_STORE='intradiario_cache_meta';
 const INTRA_DB_ROWS_STORE='intradiario_cache_rows';
+const INTRA_BULL_STRAT_DEFAULT_LOTS=100;
 let intraLoaderTimer=null;
 let intraLoaderStartedAt=0;
 
@@ -393,7 +394,7 @@ function intraCrossGroupPref(leftId){
   return {
     generated:raw.generated===true,
     visible:raw.visible!==false,
-    kind:['price','bull','bear','rc','ri','straddle'].includes(raw.kind)?raw.kind:'price',
+    kind:['price','bull','bullstrat','bear','rc','ri','straddle'].includes(raw.kind)?raw.kind:'price',
   };
 }
 
@@ -408,19 +409,30 @@ function intraSetCrossGroupPref(leftId,patch){
 
 function intraGetStrategyKind(){
   const raw=(document.getElementById('intra-strategy-kind')?.value||'bull').trim().toLowerCase();
-  return ['bull','bear','rc','ri','straddle'].includes(raw)?raw:'bull';
+  return ['bull','bullstrat','bear','rc','ri','straddle'].includes(raw)?raw:'bull';
 }
 
 function intraStrategyLabel(kind){
-  return kind==='bear'?'Bear'
+  return kind==='bullstrat'?'Bull Strat'
+    :kind==='bear'?'Bear'
     :kind==='rc'?'RC'
     :kind==='ri'?'RI'
     :kind==='straddle'?'Straddle'
     :'Bull';
 }
 
+function intraStrategyLots(){
+  return INTRA_BULL_STRAT_DEFAULT_LOTS;
+}
+
+function intraBullCostValue(s1,s2){
+  if(s1==null||s2==null||!isFinite(s1)||!isFinite(s2))return null;
+  return (s1-s2)*intraStrategyLots();
+}
+
 function intraStrategyCompute(kind,s1,s2){
   if(s1==null||s2==null||!isFinite(s1)||!isFinite(s2))return null;
+  if(kind==='bullstrat')return null;
   if(kind==='bear')return s2-s1;
   if(kind==='rc')return s2===0?null:s1/s2;
   if(kind==='ri')return s1===0?null:s2/s1;
@@ -504,6 +516,7 @@ function intraUpdateAddButton(){
   btn.style.opacity=btn.disabled?'0.6':'1';
   btn.style.cursor=btn.disabled?'not-allowed':'pointer';
   if(atmBtn){
+    // ATM no depende del subtipo elegido: alcanza con que podamos inferir strikes ATM.
     const enabled=intraAtmStrikeCandidates().length>0;
     atmBtn.disabled=!enabled;
     atmBtn.style.opacity=enabled?'1':'0.6';
@@ -1514,7 +1527,16 @@ function intraBuildGroupChartSeries(group,kind){
   const datasets=group.crosses.map((item,index)=>{
     const leftMap=maps.get(group.left.id);
     const rightMap=maps.get(item.right.id);
-    const values=labels.map(label=>intraStrategyCompute(kind,leftMap?.get(label),rightMap?.get(label)));
+    const leftValues=labels.map(label=>leftMap?.has(label)?leftMap.get(label):null);
+    const rightValues=labels.map(label=>rightMap?.has(label)?rightMap.get(label):null);
+    const values=kind==='bullstrat'
+      ? labels.map((_,idx)=>{
+          const bull1=intraBullCostValue(leftValues[idx],rightValues[idx]);
+          const bull2=idx<(labels.length-1)?intraBullCostValue(leftValues[idx+1],rightValues[idx+1]):null;
+          if(bull1==null||bull2==null)return null;
+          return (bull2-bull1)*intraStrategyLots();
+        })
+      : labels.map((_,idx)=>intraStrategyCompute(kind,leftValues[idx],rightValues[idx]));
     return {
       selectionId:item.cross.id,
       label:`${intraStrategyLabel(kind)}: ${intraSelectionDisplay(group.left)} / ${intraSelectionDisplay(item.right)}`,
@@ -1531,6 +1553,7 @@ function intraBuildGroupChartSeries(group,kind){
 }
 
 function intraChartConfig(series){
+  const isBullStrat=Array.isArray(series?.datasets)&&series.datasets.some(dataset=>(dataset?.label||'').includes('Bull Strat'));
   return {
     type:'line',
     data:{labels:series.labels,datasets:series.datasets},
@@ -1551,7 +1574,13 @@ function intraChartConfig(series){
       },
       scales:{
         x:{ticks:{color:'#7a8fa6',font:{size:9},maxRotation:45,minRotation:45,autoSkip:false},grid:{color:'#1a2230'}},
-        y:{ticks:{color:'#7a8fa6',font:{size:9},callback:v=>v!=null?fmtN(v):'--'},grid:{color:'#1a2230'}},
+        y:{
+          ticks:{color:'#7a8fa6',font:{size:9},callback:v=>v!=null?fmtN(v):'--'},
+          grid:{
+            color:ctx=>isBullStrat&&ctx?.tick?.value===0?'rgba(255,255,255,.9)':'#1a2230',
+            lineWidth:ctx=>isBullStrat&&ctx?.tick?.value===0?1:1,
+          }
+        },
       },
     },
   };
@@ -1604,6 +1633,7 @@ function renderIntradiarioCharts(){
             <select onchange="intraSetCrossGroupKind('${group.left.id.replace(/'/g,"\\'")}',this.value)" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 10px;border-radius:5px;min-width:120px;text-align:center;text-align-last:center">
               <option value="price" ${prefs.kind==='price'?'selected':''}>Precio</option>
               <option value="bull" ${prefs.kind==='bull'?'selected':''}>Bull</option>
+              <option value="bullstrat" ${prefs.kind==='bullstrat'?'selected':''}>Bull Strat</option>
               <option value="bear" ${prefs.kind==='bear'?'selected':''}>Bear</option>
               <option value="rc" ${prefs.kind==='rc'?'selected':''}>RC</option>
               <option value="ri" ${prefs.kind==='ri'?'selected':''}>RI</option>
