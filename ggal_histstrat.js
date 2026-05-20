@@ -422,6 +422,57 @@ function histStratNormalizeInputs(){
   return {ri,lots};
 }
 
+function histStratTodayDate(){
+  const now=new Date();
+  const yyyy=now.getFullYear();
+  const mm=String(now.getMonth()+1).padStart(2,'0');
+  const dd=String(now.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function histStratLiveExpiry(){
+  return document.getElementById('expiry-sel')?.value||ST.selExpiry||'';
+}
+
+function histStratBuildLiveExtraRow(sourceRows){
+  if(!Array.isArray(sourceRows)||!sourceRows.length)return null;
+  const today=histStratTodayDate();
+  if(sourceRows.some(row=>row?.date===today))return null;
+  const expiry=histStratLiveExpiry();
+  const chainRows=expiry&&ST.chain?.[expiry];
+  if(!Array.isArray(chainRows)||!chainRows.length)return null;
+  const prices={__suby__:ST.spot||null};
+  let added=0;
+  chainRows.forEach(row=>{
+    const strike=parseFloat(row?.strike);
+    if(!isFinite(strike)||strike<=0)return;
+    const callPrice=parseFloat(row?.callMid);
+    const putPrice=parseFloat(row?.putMid);
+    if(isFinite(callPrice)&&callPrice>0){
+      prices[`call_${strike}`]={price:callPrice,strike};
+      added++;
+    }
+    if(isFinite(putPrice)&&putPrice>0){
+      prices[`put_${strike}`]={price:putPrice,strike};
+      added++;
+    }
+  });
+  if(!added)return null;
+  return {
+    date:today,
+    prices,
+    spot:ST.spot||null,
+    isLiveExtra:true,
+  };
+}
+
+function histStratSourceRows(){
+  const source=Array.isArray(HIST.rows)?HIST.rows.slice():[];
+  const liveExtra=histStratBuildLiveExtraRow(source);
+  if(liveExtra)source.push(liveExtra);
+  return source;
+}
+
 function histStratOnHmdUpdated(){
   histStratEnsureState();
   HSTRAT.rows=[];
@@ -646,7 +697,7 @@ function renderHistStrat(){
   histStratSanitizeCompareLegs(type1,K1);
   histStratWriteState();
 
-  let source=HIST.rows.slice();
+  let source=histStratSourceRows();
   if(dateFrom)source=source.filter(row=>row.date>=dateFrom);
   if(dateTo)source=source.filter(row=>row.date<=dateTo);
 

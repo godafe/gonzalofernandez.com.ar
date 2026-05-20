@@ -17,7 +17,14 @@
     <span class="badge badge-live" id="data-badge">live</span>
   </div>
   <div class="hdr-stats">
-    <div class="hdr-stat"><div class="hdr-stat-label">Ultima Actualizacion:</div><div class="hdr-stat-val" id="hdr-time">10/04/26 23:24:09</div></div>
+    <div class="hdr-stat">
+      <div class="hdr-stat-label">Ultima Actualizacion:</div>
+      <div class="hdr-stat-val" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="hdr-time">10/04/26 23:24:09</span>
+        <span id="hdr-next-fetch" style="font-size:11px;color:var(--muted)">Prox. fetch: manual</span>
+      </div>
+      <div id="hdr-apply-status" style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px">Esperando datos</div>
+    </div>
   </div>
   <div class="hdr-actions">
     <button id="btn-refresh" class="btn-primary">Actualizar</button>
@@ -162,11 +169,13 @@
             Auto-actualizar cada
           </label>
           <select id="auto-refresh-interval" onchange="toggleAutoRefresh()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px">
-            <option value="1000">1 seg</option>
-            <option value="2000">2 seg</option>
             <option value="3000" selected="">3 seg</option>
             <option value="4000">4 seg</option>
             <option value="5000">5 seg</option>
+            <option value="6000">6 seg</option>
+            <option value="7000">7 seg</option>
+            <option value="8000">8 seg</option>
+            <option value="9000">9 seg</option>
             <option value="10000">10 seg</option>
           </select>
         </div>

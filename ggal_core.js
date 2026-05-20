@@ -96,6 +96,94 @@ function setHdrTime(d = new Date()) {
   const ss = pad2(d.getSeconds());
   el.textContent = `${dd}/${mm}/${yy} ${hh}:${mi}:${ss}`;
 }
+
+const REFRESH_UI_STATE={
+  nextFetchAt:0,
+  countdownTimer:null,
+};
+
+function refreshStatusEl(){
+  return document.getElementById('hdr-apply-status');
+}
+
+function refreshSetApplyStatus(text,tone='muted'){
+  const el=refreshStatusEl();
+  if(!el)return;
+  const colorMap={
+    muted:'var(--muted)',
+    dim:'var(--dim)',
+    green:'var(--green)',
+    amber:'var(--amber)',
+    red:'var(--red)',
+    blue:'var(--blue)',
+  };
+  el.textContent=text;
+  el.style.color=colorMap[tone]||colorMap.muted;
+}
+
+function refreshFmtRemaining(ms){
+  const totalSeconds=Math.max(0,Math.ceil(ms/1000));
+  const mm=Math.floor(totalSeconds/60);
+  const ss=totalSeconds%60;
+  if(mm>0)return `${mm}:${String(ss).padStart(2,'0')}`;
+  return `${ss}s`;
+}
+
+function refreshRenderCountdown(){
+  const el=document.getElementById('hdr-next-fetch');
+  const statusEl=document.getElementById('refresh-status');
+  if(!el)return;
+  if(!REFRESH_UI_STATE.nextFetchAt){
+    el.textContent='Prox. fetch: manual';
+    if(statusEl)statusEl.textContent='Auto-refresh apagado';
+    return;
+  }
+  const remaining=REFRESH_UI_STATE.nextFetchAt-Date.now();
+  if(remaining<=0){
+    el.textContent=fetchInFlight?'Prox. fetch: actualizando...':'Prox. fetch: ahora';
+    if(statusEl)statusEl.textContent=fetchInFlight?'Actualizando en vivo...':'Fetch en curso...';
+    return;
+  }
+  const label=refreshFmtRemaining(remaining);
+  el.textContent=`Prox. fetch: ${label}`;
+  if(statusEl)statusEl.textContent=`Proximo fetch en ${label}`;
+}
+
+function refreshStopCountdown(){
+  REFRESH_UI_STATE.nextFetchAt=0;
+  if(REFRESH_UI_STATE.countdownTimer){
+    clearInterval(REFRESH_UI_STATE.countdownTimer);
+    REFRESH_UI_STATE.countdownTimer=null;
+  }
+  refreshRenderCountdown();
+}
+
+function refreshStartCountdown(intervalMs){
+  REFRESH_UI_STATE.nextFetchAt=Date.now()+Math.max(250,intervalMs||0);
+  if(REFRESH_UI_STATE.countdownTimer)clearInterval(REFRESH_UI_STATE.countdownTimer);
+  REFRESH_UI_STATE.countdownTimer=setInterval(refreshRenderCountdown,250);
+  refreshRenderCountdown();
+}
+
+function refreshMarkFetchStarted(mode='manual'){
+  refreshSetApplyStatus(mode==='auto'?'Actualizando en vivo...':'Actualizando datos...','blue');
+  refreshRenderCountdown();
+}
+
+function refreshMarkApplied(message='Datos aplicados'){
+  setHdrTime();
+  refreshSetApplyStatus(`${message} · ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}`,'green');
+}
+
+function refreshMarkUnchanged(message='Sin cambios'){
+  setHdrTime();
+  refreshSetApplyStatus(`${message} · ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}`,'amber');
+}
+
+function refreshMarkError(message='Error al actualizar'){
+  refreshSetApplyStatus(`${message} · ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}`,'red');
+}
+
 function applyBSParams(){
   const spot=parseFloat(document.getElementById('bs-spot').value);
   const rate=parseFloat(document.getElementById('bs-rate').value);
@@ -150,14 +238,15 @@ function toggleAutoRefresh(){
   clearInterval(autoRefreshTimer); autoRefreshTimer=null;
   if(chk.checked){
     refreshLog('auto-refresh enabled',{intervalMs:interval,source:currentSource});
+    refreshStartCountdown(interval);
     autoRefreshTimer=setInterval(()=>{
       refreshLog('auto-refresh tick',{intervalMs:interval,source:currentSource});
+      refreshStartCountdown(interval);
       fetchData(true);
     },interval);
-    document.getElementById('refresh-status').textContent='Prox. actualizacion en '+interval/1000+'s';
   }else{
     refreshLog('auto-refresh disabled',{source:currentSource});
-    document.getElementById('refresh-status').textContent='';
+    refreshStopCountdown();
   }
 }
 
@@ -182,6 +271,7 @@ async function fetchData(silent=false){
   fetchStartedAtMs=Date.now();
   fetchAbortController=new AbortController();
   fetchInFlight=true;
+  refreshMarkFetchStarted(silent?'auto':'manual');
   if(currentSource==='sheets'){
     try{
       refreshLog('fetch start',{reqSeq,source:'sheets'});
@@ -196,6 +286,7 @@ async function fetchData(silent=false){
   if(!url){
     fetchInFlight=false;
     refreshLog('fetch fallback to demo (missing URL)',{reqSeq});
+    refreshMarkError('Sin URL configurada');
     showToast('Sin URL configurada - usando datos demo');
     generateMockAndRender();
     return;
@@ -218,7 +309,7 @@ async function fetchData(silent=false){
     parseApiData(data);
     document.getElementById('data-badge').textContent='live';
     document.getElementById('data-badge').className='badge badge-live';
-    setHdrTime();
+    refreshMarkApplied('Datos en vivo aplicados');
     refreshLog('fetch applied',{
       reqSeq,
       source:'python',
@@ -238,6 +329,7 @@ async function fetchData(silent=false){
       elapsedMs:Date.now()-fetchStartedAtMs,
       message:e?.message||String(e)
     });
+    refreshMarkError('Error al actualizar en vivo');
     showToast('Error servidor Python: '+e.message);
   }finally{
     if(reqSeq===fetchSeq)fetchInFlight=false;
@@ -255,7 +347,11 @@ function colLetterToIndex(col){
 
 async function fetchSheets(silent=false,{signal,reqSeq}={}){
   const webAppUrl=document.getElementById('sh-webapp-url').value.trim();
-  if(!webAppUrl){showToast('Pega la URL del Apps Script web app');return;}
+  if(!webAppUrl){
+    refreshMarkError('Falta URL de Apps Script');
+    showToast('Pega la URL del Apps Script web app');
+    return;
+  }
   const sheet=document.getElementById('sh-sheetname').value.trim()||'DMD_Sabro';
   if(!silent)showToast('Conectando a Google Sheets...');
   try{
@@ -279,7 +375,8 @@ async function fetchSheets(silent=false,{signal,reqSeq}={}){
       else if(sheetName==='DMD_Mock'){badgeEl.textContent='DEMO';badgeEl.className='badge badge-demo';}
       else{badgeEl.textContent='LIVE SHEET';badgeEl.className='badge badge-live';}
     }
-    setHdrTime();
+    if(unchanged)refreshMarkUnchanged('Fetch OK, sin cambios');
+    else refreshMarkApplied('Nuevos datos aplicados');
     refreshLog('fetch applied',{
       reqSeq,
       source:'sheets',
@@ -303,6 +400,7 @@ async function fetchSheets(silent=false,{signal,reqSeq}={}){
       elapsedMs:Date.now()-fetchStartedAtMs,
       message:e?.message||String(e)
     });
+    refreshMarkError('Error en fetch live');
     showToast('Error Sheets: '+e.message);
     console.error('Apps Script error:',e);
   }
@@ -524,6 +622,7 @@ function parseApiData(data){
   });
   populateExpiries();renderChain();renderIVSmile();syncBSBar();ctrlPopulateExpiry();renderControl();
   syncBullBearView();
+  if(document.getElementById('tab-histstrat')?.style.display!=='none')renderHistStrat?.();
   if(document.getElementById('tab-sinteticas')?.style.display!=='none')window.renderSinteticas?.();
 }
 

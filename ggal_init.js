@@ -237,6 +237,7 @@ function initLog(event, details={}){
       cfgLoad();
       cfgBindAutoSave();
       siteConfigChanged();
+      if(document.getElementById('auto-refresh-chk')?.checked)toggleAutoRefresh?.();
       ['hist-rate','ah-rate'].forEach(id=>{
         const el=document.getElementById(id);
         if(el&&(el.value===''||el.value==='0'))el.value=siteRate();
@@ -270,6 +271,7 @@ function initLog(event, details={}){
           document.getElementById('data-badge').textContent='cache';
           document.getElementById('data-badge').className='badge badge-demo';
           if(typeof setHdrTime==='function'&&quoteCache.fetchedAt)setHdrTime(new Date(quoteCache.fetchedAt));
+          if(typeof refreshSetApplyStatus==='function')refreshSetApplyStatus('Cache local aplicado','dim');
         },{message:`Cargando cache local de ${sheet}...`,group:'cache'});
       }
 
@@ -292,8 +294,9 @@ function initLog(event, details={}){
         }
         document.getElementById('data-badge').textContent='live';
         document.getElementById('data-badge').className='badge badge-live';
-        if(typeof setHdrTime==='function')setHdrTime();
-        else document.getElementById('hdr-time').textContent=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+        if(!sameAsCache&&typeof setHdrTime==='function')setHdrTime();
+        if(typeof refreshMarkUnchanged==='function'&&sameAsCache)refreshMarkUnchanged('Inicio OK, sin cambios');
+        if(typeof refreshMarkApplied==='function'&&!sameAsCache)refreshMarkApplied('Inicio OK, datos aplicados');
         showToast('Datos cargados desde Google Sheets OK');
         initLog('live load applied',{
           sheet,
@@ -312,6 +315,7 @@ function initLog(event, details={}){
           document.getElementById('data-badge').textContent='demo';
           document.getElementById('data-badge').className='badge badge-demo';
         },{message:'Usando datos demo por error de Sheets...',group:'fallback'});
+        if(typeof refreshMarkError==='function')refreshMarkError('Inicio con error de Sheets');
         initLog('live load failed',{
           sheet,
           error:e.message,
