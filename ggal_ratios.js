@@ -37,6 +37,11 @@ function ratCoverageText(ratio){
   return `${ratio.toFixed(2)}x`;
 }
 
+function ratInverseLotsValue(ratio){
+  if(ratio==null || !isFinite(ratio) || ratio<=0)return null;
+  return 1/ratio;
+}
+
 function ratColor(ratio,lo,hi,riLo,riHi){
   if(ratio<1){
     if(ratio<=riLo)return'rgba(176,136,240,0.88)';
@@ -49,8 +54,8 @@ function ratColor(ratio,lo,hi,riLo,riHi){
 }
 
 function ratInverseDisplayColor(ratio,riLo,riHi){
-  if(ratio==null || !isFinite(ratio) || ratio<=0)return'rgba(255,255,255,.06)';
-  const inverseLots=1/ratio;
+  const inverseLots=ratInverseLotsValue(ratio);
+  if(inverseLots==null)return'rgba(255,255,255,.06)';
   if(inverseLots<=riLo)return'rgba(176,136,240,0.88)';
   if(inverseLots<=riHi)return'rgba(90,171,255,0.85)';
   return'rgba(59,201,196,0.85)';
@@ -69,8 +74,8 @@ function ratRatioTextColor(ratio,lo,hi,riLo,riHi){
 }
 
 function ratInverseTextColor(ratio,riLo,riHi){
-  if(ratio==null || !isFinite(ratio) || ratio<=0)return'var(--muted)';
-  const inverseLots=1/ratio;
+  const inverseLots=ratInverseLotsValue(ratio);
+  if(inverseLots==null)return'var(--muted)';
   if(inverseLots<=riLo)return'#f7efff';
   if(inverseLots<=riHi)return'#eff7ff';
   return'#042a27';
@@ -250,12 +255,18 @@ function ratRenderCuadro(rows,type,S,lo,hi,riLo,riHi){
       if(r1.strike===r2.strike){html+=`<td style="width:${cellSz}px;height:${cellH}px;background:var(--surface2);border:5px solid rgba(255,255,255,0.12)"></td>`;return;}
       if(!p1||!p2){html+=`<td style="width:${cellSz}px;height:${cellH}px;background:var(--bg);text-align:center;color:var(--dim);font-size:9px;border:5px solid rgba(255,255,255,0.08)">--</td>`;return;}
       const ratio=p1/p2;
-      const bg=ratColor(ratio,lo,hi,riLo,riHi);
+      const inverseLots=ratInverseLotsValue(ratio);
+      const showInverse=ratio<1;
+      const bg=showInverse ? ratInverseDisplayColor(ratio,riLo,riHi) : ratColor(ratio,lo,hi,riLo,riHi);
+      const fg=showInverse ? ratInverseTextColor(ratio,riLo,riHi) : '#fff';
       const l1=100, l2=-Math.round(ratio*100);
-      const tooltip=`Prima ${fmtN(p1)} / Prima ${fmtN(p2)} = ${ratio.toFixed(3)} | Cobertura S2: ${ratCoverageText(ratio)}`;
+      const displayValue=showInverse && inverseLots!=null ? inverseLots.toFixed(2) : ratio.toFixed(2);
+      const tooltip=showInverse
+        ? `Prima ${fmtN(p1)} / Prima ${fmtN(p2)} = ${ratio.toFixed(3)} | Lotes S1 comprables vendiendo 1 S2: ${inverseLots!=null?inverseLots.toFixed(2):'--'}x`
+        : `Prima ${fmtN(p1)} / Prima ${fmtN(p2)} = ${ratio.toFixed(3)} | Cobertura S2: ${ratCoverageText(ratio)}`;
       html+=`<td title="${tooltip}" onclick="ratCreateStrategy(${r1.strike},${p1},${l1},${r2.strike},${p2},${l2},'${type}')"
-        style="width:${cellSz}px;height:${cellH}px;background:${bg};text-align:center;vertical-align:middle;color:#fff;font-weight:600;cursor:pointer;font-size:11px;border:5px solid rgba(255,255,255,0.18);transition:filter .1s"
-        onmouseover="this.style.filter='brightness(1.25)'" onmouseout="this.style.filter=''">${ratio.toFixed(2)}</td>`;
+        style="width:${cellSz}px;height:${cellH}px;background:${bg};text-align:center;vertical-align:middle;color:${fg};font-weight:600;cursor:pointer;font-size:11px;border:5px solid rgba(255,255,255,0.18);transition:filter .1s"
+        onmouseover="this.style.filter='brightness(1.25)'" onmouseout="this.style.filter=''">${displayValue}</td>`;
     });
     html+=`</tr>`;
   });
@@ -305,7 +316,7 @@ function rat2RatioChips(cands,lo,hi,riLo,riHi,displayMode='ratio'){
   const chips=[0,1,2,3].map(i=>{
     const c=(cands&&cands[i])?cands[i]:null;
     const ratio=c&&isFinite(c.ratio)?c.ratio:null;
-    const inverseLots=(ratio!=null && ratio>0)?(1/ratio):null;
+    const inverseLots=ratInverseLotsValue(ratio);
     const bg=(ratio==null)
       ? 'rgba(255,255,255,.06)'
       : (displayMode==='inverseLots'
@@ -469,8 +480,8 @@ function renderRatios(){
   const exp=document.getElementById('rat-expiry')?.value||ST.selExpiry;
   const thLo=parseFloat(document.getElementById('rat-thresh-lo')?.value)||1.50;
   const thHi=parseFloat(document.getElementById('rat-thresh-hi')?.value)||2.50;
-  const thRiLo=parseFloat(document.getElementById('rat-thresh-ri-lo')?.value)||0.30;
-  const thRiHi=parseFloat(document.getElementById('rat-thresh-ri-hi')?.value)||0.50;
+  const thRiLo=parseFloat(document.getElementById('rat-thresh-ri-lo')?.value)||1.50;
+  const thRiHi=parseFloat(document.getElementById('rat-thresh-ri-hi')?.value)||2.00;
   ratSaveUiPrefs();
   const thIV=parseFloat(document.getElementById('rat-thresh-iv')?.value)||5.0;
   const thParity=parseFloat(document.getElementById('rat-thresh-parity')?.value)||10;

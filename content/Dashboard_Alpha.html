@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Privado GGAL</title>
+  <style>
+    :root{
+      --bg:#0b1117;
+      --panel:#111a23;
+      --panel-2:#172331;
+      --border:#223244;
+      --border-2:#2e435a;
+      --text:#e8eef5;
+      --muted:#91a4b8;
+      --dim:#6f8296;
+      --amber:#ffd65a;
+      --amber-soft:#4a3c11;
+      --blue:#67a6ff;
+      --blue-soft:#1f3a63;
+      --green:#4fd38a;
+      --green-soft:#183c2f;
+      --violet:#b794f6;
+      --violet-soft:#382a4f;
+      --teal:#75d6d1;
+      --teal-soft:#1b4042;
+      --red:#ff7f7f;
+      --shadow:0 18px 42px rgba(0,0,0,.28);
+      --sans:Segoe UI,Arial,sans-serif;
+      --mono:Consolas,"SFMono-Regular","Courier New",monospace;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:
+      radial-gradient(circle at top right, rgba(103,166,255,.12), transparent 28%),
+      radial-gradient(circle at top left, rgba(255,214,90,.10), transparent 24%),
+      linear-gradient(180deg,#091018 0%,#0b1117 100%);
+      color:var(--text);font-family:var(--sans)}
+    body{min-height:100vh}
+    .shell{max-width:1680px;margin:0 auto;padding:22px}
+    .hero{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px}
+    .hero-status{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .hero-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    .panel{background:linear-gradient(180deg,rgba(23,35,49,.96),rgba(17,26,35,.96));border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow)}
+    .config{padding:18px;margin-bottom:16px}
+    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
+    .field input,.field select,.field button{
+      min-height:38px;border-radius:10px;border:1px solid var(--border-2);
+      background:#0d141c;color:var(--text);padding:8px 10px;font-family:var(--mono);font-size:12px
+    }
+    .field button{font-family:var(--sans);font-weight:600;cursor:pointer;background:linear-gradient(180deg,#1d2a38,#16212d)}
+    .field button.primary{background:linear-gradient(180deg,#f2d36b,#d3ae34);color:#111}
+    .field button:disabled{opacity:.6;cursor:not-allowed}
+    .toggle-panel-btn{
+      min-height:38px;border-radius:10px;border:1px solid var(--border-2);
+      background:linear-gradient(180deg,#1d2a38,#16212d);color:var(--text);
+      padding:8px 12px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer
+    }
+    .span-2{grid-column:span 2}
+    .span-3{grid-column:span 3}
+    .span-4{grid-column:span 4}
+    .span-6{grid-column:span 6}
+    .span-8{grid-column:span 8}
+    .span-12{grid-column:span 12}
+    .row-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+    .status{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+    .badge{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;border:1px solid var(--border-2);font-size:11px;color:var(--muted);background:rgba(13,20,28,.8)}
+    .badge strong{color:var(--text);font-family:var(--mono)}
+    .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+    .metric{padding:14px 16px;border-radius:16px;border:1px solid var(--border);background:rgba(13,20,28,.8)}
+    .metric .k{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:8px}
+    .metric .v{font-size:24px;font-family:var(--mono);font-weight:700}
+    .metric .s{font-size:12px;color:var(--dim);margin-top:7px}
+    .table-panel{padding:0;overflow:hidden;position:relative}
+    .table-head{
+      padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:flex-end;
+      position:sticky;top:0;z-index:10;
+      background:linear-gradient(180deg,rgba(23,35,49,.985),rgba(17,26,35,.985));
+      box-shadow:0 1px 0 rgba(34,50,68,.95)
+    }
+    .table-head h2{margin:0;font-size:16px}
+    .table-head p{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .legend{display:flex;gap:8px;flex-wrap:wrap}
+    .legend button{
+      padding:6px 10px;border-radius:999px;font-size:11px;border:1px solid transparent;
+      background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:8px
+    }
+    .legend .dot{
+      width:9px;height:9px;border-radius:999px;display:inline-block;flex:0 0 auto;
+      box-shadow:0 0 0 1px rgba(255,255,255,.06) inset
+    }
+    .legend .legend-text{white-space:nowrap}
+    .legend .base{background:rgba(103,166,255,.14);color:#b8d5ff;border-color:rgba(103,166,255,.28)}
+    .legend .spot{background:rgba(255,214,90,.12);color:#ffe494;border-color:rgba(255,214,90,.26)}
+    .legend .ratio{background:rgba(255,214,90,.13);color:#ffe494;border-color:rgba(255,214,90,.26)}
+    .legend .bull{background:rgba(79,211,138,.14);color:#b5f4d1;border-color:rgba(79,211,138,.25)}
+    .legend .ri{background:rgba(183,148,246,.14);color:#dbcbff;border-color:rgba(183,148,246,.25)}
+    .legend .strat{background:rgba(117,214,209,.14);color:#bef4f1;border-color:rgba(117,214,209,.24)}
+    .legend .delta{background:rgba(103,166,255,.16);color:#cfe1ff;border-color:rgba(103,166,255,.30)}
+    .legend .vega{background:rgba(255,214,90,.14);color:#ffe9a3;border-color:rgba(255,214,90,.28)}
+    .legend .ln{background:rgba(242,165,90,.16);color:#ffd8ad;border-color:rgba(242,165,90,.28)}
+    .legend .prob{background:rgba(74,163,255,.16);color:#cae4ff;border-color:rgba(74,163,255,.28)}
+    .legend button.is-hidden{
+      color:#95a1ad;border-color:rgba(149,161,173,.28);background:rgba(95,107,120,.10)
+    }
+    .legend button.is-hidden .legend-text{
+      text-decoration-line:line-through;
+      text-decoration-style:double;
+      text-decoration-thickness:1px
+    }
+    .legend button.is-hidden .dot{background:#7e8791 !important}
+    .view-switch{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .view-btn{
+      padding:6px 10px;border-radius:999px;font-size:11px;border:1px solid var(--border);
+      background:#16212d;color:var(--text);cursor:pointer;font-family:var(--sans)
+    }
+    .view-btn.is-active{
+      background:rgba(255,214,90,.14);border-color:rgba(255,214,90,.55);color:var(--amber)
+    }
+    .table-wrap{overflow-x:auto;overflow-y:visible;max-height:none;position:relative}
+    table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+    thead th{position:sticky;top:0;z-index:3;padding:10px 8px;border-bottom:1px solid var(--border-2);background:#101923;white-space:nowrap}
+    tbody td{padding:7px 8px;border-bottom:1px solid rgba(46,67,90,.45);text-align:center;white-space:nowrap}
+    .cell-mark{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+    .cell-dot{
+      width:10px;height:10px;border-radius:999px;display:inline-block;flex:0 0 auto;
+      box-shadow:0 0 0 1px rgba(255,255,255,.08) inset
+    }
+    .cell-dot-green{background:#29d17d}
+    .cell-dot-red{background:#ff6b6b}
+    .cell-dot-yellow{background:#f2c14f}
+    .cell-dot-blue{background:#4aa3ff}
+    tbody tr:hover{background:rgba(255,255,255,.03)}
+    tbody tr.live-row{background:rgba(255,214,90,.08)}
+    .left{ text-align:left }
+    .center{ text-align:center }
+    .date-col{color:var(--muted);position:sticky;left:0;background:#13202b}
+    thead .date-col{z-index:6;background:#101923}
+    tbody .date-col{z-index:2}
+    tbody tr.live-row .date-col{background:#343625}
+    .table-wrap::before{
+      content:"";
+      position:sticky;
+      top:0;
+      display:block;
+      height:0;
+      z-index:2;
+      pointer-events:none;
+      box-shadow:0 8px 0 0 #101923;
+    }
+    .group-base{background:rgba(103,166,255,.10)}
+    .group-spot{background:rgba(255,214,90,.12)}
+    .group-ratio{background:rgba(242,165,90,.10)}
+    .group-bull{background:rgba(79,211,138,.10)}
+    .group-ri{background:rgba(183,148,246,.10)}
+    .group-strat{background:rgba(117,214,209,.10)}
+    .group-greek-total{background:rgba(103,166,255,.18)}
+    .pos{color:var(--green)}
+    .neg{color:var(--red)}
+    .warn{color:var(--amber)}
+    .muted{color:var(--muted)}
+    .empty{padding:28px;color:var(--muted);text-align:center}
+    .footer-note{margin-top:10px;color:var(--dim);font-size:12px}
+    details{border:1px solid var(--border);border-radius:14px;background:rgba(13,20,28,.58);padding:0 14px}
+    summary{cursor:pointer;padding:12px 0;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.7px}
+    .advanced{padding-bottom:14px}
+    .params-row{
+      display:grid;
+      grid-template-columns:92px 132px 92px 132px 54px 106px 78px 78px 86px 136px 136px;
+      gap:12px;
+      align-items:end
+    }
+    .type-toggle{
+      min-height:38px;border-radius:12px;border:1px solid var(--border-2);background:#0d141c;
+      color:var(--text);padding:8px 12px;font-family:var(--mono);font-size:12px;cursor:pointer
+    }
+    .type-toggle.call-active{border-color:rgba(79,211,138,.7);color:var(--green);background:rgba(79,211,138,.10)}
+    .type-toggle.put-active{border-color:rgba(255,127,127,.7);color:var(--red);background:rgba(255,127,127,.10)}
+    .date-inline{display:flex;gap:8px;align-items:center}
+    .date-inline input{flex:1}
+    .date-clear{
+      width:30px;min-width:30px;min-height:30px;border-radius:8px;border:1px solid var(--border-2);
+      background:#16212d;color:var(--dim);cursor:pointer
+    }
+    .center-select{text-align:center;text-align-last:center}
+    .right-input{text-align:right}
+    .chart-view{display:none;grid-template-columns:1fr 1fr;gap:12px;padding:14px}
+    .chart-wrap{
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:linear-gradient(180deg,rgba(23,35,49,.96),rgba(17,26,35,.96));
+      box-shadow:var(--shadow);
+      padding:14px
+    }
+    .chart-title{font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px}
+    .chart-canvas-wrap{position:relative;height:300px}
+    .chart-empty{padding:24px;color:var(--muted);text-align:center;font-size:12px}
+    @media (max-width:1200px){
+      .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .span-8,.span-6,.span-4,.span-3,.span-2{grid-column:span 12}
+      .params-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .chart-view{grid-template-columns:1fr}
+    }
+    @media (max-width:720px){
+      .shell{padding:14px}
+      .metrics{grid-template-columns:1fr}
+      table{font-size:11px}
+      .params-row{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="hero-status">
+        <div class="badge">Spot GGAL: <strong id="status-spot">--</strong></div>
+        <div class="badge">Estado: <strong id="status-text">Esperando configuracion</strong></div>
+        <div class="badge">Refresh live: <strong id="status-countdown">Manual</strong></div>
+        <div class="badge">Datos: <strong id="status-data">--</strong></div>
+      </div>
+      <div class="hero-actions">
+        <button id="toggle-connectivity-btn" class="toggle-panel-btn" type="button">Mostrar conectividad</button>
+      </div>
+    </section>
+
+    <section class="panel config" id="connectivity-panel" style="display:none">
+      <div class="grid">
+        <div class="field span-8" style="display:none">
+          <label for="cfg-webapp-url">URL Apps Script</label>
+          <input id="cfg-webapp-url" type="text" value="https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVWf5h_u2kb3WB2xY5wpBBiD_N0bBGvX/exec" placeholder="https://script.google.com/macros/s/.../exec">
+        </div>
+        <div class="field span-2">
+          <label for="cfg-hmd-sheet">Hoja historica</label>
+          <input id="cfg-hmd-sheet" type="text" value="HMD">
+        </div>
+        <div class="field span-2">
+          <label for="cfg-live-sheet">Hoja en vivo</label>
+          <input id="cfg-live-sheet" type="text" value="DMD_Bot">
+        </div>
+
+        <div class="field span-2">
+          <label for="cfg-auto-seconds">Refresh live</label>
+          <select id="cfg-auto-seconds">
+            <option value="0" selected>Manual</option>
+            <option value="5">5 seg</option>
+            <option value="7">7 seg</option>
+            <option value="10">10 seg</option>
+          </select>
+        </div>
+
+        <div class="field span-12">
+          <div class="row-actions">
+            <button class="primary" id="btn-load">Refrescar HMD</button>
+            <button id="btn-live-only">Refrescar solo vivo</button>
+            <button id="btn-reset-cache">Limpiar cache local</button>
+          </div>
+        </div>
+      </div>
+      <details style="margin-top:14px;display:none">
+        <summary>Columnas avanzadas</summary>
+        <div class="advanced">
+          <div class="grid">
+            <div class="field span-2"><label for="cfg-hmd-header-row">HMD Header row</label><input id="cfg-hmd-header-row" type="number" min="1" value="1"></div>
+            <div class="field span-2"><label for="cfg-hmd-col-date">HMD Fecha</label><input id="cfg-hmd-col-date" type="text" value="A"></div>
+            <div class="field span-2"><label for="cfg-hmd-col-last">HMD Last</label><input id="cfg-hmd-col-last" type="text" value="C"></div>
+            <div class="field span-2"><label for="cfg-hmd-col-strike">HMD Strike</label><input id="cfg-hmd-col-strike" type="text" value="E"></div>
+            <div class="field span-2"><label for="cfg-hmd-col-type">HMD Tipo</label><input id="cfg-hmd-col-type" type="text" value="F"></div>
+
+            <div class="field span-2"><label for="cfg-live-header-row">Vivo Header row</label><input id="cfg-live-header-row" type="number" min="1" value="1"></div>
+            <div class="field span-2"><label for="cfg-live-col-strike">Vivo Strike</label><input id="cfg-live-col-strike" type="text" value="A"></div>
+            <div class="field span-2"><label for="cfg-live-col-expiry">Vivo Vto</label><input id="cfg-live-col-expiry" type="text" value="G"></div>
+            <div class="field span-2"><label for="cfg-live-col-type">Vivo Tipo</label><input id="cfg-live-col-type" type="text" value="B"></div>
+            <div class="field span-2"><label for="cfg-live-col-last">Vivo Last</label><input id="cfg-live-col-last" type="text" value="E"></div>
+            <div class="field span-2"><label for="cfg-live-col-chg">Vivo Chg</label><input id="cfg-live-col-chg" type="text" value="F"></div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="panel config" id="params-panel">
+      <div class="params-row">
+        <div class="field">
+          <label for="param-base-type-btn">Base</label>
+          <button id="param-base-type-btn" class="type-toggle" type="button">Call</button>
+          <input id="param-base-type" type="hidden" value="call">
+        </div>
+        <div class="field">
+          <label for="param-base-strike">Strike base</label>
+          <select id="param-base-strike" class="center-select"></select>
+        </div>
+        <div class="field">
+          <label for="param-compare-type-btn">Comparar</label>
+          <button id="param-compare-type-btn" class="type-toggle" type="button">Call</button>
+          <input id="param-compare-type" type="hidden" value="call">
+        </div>
+        <div class="field">
+          <label for="param-compare-strike">Strike comp.</label>
+          <select id="param-compare-strike" class="center-select"></select>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="param-add-compare" type="button">+</button>
+        </div>
+        <div class="field">
+          <label for="param-ri">Relación RC/RI</label>
+          <input id="param-ri" class="right-input" type="number" min="1" max="5" step="0.01" value="2.00">
+        </div>
+        <div class="field">
+          <label for="param-tlr">TLR %</label>
+          <input id="param-tlr" class="right-input" type="number" min="0" max="200" step="0.01" value="30.00">
+        </div>
+        <div class="field">
+          <label for="param-lots">Lotes</label>
+          <input id="param-lots" class="right-input" type="number" min="1" step="1" value="2">
+        </div>
+        <div class="field">
+          <label for="param-threshold">Umbral %</label>
+          <input id="param-threshold" class="right-input" type="number" min="0" max="100" step="1" value="85">
+        </div>
+        <div class="field">
+          <label for="param-date-from">Fecha desde</label>
+          <div class="date-inline">
+            <input id="param-date-from" type="date">
+            <button id="param-date-from-clear" class="date-clear" type="button">x</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="param-date-to">Fecha hasta</label>
+          <div class="date-inline">
+            <input id="param-date-to" type="date">
+            <button id="param-date-to-clear" class="date-clear" type="button">x</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <div id="param-compare-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+    </section>
+
+    <section class="metrics">
+      <div class="metric panel">
+        <div class="k">Base principal</div>
+        <div class="v" id="metric-base-main">--</div>
+        <div class="s" id="metric-base-summary">Sin bases cargadas</div>
+      </div>
+      <div class="metric panel">
+        <div class="k">Ultimo ratio</div>
+        <div class="v" id="metric-ratio">--</div>
+        <div class="s" id="metric-ratio-summary">Esperando datos</div>
+      </div>
+      <div class="metric panel">
+        <div class="k">Ultimo bull</div>
+        <div class="v" id="metric-bull">--</div>
+        <div class="s" id="metric-bull-summary">Esperando datos</div>
+      </div>
+      <div class="metric panel">
+        <div class="k">Ultimo GGAL</div>
+        <div class="v" id="metric-spot">--</div>
+        <div class="s" id="metric-spot-summary">Sin spot</div>
+      </div>
+    </section>
+
+    <section class="panel table-panel">
+      <div class="table-head">
+        <div>
+          <h2>Historico + fila en vivo</h2>
+          <p id="table-subtitle">Cargando estructura...</p>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          <div class="view-switch">
+            <button id="view-mode-table" class="view-btn is-active" type="button">Vista Tabla</button>
+            <button id="view-mode-chart" class="view-btn" type="button">Vista Grafico</button>
+          </div>
+          <div class="legend" id="column-legend"></div>
+        </div>
+      </div>
+      <div class="table-wrap" id="table-view">
+        <table id="dashboard-table">
+          <thead id="table-head"></thead>
+          <tbody id="table-body">
+            <tr><td class="empty">Todavia no hay datos cargados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="chart-view" id="chart-view">
+        <div class="chart-wrap">
+          <div class="chart-title">Ratio</div>
+          <div class="chart-canvas-wrap"><canvas id="chart-ratio"></canvas></div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-title">Delta Total</div>
+          <div class="chart-canvas-wrap"><canvas id="chart-delta-total"></canvas></div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-title">Vega Total</div>
+          <div class="chart-canvas-wrap"><canvas id="chart-vega-total"></canvas></div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-title">Straddle</div>
+          <div class="chart-canvas-wrap"><canvas id="chart-cost"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer-note" id="footer-note">Si la hoja viva no usa el mismo formato que el dashboard principal, este archivo intenta un parser alternativo tipo intradiario antes de fallar.</div>
+  </div>
+
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="DashboardPrivado.js"></script>
+</body>
+</html>
