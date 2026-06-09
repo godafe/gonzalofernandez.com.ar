@@ -460,11 +460,7 @@ function parseSheetsRows(rows){
         const found=(cols||[]).find(v=>typeof v==='string'&&v.includes('/')&&v.toUpperCase().includes('GGAL'));
         if(found) futTicker=found.trim();
       }
-      if(futTicker){
-        const t=futTicker.toUpperCase();
-        // Normalizar la clave esperada por el modulo Sinteticas
-        if(t.includes('GGAL/ABR26')) futTicker='GGAL/ABR26';
-      }
+      futTicker=normalizeFutureTicker(futTicker);
       const last=parseARSNum(cols[ci.last]);
       const chg=parseARSNum(cols[ci.chg]);
       if(futTicker){
@@ -519,7 +515,6 @@ function parseSheetsRows(rows){
   }
   // Siempre refrescar futures: si la fuente no lo trae (no es DMD_Bot), queda 0.
   ST.futures=futures;
-  if(!ST.futures['GGAL/ABR26']) ST.futures['GGAL/ABR26']={last:0, chg:null};
   if(spotChg!=null)ST.spotChg=spotChg;
   updateSpotHeaderDisplay(ST.spot,spotChg);
   parseApiData({last:ST.spot,options:opts});
@@ -552,6 +547,15 @@ function updateSpotHeaderDisplay(spot, spotChg){
     pctEl.textContent=(spotChg>=0?'+':'')+spotChg.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
     pctEl.className='pct-change '+(spotChg>=0?'pos':'neg');
   }
+}
+
+function normalizeFutureTicker(raw) {
+  const s = String(raw || '').trim().toUpperCase();
+  if (!s) return '';
+  const compact = s.replace(/\s+/g, '');
+  const m = compact.match(/GGAL\/([A-Z]{3})(\d{2})/);
+  if (m) return `GGAL/${m[1]}${m[2]}`;
+  return compact;
 }
 
 function extractOptionTicker(src){

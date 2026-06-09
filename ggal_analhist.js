@@ -1,5 +1,5 @@
 /* ===== MÓDULO ANÁLISIS HISTÓRICO ===== */
-const AH={charts:{vega:null,bull:null,rc:null,ri:null}};
+const AH={charts:{vegaRatio:null,bull:null,rc:null,ri:null,delta:null,vega:null}};
 
 // All three helpers are one-liners now, delegating to shared utilities in ggal_core.js
 function ahToggleType(n){ toggleOptionType('ah-type'+n,'ah-type'+n+'-btn',renderAnalHist); }
@@ -19,6 +19,69 @@ function ahCalcGreeks(price,K,type,spot,T,r,q){
   if(!iv)return null;
   const g=bs(spot,K,T,r,q,iv,type);
   return{iv, vega:g.vega, gamma:g.gamma, delta:g.delta};
+}
+
+function ahRenderDualGreekChart(chartKey, canvasId, labels, series1, series2, label1, label2, fmtFn){
+  const xTickCb=(v,i)=>{
+    const d=labels[i];
+    if(!d)return '';
+    const p=d.split('-');
+    return p.length>=3?p[2]+'-'+p[1]:d;
+  };
+  upsertChart(AH.charts,chartKey,canvasId,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {
+          label:label1,
+          data:series1.map(v=>v!=null?parseFloat(v.toFixed(4)):null),
+          borderColor:'#44c76a',
+          pointBackgroundColor:'#44c76a',
+          borderWidth:1.5,
+          pointRadius:3,
+          fill:false,
+          spanGaps:true,
+        },
+        {
+          label:label2,
+          data:series2.map(v=>v!=null?parseFloat(v.toFixed(4)):null),
+          borderColor:'#f05a5a',
+          pointBackgroundColor:'#f05a5a',
+          borderWidth:1.5,
+          pointRadius:3,
+          fill:false,
+          spanGaps:true,
+        },
+      ],
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:false,
+      plugins:{
+        legend:{display:true,labels:{color:'#7a8fa6',font:{size:9},boxWidth:8,padding:8}},
+        tooltip:{
+          backgroundColor:'#131920',
+          borderColor:'#2a3444',
+          borderWidth:1,
+          titleColor:'#7a8fa6',
+          bodyColor:'#d8e3ef',
+          callbacks:{label:c=>` ${c.dataset.label}: ${fmtFn(c.raw)}`},
+        },
+      },
+      scales:{
+        x:{
+          ticks:{color:'#7a8fa6',font:{size:9},maxRotation:45,minRotation:45,autoSkip:false,callback:xTickCb},
+          grid:{color:'#1a2230'},
+        },
+        y:{
+          ticks:{color:'#7a8fa6',font:{size:9},callback:fmtFn},
+          grid:{color:'#1a2230'},
+        },
+      },
+    },
+  });
 }
 
 function renderAnalHist(){
@@ -124,10 +187,12 @@ function renderAnalHist(){
   const labels=rows.map(r=>r.date||'');
   const fP=v=>v!=null?fmtN(v):'--';
   const fR=v=>v!=null?v.toFixed(3):'--';
-  createLineChart(AH.charts,'vega','ah-chart-vega',labels,rows.map(r=>r.vegaRatio),'#5aabff','Ratio Vega',fR);
+  createLineChart(AH.charts,'vegaRatio','ah-chart-vega',labels,rows.map(r=>r.vegaRatio),'#5aabff','Ratio Vega',fR);
   createLineChart(AH.charts,'bull','ah-chart-bull',labels,rows.map(r=>r.bull),'#44c76a','Costo Bull',fP);
   createLineChart(AH.charts,'rc','ah-chart-rc',labels,rows.map(r=>r.rc),'#e8b84b','RC',fR);
   createLineChart(AH.charts,'ri','ah-chart-ri',labels,rows.map(r=>r.riCost),'#b088f0','Costo RI',fP);
+  ahRenderDualGreekChart('delta','ah-chart-delta',labels,rows.map(r=>r.g1?.delta??null),rows.map(r=>r.g2?.delta??null),`Delta S1 ${fmtStrike(K1)}`,`Delta S2 ${fmtStrike(K2)}`,fR);
+  ahRenderDualGreekChart('vega','ah-chart-vega-lines',labels,rows.map(r=>r.g1?.vega??null),rows.map(r=>r.g2?.vega??null),`Vega S1 ${fmtStrike(K1)}`,`Vega S2 ${fmtStrike(K2)}`,fR);
 
   // Update status with filtered count
   const ahStatusEl=document.getElementById('ah-status');

@@ -144,7 +144,7 @@ function renderHistData(){
       T=days/365;
     }
     const bb=(p1!=null&&p2!=null)?p1-p2:null;
-    const riCost=(p1!=null&&p2!=null)?(-10*p1)+(p2*ri*10):null;
+    const riCost=(p1!=null&&p2!=null)?(p1*100)+(p2*-ri*100):null;
     const spreadStrikes=Math.abs(K2-K1);
     const pctLleno=(p1!=null&&p2!=null&&spreadStrikes>0)
       ?((p1-p2)/spreadStrikes)*100:null;

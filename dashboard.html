@@ -2049,7 +2049,7 @@
         </div>
 
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Futuro GGAL/ABR26</span>
+          <span id="syn-fut-label" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Futuro GGAL/--</span>
           <input id="syn-fut" type="text" inputmode="decimal" data-non-negative="1"
             style="width:110px;box-sizing:border-box;font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:5px 6px;border-radius:6px;text-align:right"
             oninput="synSanitizeNumericInput(this); synScheduleRender()" onchange="synScheduleRender()">
@@ -2430,7 +2430,7 @@
       </div>
     </div>
 
-    <!-- Charts 2x2 -->
+    <!-- Charts 3x2 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="chart-wrap" style="padding:14px">
         <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Ratio Vega S1/S2</div>
@@ -2447,6 +2447,14 @@
       <div class="chart-wrap" style="padding:14px">
         <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Costo Ratio Invertido (RI)</div>
         <div style="position:relative;height:300px"><canvas id="ah-chart-ri"></canvas></div>
+      </div>
+      <div class="chart-wrap" style="padding:14px">
+        <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Delta S1 y S2</div>
+        <div style="position:relative;height:300px"><canvas id="ah-chart-delta"></canvas></div>
+      </div>
+      <div class="chart-wrap" style="padding:14px">
+        <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Vega S1 y S2</div>
+        <div style="position:relative;height:300px"><canvas id="ah-chart-vega-lines"></canvas></div>
       </div>
     </div>
   </div>

@@ -48,6 +48,14 @@ function ratColor(ratio,lo,hi,riLo,riHi){
   return'rgba(240,90,90,0.85)';
 }
 
+function ratInverseDisplayColor(ratio,riLo,riHi){
+  if(ratio==null || !isFinite(ratio) || ratio<=0)return'rgba(255,255,255,.06)';
+  const inverseLots=1/ratio;
+  if(inverseLots<=riLo)return'rgba(176,136,240,0.88)';
+  if(inverseLots<=riHi)return'rgba(90,171,255,0.85)';
+  return'rgba(59,201,196,0.85)';
+}
+
 function ratRatioTextColor(ratio,lo,hi,riLo,riHi){
   if(ratio==null || !isFinite(ratio))return'var(--muted)';
   if(ratio<1){
@@ -58,6 +66,34 @@ function ratRatioTextColor(ratio,lo,hi,riLo,riHi){
   if(ratio<=lo)return'#062816';
   if(ratio<=hi)return'#372500';
   return'#fff4f4';
+}
+
+function ratInverseTextColor(ratio,riLo,riHi){
+  if(ratio==null || !isFinite(ratio) || ratio<=0)return'var(--muted)';
+  const inverseLots=1/ratio;
+  if(inverseLots<=riLo)return'#f7efff';
+  if(inverseLots<=riHi)return'#eff7ff';
+  return'#042a27';
+}
+
+function ratLoadUiPrefs(){
+  const state=window.RAT_PREFS_STATE||(window.RAT_PREFS_STATE={loaded:false});
+  if(state.loaded)return;
+  state.loaded=true;
+  const ids=['rat-thresh-ri-lo','rat-thresh-ri-hi','rat-thresh-lo','rat-thresh-hi'];
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    const saved=localStorage.getItem(`rat_${id}`);
+    if(el && saved!=null && saved!=='') el.value=saved;
+  });
+}
+
+function ratSaveUiPrefs(){
+  const ids=['rat-thresh-ri-lo','rat-thresh-ri-hi','rat-thresh-lo','rat-thresh-hi'];
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) localStorage.setItem(`rat_${id}`, el.value);
+  });
 }
 
 function ratGetMode(){
@@ -265,14 +301,27 @@ function ratRenderRatioTable(rows,type,S,lo,hi,riLo,riHi){
   });
 }
 
-function rat2RatioChips(cands,lo,hi,riLo,riHi){
+function rat2RatioChips(cands,lo,hi,riLo,riHi,displayMode='ratio'){
   const chips=[0,1,2,3].map(i=>{
     const c=(cands&&cands[i])?cands[i]:null;
     const ratio=c&&isFinite(c.ratio)?c.ratio:null;
-    const bg=(ratio==null)?'rgba(255,255,255,.06)':ratColor(ratio,lo,hi,riLo,riHi);
-    const fg=ratRatioTextColor(ratio,lo,hi,riLo,riHi);
-    const txt=(ratio==null)?'--':ratio.toFixed(2);
-    const ttl=!c ? 'Strike 2: --, Ratio: --' : `Strike 2: ${fmtStrike(c.k2)}, Ratio: ${c.ratio.toFixed(3)}, Precio S2: ${fmtN(c.p2,2)}, Cobertura S2: ${ratCoverageText(c.ratio)}`;
+    const inverseLots=(ratio!=null && ratio>0)?(1/ratio):null;
+    const bg=(ratio==null)
+      ? 'rgba(255,255,255,.06)'
+      : (displayMode==='inverseLots'
+        ? ratInverseDisplayColor(ratio,riLo,riHi)
+        : ratColor(ratio,lo,hi,riLo,riHi));
+    const fg=(displayMode==='inverseLots')
+      ? ratInverseTextColor(ratio,riLo,riHi)
+      : ratRatioTextColor(ratio,lo,hi,riLo,riHi);
+    const txt=(ratio==null)
+      ? '--'
+      : (displayMode==='inverseLots' && inverseLots!=null ? inverseLots.toFixed(2) : ratio.toFixed(2));
+    const ttl=!c
+      ? 'Strike 2: --, Ratio: --'
+      : (displayMode==='inverseLots'
+        ? `Strike destino: ${fmtStrike(c.k2)}, Ratio inverso: ${c.ratio.toFixed(3)}, Precio destino: ${fmtN(c.p2,2)}, Lotes base comprables vendiendo 1 destino: ${inverseLots!=null?inverseLots.toFixed(2):'--'}x`
+        : `Strike 2: ${fmtStrike(c.k2)}, Ratio: ${c.ratio.toFixed(3)}, Precio S2: ${fmtN(c.p2,2)}, Cobertura S2: ${ratCoverageText(c.ratio)}`);
     return `<span title="${ttl}" style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:24px;padding:0 8px;border-radius:999px;background:${bg};box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);color:${fg};text-shadow:0 1px 0 rgba(0,0,0,.10);font-size:10px;font-weight:700;white-space:nowrap;opacity:${c?0.98:0.35}">${txt}</span>`;
   }).join('');
   return `<div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">${chips}</div>`;
@@ -390,7 +439,7 @@ function ratRenderCadena(rows,type,S,T,lo,hi,riLo,riHi){
           <button type="button" data-rat2-toggle="down" data-rat2-k="${key}" title="${open.down?'Cerrar bases abajo':'Abrir bases abajo'}" style="${plusStyle}">${open.down?'-':'+'}</button>
         </td>
         <td style="${tdBase};${atmBg}">${priceHtml}</td>
-        <td style="${leftSepTd};${atmBg}">${rat2RatioChips(downCands,lo,hi,riLo,riHi)}</td>
+        <td style="${leftSepTd};${atmBg}">${rat2RatioChips(downCands,lo,hi,riLo,riHi,'inverseLots')}</td>
         <td style="${strikeTd};${atmBg}">${fmtStrike(row.strike)}</td>
         <td style="${tdBase};${atmBg}">${rat2RatioChips(upCands,lo,hi,riLo,riHi)}</td>
         <td style="${tdBase};${atmBg}">${priceHtml}</td>
@@ -414,6 +463,7 @@ function ratRenderCadena(rows,type,S,T,lo,hi,riLo,riHi){
 }
 
 function renderRatios(){
+  ratLoadUiPrefs();
   ratSyncModeUi();
   ratPopulateExpiry();
   const exp=document.getElementById('rat-expiry')?.value||ST.selExpiry;
@@ -421,6 +471,7 @@ function renderRatios(){
   const thHi=parseFloat(document.getElementById('rat-thresh-hi')?.value)||2.50;
   const thRiLo=parseFloat(document.getElementById('rat-thresh-ri-lo')?.value)||0.30;
   const thRiHi=parseFloat(document.getElementById('rat-thresh-ri-hi')?.value)||0.50;
+  ratSaveUiPrefs();
   const thIV=parseFloat(document.getElementById('rat-thresh-iv')?.value)||5.0;
   const thParity=parseFloat(document.getElementById('rat-thresh-parity')?.value)||10;
   const type=document.getElementById('rat-hm-type')?.value||'call';

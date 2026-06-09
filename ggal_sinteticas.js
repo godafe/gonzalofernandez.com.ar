@@ -10,7 +10,6 @@
 */
 
 const SYN = {
-  futTicker: 'GGAL/ABR26',
   // Threshold to mark opportunities (annualized).
   // Example: 0.10 = 10% annual.
   arbOppThresh: 0.10,
@@ -64,6 +63,21 @@ function synGetExpiry() {
   return ST.selExpiry || document.getElementById('expiry-sel')?.value || '';
 }
 
+function synMonthCodeFromExpiry(expiry) {
+  const m = String(expiry || '').match(/^(\d{4})-(\d{2})-\d{2}$/);
+  if (!m) return '';
+  const monthIdx = Number(m[2]) - 1;
+  const mn = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  return mn[monthIdx] || '';
+}
+
+function synGetFutTicker(expiry = synGetExpiry()) {
+  const m = String(expiry || '').match(/^(\d{4})-(\d{2})-\d{2}$/);
+  const monthCode = synMonthCodeFromExpiry(expiry);
+  if (!m || !monthCode) return '';
+  return `GGAL/${monthCode}${m[1].slice(-2)}`;
+}
+
 function synGetTYears(expiry) {
   if (!expiry) return NaN;
   const days = (new Date(expiry + 'T12:00:00') - Date.now()) / 86400000;
@@ -74,8 +88,8 @@ function synGetLiveSpot() {
   return isFinite(ST.spot) ? ST.spot : NaN;
 }
 
-function synGetLiveFut() {
-  const q = ST.futures?.[SYN.futTicker];
+function synGetLiveFut(expiry = synGetExpiry()) {
+  const q = ST.futures?.[synGetFutTicker(expiry)];
   const v = q?.last;
   return isFinite(v) ? v : NaN;
 }
@@ -86,26 +100,30 @@ function synGetLiveRatePct() {
 }
 
 function synGetParams() {
+  const expiry = synGetExpiry();
   const spotAuto = !!document.getElementById('syn-spot-auto')?.checked;
   const futAuto = !!document.getElementById('syn-fut-auto')?.checked;
   const rateAuto = !!document.getElementById('syn-rate-auto')?.checked;
 
   const spot = spotAuto ? synGetLiveSpot() : synParse(document.getElementById('syn-spot')?.value);
-  const fut = futAuto ? synGetLiveFut() : synParse(document.getElementById('syn-fut')?.value);
+  const futTicker = synGetFutTicker(expiry);
+  const fut = futAuto ? synGetLiveFut(expiry) : synParse(document.getElementById('syn-fut')?.value);
   const ratePct = rateAuto ? synGetLiveRatePct() : synParse(document.getElementById('syn-rate')?.value);
 
-  return { spotAuto, futAuto, rateAuto, spot, fut, ratePct };
+  return { spotAuto, futAuto, rateAuto, spot, fut, ratePct, futTicker };
 }
 
 function synSyncInputsFromAuto(params) {
   const spotEl = document.getElementById('syn-spot');
   const futEl = document.getElementById('syn-fut');
+  const futLabelEl = document.getElementById('syn-fut-label');
   const rateEl = document.getElementById('syn-rate');
   if (spotEl) {
     spotEl.disabled = params.spotAuto;
     spotEl.style.opacity = params.spotAuto ? '0.65' : '1';
     if (params.spotAuto) spotEl.value = synPlain(params.spot, 2);
   }
+  if (futLabelEl) futLabelEl.textContent = `Futuro ${params.futTicker || 'GGAL/--'}`;
   if (futEl) {
     futEl.disabled = params.futAuto;
     futEl.style.opacity = params.futAuto ? '0.65' : '1';
@@ -142,7 +160,7 @@ function renderSinteticas() {
   if (meta) {
     const expTxt = expiry ? fmtExpiry(expiry) : '--';
     const days = expiry ? Math.max(1, Math.round((new Date(expiry + 'T12:00:00') - Date.now()) / 86400000)) : null;
-    const futTxt = (params.futAuto && !(isFinite(params.fut) && params.fut > 0)) ? ` \u00b7 Fut ${SYN.futTicker}: --` : '';
+    const futTxt = (params.futAuto && !(isFinite(params.fut) && params.fut > 0)) ? ` \u00b7 Fut ${params.futTicker || 'GGAL/--'}: --` : '';
     meta.textContent = `Vencimiento ${expTxt}` + (days != null ? ` \u00b7 DTE ${days}d` : '') + futTxt;
   }
 

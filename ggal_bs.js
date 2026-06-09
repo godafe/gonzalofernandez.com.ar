@@ -103,9 +103,6 @@ const ST={
 function generateMockData(){
   const S=ST.spot,r=ST.rate,q=ST.q;
   const today=new Date();
-  // Mock de futuro (para el modulo Sinteticas)
-  ST.futures=ST.futures||{};
-  ST.futures['GGAL/ABR26']={last:Math.max(1, S*(0.95+Math.random()*0.05)), chg:null};
   const expirations=[];
   for(let m=1;m<=3;m++){
     const d=new Date(today);
@@ -134,6 +131,10 @@ function generateMockData(){
       };
     });
   });
+  // Mock de futuro (para el modulo Sinteticas) segun el vencimiento activo.
+  ST.futures=ST.futures||{};
+  const activeFutTicker=typeof synGetFutTicker==='function' ? synGetFutTicker(expirations[0]) : '';
+  if(activeFutTicker) ST.futures[activeFutTicker]={last:Math.max(1, S*(0.95+Math.random()*0.05)), chg:null};
   ST.expirations=expirations;ST.chain=chain;
   ST.selExpiry=expirations[0];
   const atmRow=chain[expirations[0]].find(r=>r.strike===base)||chain[expirations[0]][6];
