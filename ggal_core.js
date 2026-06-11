@@ -54,15 +54,26 @@ function sheetResolveEndpoint(sheet){
   return 'live';
 }
 
-async function sheetFetchRows(webAppUrl,sheet,{signal,endpoint}={}){
+async function sheetFetchRows(webAppUrl,sheet,{signal,endpoint,query,allowEmpty=false}={}){
   const resolvedEndpoint=(endpoint||sheetResolveEndpoint(sheet)||'live').trim();
-  const url=`${webAppUrl}?endpoint=${encodeURIComponent(resolvedEndpoint)}&sheet=${encodeURIComponent(sheet)}`;
+  const params=new URLSearchParams({
+    endpoint:resolvedEndpoint,
+    sheet:sheet||'',
+  });
+  if(query&&typeof query==='object'){
+    Object.entries(query).forEach(([key,value])=>{
+      if(value==null||value==='')return;
+      params.set(key,String(value));
+    });
+  }
+  const url=`${webAppUrl}?${params.toString()}`;
   const res=await fetch(url,{signal});
   if(!res.ok)throw new Error(`HTTP ${res.status}`);
   const data=await res.json();
   if(data.error)throw new Error(data.error);
   const rows=data.values||data;
-  if(!Array.isArray(rows)||!rows.length)throw new Error('Sin datos en la hoja');
+  if(!Array.isArray(rows))throw new Error('Respuesta invalida de la hoja');
+  if(!rows.length&&!allowEmpty)throw new Error('Sin datos en la hoja');
   return {rows,signature:sheetRowsSignature(rows)};
 }
 

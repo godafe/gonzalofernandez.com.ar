@@ -2631,6 +2631,7 @@
           <div style="display:flex;align-items:center;gap:6px;margin-right:8px">
             <button id="intra-mode-table" type="button" onclick="intraSetMode('table')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Vista Tabla</button>
             <button id="intra-mode-charts" type="button" onclick="intraSetMode('charts')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Vista Graficos</button>
+            <button id="intra-mode-markov" type="button" onclick="intraSetMode('markov')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px">Vista Markov</button>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <label for="intra-timeframe" style="color:var(--muted);white-space:nowrap">TF</label>
@@ -2646,6 +2647,10 @@
             <select id="intra-filter-hour" onchange="intraOnScopeChange()" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px;min-width:88px">
               <option value="__all__">Todos</option>
             </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label for="intra-extrema-count" style="color:var(--muted);white-space:nowrap">Extremos</label>
+            <input id="intra-extrema-count" type="number" min="1" step="1" value="4" onchange="renderIntradiarioCharts()" style="width:64px;background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:5px">
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <label for="intra-filter-type" style="color:var(--muted);white-space:nowrap">Tipo</label>
@@ -2668,6 +2673,7 @@
           <button id="intra-add-atm-btn" type="button" onclick="intraAddAtmSelections()" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,215,90,.35);background:rgba(255,215,90,.08);color:var(--amber);cursor:pointer;font-size:11px">Agregar ATM</button>
           <span id="intra-status" style="font-size:10px;color:var(--dim);margin-left:auto">Sin datos</span>
           <button id="intra-refresh-btn" class="btn-primary" onclick="fetchIntradiario()" style="padding:4px 12px;font-size:11px">Actualizar intradiario</button>
+          <button id="intra-reset-btn" type="button" onclick="intraReloadFull()" style="padding:4px 12px;font-size:11px;border-radius:6px;border:1px solid rgba(255,215,90,.35);background:rgba(255,215,90,.08);color:var(--amber);cursor:pointer">Limpiar intradiario</button>
         </div>
       </div>
 
@@ -2743,6 +2749,11 @@
       <div id="intra-charts-view" style="display:none;flex-direction:column;gap:14px">
         <div id="intra-chart-status" style="font-size:12px;color:var(--text)"></div>
         <div id="intra-dynamic-charts" style="display:grid;grid-template-columns:minmax(0,1fr);gap:14px"></div>
+      </div>
+
+      <div id="intra-markov-view" style="display:none;flex-direction:column;gap:14px">
+        <div id="intra-markov-status" style="font-size:12px;color:var(--text)"></div>
+        <div id="intra-markov-content" style="display:grid;grid-template-columns:minmax(0,1fr);gap:14px"></div>
       </div>
     </div>
   </div>

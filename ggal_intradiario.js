@@ -1,4 +1,4 @@
-const INTRA={
+﻿const INTRA={
   allRows:[],
   rows:[],
   strikes:[],
@@ -238,11 +238,12 @@ function intraLog(event,details={}){
 
 function intraGetMode(){
   const v=(localStorage.getItem('intra_mode')||'').trim();
-  return v==='charts'?'charts':'table';
+  if(v==='charts'||v==='markov')return v;
+  return 'table';
 }
 
 function intraSetMode(mode){
-  const next=mode==='charts'?'charts':'table';
+  const next=mode==='charts'||mode==='markov'?mode:'table';
   localStorage.setItem('intra_mode',next);
   intraApplyMode();
 }
@@ -261,9 +262,9 @@ function intraCrossPairKey(leftId,rightId){
 
 function intraSelectionDisplay(selection){
   if(!selection)return '--';
-  if(selection.useTicker)return `${intraTypeLabel(selection.type)} · ${selection.asset}`;
+  if(selection.useTicker)return `${intraTypeLabel(selection.type)} - ${selection.asset}`;
   const parsed=parseFloat(selection.asset);
-  return `${intraTypeLabel(selection.type)} · ${Number.isFinite(parsed)?fmtStrike(parsed):selection.asset}`;
+  return `${intraTypeLabel(selection.type)} - ${Number.isFinite(parsed)?fmtStrike(parsed):selection.asset}`;
 }
 
 function intraFindSelection(id){
@@ -482,10 +483,10 @@ function intraRenderSelections(){
       ondragend="intraOnSelectionDragEnd()"
       style="display:flex;align-items:center;gap:8px;background:${selection.visible===false?'rgba(25,31,40,.65)':'var(--surface2)'};border:1px solid ${selection.visible===false?'var(--border)':'var(--border2)'};border-radius:999px;padding:6px 10px;cursor:grab"
     >
-      <span title="Arrastrar para reordenar" style="font-size:12px;color:var(--dim);letter-spacing:-1px;user-select:none">⋮⋮</span>
-      <span style="font-family:var(--mono);font-size:11px;color:var(--text)"><span style="color:${intraTypeColor(selection.type)};font-weight:700">${intraTypeLabel(selection.type)}</span> · ${selection.useTicker?selection.asset:(Number.isFinite(parseFloat(selection.asset))?fmtStrike(parseFloat(selection.asset)):selection.asset)}</span>
+      <span title="Arrastrar para reordenar" style="font-size:12px;color:var(--dim);letter-spacing:-1px;user-select:none">::</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text)"><span style="color:${intraTypeColor(selection.type)};font-weight:700">${intraTypeLabel(selection.type)}</span> - ${selection.useTicker?selection.asset:(Number.isFinite(parseFloat(selection.asset))?fmtStrike(parseFloat(selection.asset)):selection.asset)}</span>
       <button type="button" onclick="intraToggleSelectionVisibility('${selection.id.replace(/'/g,"\\'")}')" style="border:1px solid ${selection.visible===false?'var(--border)':'rgba(255,215,90,.35)'};background:${selection.visible===false?'transparent':'rgba(255,215,90,.10)'};color:${selection.visible===false?'var(--dim)':'var(--amber)'};border-radius:999px;padding:1px 8px;cursor:pointer;font-size:10px;line-height:18px">${selection.visible===false?'No visible':'Visible'}</button>
-      <button type="button" onclick="intraRemoveSelection('${selection.id.replace(/'/g,"\\'")}')" style="border:1px solid var(--border);background:transparent;color:var(--dim);border-radius:999px;padding:0 7px;cursor:pointer;font-size:11px;line-height:18px">×</button>
+      <button type="button" onclick="intraRemoveSelection('${selection.id.replace(/'/g,"\\'")}')" style="border:1px solid var(--border);background:transparent;color:var(--dim);border-radius:999px;padding:0 7px;cursor:pointer;font-size:11px;line-height:18px">&times;</button>
     </div>`).join('');
   if(!INTRA.selectedCrosses.length){
     crossWrap.style.display='none';
@@ -501,7 +502,7 @@ function intraRenderSelections(){
     return `
       <div style="display:flex;align-items:center;gap:8px;background:${active?'rgba(255,215,90,.08)':'rgba(25,31,40,.65)'};border:1px solid ${active?'rgba(255,215,90,.22)':'var(--border)'};border-radius:999px;padding:6px 10px">
         <span style="font-family:var(--mono);font-size:11px;color:${active?'var(--text)':'var(--dim)'}">${intraSelectionDisplay(left)} -> ${intraSelectionDisplay(right)}</span>
-        <button type="button" onclick="intraRemoveCross('${cross.id.replace(/'/g,"\\'")}')" style="border:1px solid var(--border);background:transparent;color:var(--dim);border-radius:999px;padding:0 7px;cursor:pointer;font-size:11px;line-height:18px">Ã—</button>
+        <button type="button" onclick="intraRemoveCross('${cross.id.replace(/'/g,"\\'")}')" style="border:1px solid var(--border);background:transparent;color:var(--dim);border-radius:999px;padding:0 7px;cursor:pointer;font-size:11px;line-height:18px">&times;</button>
       </div>`;
   }).join('');
 }
@@ -536,7 +537,7 @@ function intraAddSelection(){
   const useTicker=type==='future'||type==='underlying'||type==='caucion';
   const id=intraCreateSelectionId();
   if(false&&INTRA.selectedComparisons.some(item=>item.id===id)){
-    showToast('Ese subtipo ya está agregado');
+    showToast('Ese subtipo ya esta agregado');
     return;
   }
   INTRA.selectedComparisons.push({type,asset,useTicker,visible:true,id});
@@ -830,8 +831,8 @@ function intraRenderSelections(){
   clearCrossesBtn.style.cursor=clearCrossesBtn.disabled?'not-allowed':'pointer';
   const pendingSelection=INTRA.pendingCrossSourceId?intraFindSelection(INTRA.pendingCrossSourceId):null;
   builderStatus.textContent=pendingSelection
-    ? `Seleccionado: ${intraSelectionDisplay(pendingSelection)}. Hacé click en otra pata para crear el cruce.`
-    : 'Hacé click en una pata y luego en otra para crear un cruce.';
+    ? `Seleccionado: ${intraSelectionDisplay(pendingSelection)}. Hace click en otra pata para crear el cruce.`
+    : 'Hace click en una pata y luego en otra para crear un cruce.';
   list.innerHTML=INTRA.selectedComparisons.map((selection)=>`
     <div
       onclick="intraToggleCrossBuilderSelection('${selection.id.replace(/'/g,"\\'")}')"
@@ -839,7 +840,7 @@ function intraRenderSelections(){
     >
       <span title="Click para elegir y cruzar con otro comparable" style="font-size:13px;font-weight:700;color:var(--amber);user-select:none;text-shadow:0 0 8px rgba(255,215,90,.18)">+</span>
       <span style="font-family:var(--mono);font-size:11px;color:${selection.visible===false?'var(--dim)':intraTypeColor(selection.type)}">${intraSelectionDisplay(selection)}</span>
-      <button type="button" title="${selection.visible===false?'No visible':'Visible'}" onclick="event.stopPropagation();intraToggleSelectionVisibility('${selection.id.replace(/'/g,"\\'")}')" style="border:1px solid ${selection.visible===false?'var(--border)':'rgba(255,215,90,.35)'};background:${selection.visible===false?'transparent':'rgba(255,215,90,.10)'};color:${selection.visible===false?'var(--dim)':'var(--amber)'};border-radius:999px;padding:1px 8px;cursor:pointer;font-size:12px;font-weight:700;line-height:18px">${selection.visible===false?'—':'👁️'}</button>
+      <button type="button" title="${selection.visible===false?'No visible':'Visible'}" onclick="event.stopPropagation();intraToggleSelectionVisibility('${selection.id.replace(/'/g,"\\'")}')" style="border:1px solid ${selection.visible===false?'var(--border)':'rgba(255,215,90,.35)'};background:${selection.visible===false?'transparent':'rgba(255,215,90,.10)'};color:${selection.visible===false?'var(--dim)':'var(--amber)'};border-radius:999px;padding:1px 8px;cursor:pointer;font-size:12px;font-weight:700;line-height:18px">${selection.visible===false?'&ndash;':'&#128065;'}</button>
       <button type="button" onclick="event.stopPropagation();intraRemoveSelection('${selection.id.replace(/'/g,"\\'")}')" style="border:1px solid var(--border);background:transparent;color:var(--dim);border-radius:999px;padding:0 7px;cursor:pointer;font-size:11px;line-height:18px">&times;</button>
     </div>`).join('');
   if(!INTRA.selectedCrosses.length){
@@ -865,7 +866,7 @@ function intraRenderSelections(){
       const active=cross.visible!==false&&left.visible!==false&&right.visible!==false;
       return `
         <div style="display:flex;align-items:center;gap:8px;background:${active?'rgba(255,215,90,.08)':'rgba(25,31,40,.65)'};border:1px solid ${active?'rgba(255,215,90,.22)':'var(--border)'};border-radius:999px;padding:6px 10px">
-          <span style="font-family:var(--mono);font-size:11px;color:${active?'var(--text)':'var(--dim)'}"><span style="color:${active?intraTypeColor(right.type):'var(--dim)'};font-weight:700">${intraTypeLabel(right.type)}</span> · ${right.useTicker?right.asset:(Number.isFinite(parseFloat(right.asset))?fmtStrike(parseFloat(right.asset)):right.asset)}</span>
+          <span style="font-family:var(--mono);font-size:11px;color:${active?'var(--text)':'var(--dim)'}"><span style="color:${active?intraTypeColor(right.type):'var(--dim)'};font-weight:700">${intraTypeLabel(right.type)}</span> - ${right.useTicker?right.asset:(Number.isFinite(parseFloat(right.asset))?fmtStrike(parseFloat(right.asset)):right.asset)}</span>
           <button type="button" onclick="intraRemoveCross('${cross.id.replace(/'/g,"\\'")}')" style="border:1px solid var(--border);background:transparent;color:var(--dim);border-radius:999px;padding:0 7px;cursor:pointer;font-size:11px;line-height:18px">&times;</button>
         </div>`;
     }).join('');
@@ -875,14 +876,14 @@ function intraRenderSelections(){
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Origen</div>
           <div style="display:flex;align-items:center;gap:6px">
             ${prefs.generated
-              ? `<button type="button" title="${groupVisible?'Visible':'No visible'}" onclick="intraToggleCrossGroupVisibility('${left.id.replace(/'/g,"\\'")}')" style="border:1px solid ${groupVisible?'rgba(255,215,90,.35)':'var(--border)'};background:${groupVisible?'rgba(255,215,90,.10)':'transparent'};color:${groupVisible?'var(--amber)':'var(--dim)'};border-radius:999px;padding:1px 8px;cursor:pointer;font-size:12px;font-weight:700;line-height:18px">${groupVisible?'👁️':'—'}</button>`
-              : `<button type="button" title="Generar gráfico para este origen" onclick="intraGenerateCrossGroupChart('${left.id.replace(/'/g,"\\'")}')" style="border:1px solid rgba(255,215,90,.35);background:transparent;color:var(--amber);border-radius:999px;padding:1px 10px;cursor:pointer;font-size:10px;font-weight:700;line-height:18px">Generar</button>`
+              ? `<button type="button" title="${groupVisible?'Visible':'No visible'}" onclick="intraToggleCrossGroupVisibility('${left.id.replace(/'/g,"\\'")}')" style="border:1px solid ${groupVisible?'rgba(255,215,90,.35)':'var(--border)'};background:${groupVisible?'rgba(255,215,90,.10)':'transparent'};color:${groupVisible?'var(--amber)':'var(--dim)'};border-radius:999px;padding:1px 8px;cursor:pointer;font-size:12px;font-weight:700;line-height:18px">${groupVisible?'&#128065;':'&ndash;'}</button>`
+              : `<button type="button" title="Generar grafico para este origen" onclick="intraGenerateCrossGroupChart('${left.id.replace(/'/g,"\\'")}')" style="border:1px solid rgba(255,215,90,.35);background:transparent;color:var(--amber);border-radius:999px;padding:1px 10px;cursor:pointer;font-size:10px;font-weight:700;line-height:18px">Generar</button>`
             }
             <button type="button" title="Quitar todos los cruces de este origen" onclick="intraRemoveCrossGroup('${left.id.replace(/'/g,"\\'")}')" style="border:1px solid var(--border);background:transparent;color:var(--dim);border-radius:999px;padding:0 7px;cursor:pointer;font-size:11px;line-height:18px">&times;</button>
           </div>
         </div>
         <div style="display:inline-flex;align-items:center;gap:8px;width:fit-content;background:rgba(255,215,90,.10);border:1px solid rgba(255,215,90,.22);border-radius:999px;padding:6px 10px">
-          <span style="font-family:var(--mono);font-size:11px;color:var(--text)"><span style="color:${intraTypeColor(left.type)};font-weight:700">${intraTypeLabel(left.type)}</span> · ${left.useTicker?left.asset:(Number.isFinite(parseFloat(left.asset))?fmtStrike(parseFloat(left.asset)):left.asset)}</span>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--text)"><span style="color:${intraTypeColor(left.type)};font-weight:700">${intraTypeLabel(left.type)}</span> - ${left.useTicker?left.asset:(Number.isFinite(parseFloat(left.asset))?fmtStrike(parseFloat(left.asset)):left.asset)}</span>
         </div>
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-top:2px">Cruza con</div>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,max-content));gap:8px;align-content:start">${rows}</div>
@@ -894,16 +895,21 @@ function intraApplyMode(){
   const mode=intraGetMode();
   const btnTable=document.getElementById('intra-mode-table');
   const btnCharts=document.getElementById('intra-mode-charts');
+  const btnMarkov=document.getElementById('intra-mode-markov');
   const tableView=document.getElementById('intra-table-view');
   const chartsView=document.getElementById('intra-charts-view');
+  const markovView=document.getElementById('intra-markov-view');
   const activeStyle=(active)=>active
     ? 'background:rgba(255,215,90,.14);border-color:rgba(255,215,90,.55);color:var(--amber)'
     : 'background:var(--surface2);border-color:var(--border);color:var(--text)';
   if(btnTable)btnTable.style.cssText=btnTable.style.cssText.replace(/background:[^;]+;?/g,'').replace(/border-color:[^;]+;?/g,'').replace(/color:[^;]+;?/g,'')+';'+activeStyle(mode==='table');
   if(btnCharts)btnCharts.style.cssText=btnCharts.style.cssText.replace(/background:[^;]+;?/g,'').replace(/border-color:[^;]+;?/g,'').replace(/color:[^;]+;?/g,'')+';'+activeStyle(mode==='charts');
+  if(btnMarkov)btnMarkov.style.cssText=btnMarkov.style.cssText.replace(/background:[^;]+;?/g,'').replace(/border-color:[^;]+;?/g,'').replace(/color:[^;]+;?/g,'')+';'+activeStyle(mode==='markov');
   if(tableView)tableView.style.display=mode==='table'?'block':'none';
   if(chartsView)chartsView.style.display=mode==='charts'?'flex':'none';
+  if(markovView)markovView.style.display=mode==='markov'?'flex':'none';
   if(mode==='charts')renderIntradiarioCharts();
+  if(mode==='markov')renderIntradiarioMarkov();
 }
 
 function intraToggleSection(sectionId,btn){
@@ -961,6 +967,19 @@ function intraNormalizeTime(time){
 function intraGetTimeframe(){
   const raw=parseInt(document.getElementById('intra-timeframe')?.value||'5',10);
   return [1,5,10,30].includes(raw)?raw:5;
+}
+
+function intraGetExtremaCount(){
+  const raw=parseInt(document.getElementById('intra-extrema-count')?.value||'4',10);
+  return Number.isFinite(raw)&&raw>0?raw:4;
+}
+
+function intraTimeAtOrAfter(time,threshold){
+  const normTime=intraNormalizeTime(time);
+  const normThreshold=intraNormalizeTime(threshold);
+  if(!normThreshold||normThreshold==='__all__')return true;
+  if(!normTime)return false;
+  return normTime.localeCompare(normThreshold)>=0;
 }
 
 function intraTimeMatchesFrame(time,frame){
@@ -1097,9 +1116,11 @@ function intraSetLoading(active,text=''){
   const elapsedEl=document.getElementById('intra-loader-elapsed');
   const barEl=document.getElementById('intra-loader-bar');
   const btn=document.getElementById('intra-refresh-btn');
+  const resetBtn=document.getElementById('intra-reset-btn');
   if(wrap)wrap.style.display=active?'block':'none';
   if(textEl&&text)textEl.textContent=text;
   if(btn)btn.disabled=!!active;
+  if(resetBtn)resetBtn.disabled=!!active;
   if(btn)btn.textContent=active?'Cargando...':'Actualizar intradiario';
   if(active){
     intraLoaderStartedAt=Date.now();
@@ -1174,13 +1195,92 @@ function intraApplyScope(){
   let scoped=INTRA.allRows.filter(row=>intraTimeMatchesFrame(row.time,frame));
   scoped=hour==='__all__'||!hour
     ? scoped
-    : scoped.filter(row=>intraNormalizeTime(row.time)===hour);
+    : scoped.filter(row=>intraTimeAtOrAfter(row.time,hour));
   INTRA.rows=scoped;
   intraRefreshAssetOptions();
   intraPopulateStrikes();
   intraUpdateAssetVisibility();
   const hourSel=document.getElementById('intra-filter-hour');
   if(hourSel)hourSel.disabled=!INTRA.hours.length;
+}
+
+function intraRowStamp(row){
+  const date=(row?.date||'').toString().trim();
+  const time=intraNormalizeTime(row?.time||'');
+  return [date,time].filter(Boolean).join(' ');
+}
+
+function intraCompareRowsByStamp(a,b){
+  return intraRowStamp(a).localeCompare(intraRowStamp(b));
+}
+
+function intraDetectSortDirection(rows){
+  if(!Array.isArray(rows)||rows.length<2)return 'asc';
+  let first=null;
+  let last=null;
+  for(let i=0;i<rows.length;i++){
+    if(intraRowStamp(rows[i])){
+      first=rows[i];
+      break;
+    }
+  }
+  for(let i=rows.length-1;i>=0;i--){
+    if(intraRowStamp(rows[i])){
+      last=rows[i];
+      break;
+    }
+  }
+  if(!first||!last)return 'asc';
+  return intraCompareRowsByStamp(first,last)>0?'desc':'asc';
+}
+
+function intraRowMergeKey(row){
+  const strike=Number.isFinite(row?.strike)?String(row.strike):'';
+  return [
+    row?.date||'',
+    intraNormalizeTime(row?.time||''),
+    row?.ticker||'',
+    row?.type||'',
+    strike,
+  ].join('|');
+}
+
+function intraLatestKnownTimestamp(rows=INTRA.allRows){
+  if(!Array.isArray(rows)||!rows.length)return null;
+  let latest=null;
+  rows.forEach(row=>{
+    if(!intraRowStamp(row))return;
+    if(!latest||intraCompareRowsByStamp(row,latest)>0)latest=row;
+  });
+  if(!latest)return null;
+  const time=intraNormalizeTime(latest.time||'');
+  return {
+    date:latest.date||'',
+    time,
+    stamp:intraRowStamp(latest),
+  };
+}
+
+function intraMergeParsedRows(currentRows,incomingRows){
+  const base=Array.isArray(currentRows)?currentRows:[];
+  const next=Array.isArray(incomingRows)?incomingRows:[];
+  if(!base.length)return next.slice();
+  if(!next.length)return base.slice();
+
+  const merged=new Map();
+  base.forEach(row=>{
+    merged.set(intraRowMergeKey(row),row);
+  });
+  next.forEach(row=>{
+    merged.set(intraRowMergeKey(row),row);
+  });
+
+  const direction=intraDetectSortDirection(base);
+  return [...merged.values()].sort((a,b)=>{
+    const byStamp=intraCompareRowsByStamp(a,b);
+    if(byStamp!==0)return direction==='desc' ? -byStamp : byStamp;
+    return intraRowMergeKey(a).localeCompare(intraRowMergeKey(b));
+  });
 }
 
 function intraOnScopeChange(){
@@ -1221,18 +1321,9 @@ function intraRefreshHours(){
   intraPopulateHours();
 }
 
-function parseIntradiarioRows(rows){
+function intraParseRowsPayload(rows){
   if(!Array.isArray(rows)||rows.length<2){
-    INTRA.allRows=[];
-    INTRA.rows=[];
-    INTRA.strikes=[];
-    INTRA.tickers=[];
-    INTRA.rawHours=[];
-    INTRA.hours=[];
-    INTRA.selectedHour='';
-    intraPopulateHours();
-    intraPopulateStrikes();
-    return;
+    return [];
   }
 
   const headerRowIdx=(+document.getElementById('intra-header-row')?.value||1)-1;
@@ -1251,7 +1342,6 @@ function parseIntradiarioRows(rows){
   };
 
   const parsed=[];
-  const hourSet=new Set();
   dataRows.forEach(cols=>{
     if(!cols?.length)return;
     const ticker=(cols[ci.ticker]||'').toString().trim();
@@ -1270,8 +1360,6 @@ function parseIntradiarioRows(rows){
     const hasBid=Number.isFinite(bid)&&bid>0;
     const hasAsk=Number.isFinite(ask)&&ask>0;
     const mid=hasBid&&hasAsk?(bid+ask)/2:null;
-    if(ts.time)hourSet.add(ts.time);
-
     parsed.push({
       tsLabel:ts.label,
       date:ts.date,
@@ -1292,13 +1380,39 @@ function parseIntradiarioRows(rows){
     });
   });
 
-  INTRA.allRows=parsed;
-  INTRA.rawHours=[...hourSet].map(intraNormalizeTime).filter(Boolean).sort((a,b)=>a.localeCompare(b));
-  if(!INTRA.selectedHour||(!INTRA.rawHours.includes(INTRA.selectedHour)&&INTRA.selectedHour!=='__all__')){
-    INTRA.selectedHour='__all__';
+  return parsed;
+}
+
+function parseIntradiarioRows(rows){
+  const parsed=intraParseRowsPayload(rows);
+  if(!parsed.length){
+    INTRA.allRows=[];
+    INTRA.rows=[];
+    INTRA.strikes=[];
+    INTRA.tickers=[];
+    INTRA.rawHours=[];
+    INTRA.hours=[];
+    INTRA.selectedHour='';
+    intraPopulateHours();
+    intraPopulateStrikes();
+    return;
   }
-  intraRefreshHours();
-  intraApplyScope();
+
+  intraHydrateRows(parsed);
+}
+
+function intraResetDataState(){
+  INTRA.allRows=[];
+  INTRA.rows=[];
+  INTRA.strikes=[];
+  INTRA.tickers=[];
+  INTRA.rawHours=[];
+  INTRA.hours=[];
+  INTRA.fetchedAt=null;
+  INTRA.lastSignature='';
+  if(INTRA.selectedHour!=='__all__'){
+    INTRA.selectedHour='';
+  }
 }
 
 function intraFilteredRows(){
@@ -1313,14 +1427,14 @@ function intraGraphRows(){
   const frame=intraGetTimeframe();
   intraLoadSelections();
   if(!intraHasCrosses()){
-    if(status)status.textContent='Elegí Tipo, Subtipo y presioná Agregar para comparar series.';
+    if(status)status.textContent='Elegi Tipo, Subtipo y presiona Agregar para comparar series.';
     return null;
   }
   const activeSelections=intraActiveSelections();
   const selectedHour=INTRA.selectedHour||'__all__';
   const rows=INTRA.allRows
     .filter(row=>intraTimeMatchesFrame(row.time,frame))
-    .filter(row=>selectedHour==='__all__'||!selectedHour?true:(intraNormalizeTime(row.time)===selectedHour))
+    .filter(row=>selectedHour==='__all__'||!selectedHour?true:intraTimeAtOrAfter(row.time,selectedHour))
     .filter(row=>activeSelections.some(selection=>intraSelectionMatchesRow(selection,row)))
     .filter(row=>row.last!=null&&isFinite(row.last))
     .slice()
@@ -1339,7 +1453,7 @@ function intraGraphRows(){
     const selectionRows=rows.filter(row=>intraSelectionMatchesRow(selection,row));
     const map=new Map(selectionRows.map(row=>[row.time||'--',row.last]));
     const color=palette[index%palette.length];
-    return {
+    return intraDecorateDatasetExtrema({
       selectionId:selection.id,
       label:intraSelectionLegend(selection,activeSelections),
       data:labels.map(label=>map.has(label)?parseFloat(map.get(label).toFixed(4)):null),
@@ -1349,10 +1463,10 @@ function intraGraphRows(){
       pointBackgroundColor:color,
       fill:false,
       spanGaps:true,
-    };
+    });
   }).filter(dataset=>dataset.data.some(v=>v!=null));
   if(!datasets.length){
-    if(status)status.textContent='No hay series válidas para graficar con los comparables elegidos.';
+    if(status)status.textContent='No hay series validas para graficar con los comparables elegidos.';
     return null;
   }
   if(status)status.textContent=`Comparando ${datasets.length} serie(s) de Last activas por cruces visibles.`;
@@ -1402,7 +1516,7 @@ function renderIntradiarioCharts(){
   const strategyStatus=document.getElementById('intra-chart-strategy-status');
   const activeCrosses=intraVisibleCrosses();
   if(!activeCrosses.length){
-    if(strategyStatus)strategyStatus.textContent='Agregá al menos 2 comparables visibles para generar estrategias derivadas.';
+    if(strategyStatus)strategyStatus.textContent='Agrega al menos 2 comparables visibles para generar estrategias derivadas.';
     if(INTRA.charts.strategy){
       INTRA.charts.strategy.destroy();
       INTRA.charts.strategy=null;
@@ -1424,7 +1538,7 @@ function renderIntradiarioCharts(){
     const values=series.labels.map((_,idx)=>intraStrategyCompute(kind,leftSet.data[idx],rightSet.data[idx]));
     if(!values.some(v=>v!=null))continue;
     const color=palette[pairDatasets.length%palette.length];
-    pairDatasets.push({
+    pairDatasets.push(intraDecorateDatasetExtrema({
       label:`${intraStrategyLabel(kind)} ${pairDatasets.length+1}: ${intraSelectionDisplay(left)} / ${intraSelectionDisplay(right)}`,
       data:values.map(v=>v!=null?parseFloat(v.toFixed(4)):null),
       borderColor:color,
@@ -1433,7 +1547,7 @@ function renderIntradiarioCharts(){
       pointBackgroundColor:color,
       fill:false,
       spanGaps:true,
-    });
+    }));
   }
 
   if(!pairDatasets.length){
@@ -1446,7 +1560,7 @@ function renderIntradiarioCharts(){
   }
 
   if(strategyStatus){
-    strategyStatus.textContent=`Comparando ${pairDatasets.length} relación(es) ${intraStrategyLabel(kind)} a partir de pares visibles consecutivos.`;
+    strategyStatus.textContent=`Comparando ${pairDatasets.length} relacion(es) ${intraStrategyLabel(kind)} a partir de pares visibles consecutivos.`;
   }
 
   upsertChart(INTRA.charts,'strategy','intra-chart-strategy',{
@@ -1493,11 +1607,72 @@ function intraRowsForSelectionIds(ids){
   const selectedHour=INTRA.selectedHour||'__all__';
   return INTRA.allRows
     .filter(row=>intraTimeMatchesFrame(row.time,frame))
-    .filter(row=>selectedHour==='__all__'||!selectedHour?true:(intraNormalizeTime(row.time)===selectedHour))
+    .filter(row=>selectedHour==='__all__'||!selectedHour?true:intraTimeAtOrAfter(row.time,selectedHour))
     .filter(row=>row.last!=null&&isFinite(row.last))
     .filter(row=>(INTRA.selectedComparisons||[]).some(selection=>set.has(selection.id)&&intraSelectionMatchesRow(selection,row)))
     .slice()
     .sort((a,b)=>`${a.date||''} ${a.time||''}`.localeCompare(`${b.date||''} ${b.time||''}`));
+}
+
+function intraPointHighlightColors(baseColor){
+  const src=String(baseColor||'').trim().toLowerCase();
+  const isGreen=src==='#44c76a'||src==='var(--green)';
+  const isRed=src==='#f05a5a'||src==='var(--red)';
+  if(isGreen||isRed){
+    return {max:'#e8b84b',min:'#5aabff'};
+  }
+  return {max:'#44c76a',min:'#f05a5a'};
+}
+
+function intraDecorateDatasetExtrema(dataset){
+  const data=Array.isArray(dataset?.data)?dataset.data:[];
+  const valid=data
+    .map((value,index)=>({value,index}))
+    .filter(item=>item.value!=null&&isFinite(item.value));
+  if(!valid.length)return dataset;
+
+  const baseColor=dataset.borderColor||'#e8b84b';
+  const highlight=intraPointHighlightColors(baseColor);
+  const extremaCount=intraGetExtremaCount();
+  const top=[...valid]
+    .sort((a,b)=>b.value-a.value||a.index-b.index)
+    .slice(0,extremaCount)
+    .map(item=>item.index);
+  const bottom=[...valid]
+    .sort((a,b)=>a.value-b.value||a.index-b.index)
+    .filter(item=>!top.includes(item.index))
+    .slice(0,extremaCount)
+    .map(item=>item.index);
+  const topSet=new Set(top);
+  const bottomSet=new Set(bottom);
+
+  return {
+    ...dataset,
+    pointRadius:data.map((value,index)=>{
+      if(value==null||!isFinite(value))return 0;
+      return topSet.has(index)||bottomSet.has(index)?5.5:3;
+    }),
+    pointHoverRadius:data.map((value,index)=>{
+      if(value==null||!isFinite(value))return 0;
+      return topSet.has(index)||bottomSet.has(index)?7:4;
+    }),
+    pointBackgroundColor:data.map((value,index)=>{
+      if(value==null||!isFinite(value))return 'transparent';
+      if(topSet.has(index))return highlight.max;
+      if(bottomSet.has(index))return highlight.min;
+      return baseColor;
+    }),
+    pointBorderColor:data.map((value,index)=>{
+      if(value==null||!isFinite(value))return 'transparent';
+      if(topSet.has(index))return highlight.max;
+      if(bottomSet.has(index))return highlight.min;
+      return baseColor;
+    }),
+    pointBorderWidth:data.map((value,index)=>{
+      if(value==null||!isFinite(value))return 0;
+      return topSet.has(index)||bottomSet.has(index)?1.5:1;
+    }),
+  };
 }
 
 function intraBuildGroupChartSeries(group,kind){
@@ -1511,7 +1686,7 @@ function intraBuildGroupChartSeries(group,kind){
     return [selection.id,new Map(selectionRows.map(row=>[row.time||'--',row.last]))];
   }));
   if(kind==='price'){
-    const datasets=selections.map((selection,index)=>({
+    const datasets=selections.map((selection,index)=>intraDecorateDatasetExtrema({
       selectionId:selection.id,
       label:intraSelectionLegend(selection,selections),
       data:labels.map(label=>maps.get(selection.id)?.has(label)?parseFloat(maps.get(selection.id).get(label).toFixed(4)):null),
@@ -1537,7 +1712,7 @@ function intraBuildGroupChartSeries(group,kind){
           return (bull2-bull1)*intraStrategyLots();
         })
       : labels.map((_,idx)=>intraStrategyCompute(kind,leftValues[idx],rightValues[idx]));
-    return {
+    return intraDecorateDatasetExtrema({
       selectionId:item.cross.id,
       label:`${intraStrategyLabel(kind)}: ${intraSelectionDisplay(group.left)} / ${intraSelectionDisplay(item.right)}`,
       data:values.map(v=>v!=null?parseFloat(v.toFixed(4)):null),
@@ -1547,7 +1722,7 @@ function intraBuildGroupChartSeries(group,kind){
       pointBackgroundColor:palette[index%palette.length],
       fill:false,
       spanGaps:true,
-    };
+    });
   }).filter(dataset=>dataset.data.some(v=>v!=null));
   return datasets.length?{labels,datasets}:null;
 }
@@ -1586,10 +1761,266 @@ function intraChartConfig(series){
   };
 }
 
+function intraMarkovStateFromZ(zScore){
+  if(zScore==null||!isFinite(zScore))return null;
+  if(zScore>=0.5)return 'up';
+  if(zScore<=-0.5)return 'down';
+  return 'flat';
+}
+
+function intraMarkovScoreForState(states,currentIndex){
+  const currentState=states[currentIndex];
+  if(!currentState)return null;
+  const counts={
+    up:{up:0,flat:0,down:0},
+    flat:{up:0,flat:0,down:0},
+    down:{up:0,flat:0,down:0},
+  };
+  for(let i=1;i<currentIndex;i+=1){
+    const prev=states[i-1];
+    const next=states[i];
+    if(!prev||!next||!counts[prev])continue;
+    counts[prev][next]+=1;
+  }
+  const bucket=counts[currentState];
+  const total=(bucket?.up||0)+(bucket?.flat||0)+(bucket?.down||0);
+  if(!total)return 0;
+  return ((bucket.up||0)-(bucket.down||0))/total;
+}
+
+function intraGeneratedCrossGroups(){
+  return intraCrossGroups()
+    .map(group=>({group,prefs:intraCrossGroupPref(group.left.id)}))
+    .filter(item=>item.prefs.generated&&item.prefs.visible!==false);
+}
+
+function intraGroupTitleSubtitle(group,prefs){
+  return {
+    title:(prefs.kind==='price'?'Precio':intraStrategyLabel(prefs.kind))+' vs Hora',
+    subtitle:prefs.kind==='price'
+      ? `${intraSelectionDisplay(group.left)} + ${group.crosses.length} destino(s)`
+      : `${intraSelectionDisplay(group.left)} contra ${group.crosses.length} destino(s)`,
+  };
+}
+
+function intraBuildMarkovPoints(labels,values){
+  const validValues=values.filter(value=>value!=null&&isFinite(value));
+  if(validValues.length<2)return [];
+  const rollingWindow=Math.min(12,Math.max(4,validValues.length));
+  const points=values.map((value,index)=>{
+    if(value==null||!isFinite(value)){
+      return {
+        time:labels[index]||'--',
+        value:null,
+        zScore:null,
+      };
+    }
+    const windowValues=[];
+    for(let cursor=index;cursor>=0&&windowValues.length<rollingWindow;cursor-=1){
+      const sample=values[cursor];
+      if(sample!=null&&isFinite(sample))windowValues.unshift(sample);
+    }
+    const mean=windowValues.length?windowValues.reduce((acc,sample)=>acc+sample,0)/windowValues.length:null;
+    const variance=windowValues.length>1
+      ? windowValues.reduce((acc,sample)=>acc+Math.pow(sample-(mean||0),2),0)/(windowValues.length-1)
+      : 0;
+    const deviation=variance>0?Math.sqrt(variance):0;
+    const zScore=mean!=null&&deviation>0?(value-mean)/deviation:0;
+    return {
+      time:labels[index]||'--',
+      value,
+      zScore:Number.isFinite(zScore)?parseFloat(zScore.toFixed(4)):null,
+    };
+  });
+  const states=points.map(point=>intraMarkovStateFromZ(point.zScore));
+  return points.map((point,index)=>({
+    ...point,
+    state:states[index],
+    markovScore:point.value==null?null:parseFloat((intraMarkovScoreForState(states,index)??0).toFixed(4)),
+  }));
+}
+
+function intraBuildGroupMarkovSeries(group,kind){
+  const baseSeries=intraBuildGroupChartSeries(group,kind);
+  if(!baseSeries?.labels?.length||!baseSeries?.datasets?.length)return null;
+  const palette=['#e8b84b','#5aabff','#44c76a','#f05a5a','#b088f0','#58d1c9','#f29d50','#a3e635'];
+  const tables=[];
+  const chartDatasets=[];
+  baseSeries.datasets.forEach((dataset,index)=>{
+    const points=intraBuildMarkovPoints(baseSeries.labels,dataset.data||[]);
+    if(points.length<2)return;
+    const color=palette[index%palette.length];
+    tables.push({
+      label:dataset.label,
+      points,
+    });
+    chartDatasets.push({
+      label:`Z ${dataset.label}`,
+      data:points.map(point=>point.zScore),
+      borderColor:color,
+      backgroundColor:color,
+      borderWidth:1.8,
+      pointRadius:3,
+      pointHoverRadius:4,
+      fill:false,
+      spanGaps:true,
+      tension:0.2,
+    });
+    chartDatasets.push({
+      label:`Markov ${dataset.label}`,
+      data:points.map(point=>point.markovScore),
+      borderColor:color,
+      backgroundColor:color,
+      borderWidth:1.6,
+      borderDash:[7,4],
+      pointRadius:2.5,
+      pointHoverRadius:4,
+      fill:false,
+      spanGaps:true,
+      tension:0.2,
+    });
+  });
+  if(!tables.length||!chartDatasets.length)return null;
+  return {
+    labels:baseSeries.labels,
+    tables,
+    chartDatasets,
+  };
+}
+
+function intraMarkovChartConfig(series){
+  return {
+    type:'line',
+    data:{
+      labels:series.labels,
+      datasets:series.chartDatasets,
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:false,
+      plugins:{
+        legend:{display:true,labels:{color:'#7a8fa6',font:{size:9},boxWidth:10,padding:10}},
+        tooltip:{
+          backgroundColor:'#131920',
+          borderColor:'#2a3444',
+          borderWidth:1,
+          titleColor:'#7a8fa6',
+          bodyColor:'#d8e3ef',
+          callbacks:{label:c=>` ${c.dataset.label}: ${c.raw!=null?fmtN(c.raw,3):'--'}`},
+        },
+      },
+      scales:{
+        x:{ticks:{color:'#7a8fa6',font:{size:9},maxRotation:45,minRotation:45,autoSkip:false},grid:{color:'#1a2230'}},
+        y:{
+          ticks:{color:'#7a8fa6',font:{size:9},callback:v=>v!=null?fmtN(v,2):'--'},
+          grid:{
+            color:ctx=>ctx?.tick?.value===0?'rgba(255,255,255,.18)':'#1a2230',
+            lineWidth:ctx=>ctx?.tick?.value===0?1.1:1,
+          }
+        },
+      },
+    },
+  };
+}
+
+function renderIntradiarioMarkov(){
+  const status=document.getElementById('intra-markov-status');
+  const wrap=document.getElementById('intra-markov-content');
+  if(!status||!wrap)return;
+  Object.keys(INTRA.charts||{}).forEach(key=>{
+    INTRA.charts[key]?.destroy?.();
+    delete INTRA.charts[key];
+  });
+
+  const generatedGroups=intraGeneratedCrossGroups();
+  if(!generatedGroups.length){
+    status.textContent='Genera cruces para habilitar la vista Markov.';
+    wrap.innerHTML='';
+    return;
+  }
+
+  const built=generatedGroups
+    .map(({group,prefs})=>({
+      group,
+      prefs,
+      markov:intraBuildGroupMarkovSeries(group,prefs.kind),
+    }))
+    .filter(item=>item.markov?.tables?.length);
+
+  if(!built.length){
+    status.textContent='No hay suficientes puntos para calcular Z-Score y Markov sobre los cruces generados.';
+    wrap.innerHTML='';
+    return;
+  }
+
+  status.textContent=`Mostrando ${built.length} bloque(s) de Z-Score y Markov construidos sobre cruces generados.`;
+  wrap.innerHTML=built.map(({group,prefs,markov},index)=>{
+    const meta=intraGroupTitleSubtitle(group,prefs);
+    return `
+    <div class="panel" style="padding:14px" data-intra-collapsible="1">
+      <div data-intra-collapse-header="1" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Markov sobre ${meta.title}</div>
+          <div style="font-size:12px;color:var(--text)">${meta.subtitle}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select onchange="intraSetCrossGroupKind('${group.left.id.replace(/'/g,"\\'")}',this.value)" style="background:var(--surface);border:1px solid var(--border);color:var(--amber);font-family:var(--mono);font-size:12px;padding:3px 10px;border-radius:5px;min-width:120px;text-align:center;text-align-last:center">
+            <option value="price" ${prefs.kind==='price'?'selected':''}>Precio</option>
+            <option value="bull" ${prefs.kind==='bull'?'selected':''}>Bull</option>
+            <option value="bullstrat" ${prefs.kind==='bullstrat'?'selected':''}>Bull Strat</option>
+            <option value="bear" ${prefs.kind==='bear'?'selected':''}>Bear</option>
+            <option value="rc" ${prefs.kind==='rc'?'selected':''}>RC</option>
+            <option value="ri" ${prefs.kind==='ri'?'selected':''}>RI</option>
+            <option value="straddle" ${prefs.kind==='straddle'?'selected':''}>Straddle</option>
+          </select>
+          <button type="button" class="btn-sm" style="padding:2px 8px;min-width:30px">&#9662;</button>
+        </div>
+      </div>
+      <div id="intra-section-markov-${index}" style="display:block">
+        <div style="position:relative;height:300px;margin-bottom:14px"><canvas id="intra-markov-chart-${group.left.id}"></canvas></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
+          ${markov.tables.map(table=>`
+            <div style="border:1px solid var(--border);border-radius:8px;overflow:auto;max-height:360px">
+              <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text);background:var(--surface2)">${table.label}</div>
+              <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+                <thead style="position:sticky;top:0;z-index:2;background:var(--surface2)">
+                  <tr>
+                    <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Hora</th>
+                    <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Valor</th>
+                    <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Z-Score</th>
+                    <th style="padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;color:var(--muted);font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.6px">Markov</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${table.points.map(point=>`
+                    <tr style="border-bottom:1px solid var(--border2)">
+                      <td style="padding:5px 8px;text-align:center;color:var(--muted);white-space:nowrap">${point.time}</td>
+                      <td style="padding:5px 8px;text-align:center;color:var(--text)">${point.value!=null?intraFmt(point.value):'--'}</td>
+                      <td style="padding:5px 8px;text-align:center;color:${(point.zScore||0)>=0?'var(--green)':'var(--red)'}">${point.zScore!=null?fmtN(point.zScore,3):'--'}</td>
+                      <td style="padding:5px 8px;text-align:center;color:${(point.markovScore||0)>=0?'var(--blue)':'var(--red)'}">${point.markovScore!=null?fmtN(point.markovScore,3):'--'}</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  intraBindCollapseCarets();
+  built.forEach(({group,markov})=>{
+    upsertChart(INTRA.charts,`markov_${group.left.id}`,`intra-markov-chart-${group.left.id}`,intraMarkovChartConfig(markov));
+  });
+}
+
 function intraSetCrossGroupKind(leftId,kind){
   intraLoadSelections();
   intraSetCrossGroupPref(leftId,{kind});
   intraSaveSelections();
+  if(intraGetMode()==='markov'){
+    renderIntradiarioMarkov();
+    return;
+  }
   renderIntradiarioCharts();
 }
 
@@ -1603,7 +2034,7 @@ function renderIntradiarioCharts(){
   });
   const groups=intraCrossGroups();
   if(!groups.length){
-    status.textContent='Crea cruces para habilitar la generación de gráficos.';
+    status.textContent='Crea cruces para habilitar la generacion de graficos.';
     wrap.innerHTML='';
     return;
   }
@@ -1611,11 +2042,11 @@ function renderIntradiarioCharts(){
     .map(group=>({group,prefs:intraCrossGroupPref(group.left.id)}))
     .filter(item=>item.prefs.generated&&item.prefs.visible!==false);
   if(!generatedGroups.length){
-    status.textContent='Todavía no hay gráficos generados. Usá "Generar" en alguno de los bloques de Origen.';
+    status.textContent='Todavia no hay graficos generados. Usa "Generar" en alguno de los bloques de Origen.';
     wrap.innerHTML='';
     return;
   }
-  status.textContent=`Mostrando ${generatedGroups.length} gráfico(s) generados desde los cruces.`;
+  status.textContent=`Mostrando ${generatedGroups.length} grafico(s) generados desde los cruces.`;
   wrap.innerHTML=generatedGroups.map(({group,prefs},index)=>{
     const title=(prefs.kind==='price'?'Precio':intraStrategyLabel(prefs.kind))+' vs Hora';
     const subtitle=prefs.kind==='price'
@@ -1667,11 +2098,13 @@ function renderIntradiario(){
   intraBindCollapseCarets();
 
   if(!INTRA.allRows.length){
-    body.innerHTML='<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--muted)">Usá "Actualizar intradiario" para cargar datos</td></tr>';
+    body.innerHTML='<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--muted)">Usa "Actualizar intradiario" para cargar datos</td></tr>';
     summary.innerHTML='';
     status.textContent=INTRA.loading?'Cargando...':'Sin datos';
     const chartStatus=document.getElementById('intra-chart-status');
-    if(chartStatus)chartStatus.textContent='Cargá datos intradiarios para habilitar los graficos.';
+    if(chartStatus)chartStatus.textContent='Carga datos intradiarios para habilitar los graficos.';
+    const markovStatus=document.getElementById('intra-markov-status');
+    if(markovStatus)markovStatus.textContent='Carga datos intradiarios para habilitar la vista Markov.';
     return;
   }
 
@@ -1688,7 +2121,7 @@ function renderIntradiario(){
   const fallbackSelectedTs=visibleSelections.length?(visible[0]?.tsLabel||((INTRA.rows||[]).find(row=>visibleSelections.some(selection=>intraSelectionMatchesRow(selection,row)))?.tsLabel||'--')):'--';
   const latestTs=visible[0]?.tsLabel||fallbackSelectedTs;
   const withVolume=visible.filter(row=>Number.isFinite(row.volume)).reduce((acc,row)=>acc+(row.volume||0),0);
-  const scopeLabel=INTRA.selectedHour==='__all__'?'Todos':(INTRA.selectedHour||'Sin hora');
+  const scopeLabel=INTRA.selectedHour==='__all__'?'Todos':(INTRA.selectedHour?`Desde ${INTRA.selectedHour}`:'Sin hora');
   const frameLabel=`${intraGetTimeframe()}m`;
   const subtypeReady=visibleSelections.length>0;
   const pricedRows=subtypeReady?visible.filter(row=>Number.isFinite(row.last)):[];
@@ -1701,11 +2134,11 @@ function renderIntradiario(){
 
   summary.innerHTML=[
     ['Registros visibles', `${visible.length}`,'var(--text)',''],
-    ['Carga aplicada', `${scopeLabel} · ${frameLabel}`,'var(--amber)',''],
+    ['Carga aplicada', `${scopeLabel} - ${frameLabel}`,'var(--amber)',''],
     ['Ultimo timestamp', latestTs||'--','var(--amber)',''],
     ['Maximo del dia', dayMax?intraFmt(dayMax.last):'--','var(--green)',dayMax?.time||'--'],
     ['Minimo del dia', dayMin?intraFmt(dayMin.last):'--','var(--red)',dayMin?.time||'--'],
-    ['Suby / Caucion', `${underlyings} / ${cauciones}`,'var(--text)',`${calls} calls · ${puts} puts · ${futures} futuros`],
+    ['Suby / Caucion', `${underlyings} / ${cauciones}`,'var(--text)',`${calls} calls - ${puts} puts - ${futures} futuros`],
     ['Volumen total', intraFmt(withVolume,0),'var(--text)',''],
   ].map(([label,value,color,detail])=>`
     <div class="panel" style="padding:12px">
@@ -1717,7 +2150,8 @@ function renderIntradiario(){
   if(!visible.length){
     body.innerHTML=`<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--muted)">${visibleSelections.length?'No hay filas para los comparables elegidos con el scope actual':'Agrega comparables para habilitar la tabla y crea cruces para los graficos'}</td></tr>`;
     status.textContent=`${visible.length} visibles | ${visibleSelections.length?totalSelected:INTRA.allRows.length} totales`;
-    renderIntradiarioCharts();
+    if(intraGetMode()==='charts')renderIntradiarioCharts();
+    if(intraGetMode()==='markov')renderIntradiarioMarkov();
     return;
   }
 
@@ -1747,10 +2181,11 @@ function renderIntradiario(){
   }).join('');
 
   status.textContent=`${visible.length} visibles | ${totalSelected} totales`;
-  renderIntradiarioCharts();
+  if(intraGetMode()==='charts')renderIntradiarioCharts();
+  if(intraGetMode()==='markov')renderIntradiarioMarkov();
 }
 
-async function fetchIntradiario(silent=false){
+async function fetchIntradiario(silent=false,forceFull=false){
   const webAppUrl=document.getElementById('sh-webapp-url')?.value.trim();
   const sheet=intraSheetName();
   const status=document.getElementById('intra-status');
@@ -1765,19 +2200,43 @@ async function fetchIntradiario(silent=false){
   if(status)status.textContent='Cargando...';
 
   try{
-    await intraClearCache();
+    const latestKnown=forceFull?null:intraLatestKnownTimestamp();
+    const query=latestKnown
+      ? {
+          incremental:'1',
+          after_date:latestKnown.date,
+          after_time:latestKnown.time,
+          after_ts:latestKnown.stamp,
+        }
+      : null;
     intraLog('fetch start',{
       sheet,
+      mode:latestKnown?'incremental':'full',
+      forceFull:!!forceFull,
+      latestKnown:latestKnown?.stamp||'',
       selectedHour:document.getElementById('intra-filter-hour')?.value||INTRA.selectedHour||''
     });
-    const {rows,signature}=await sheetFetchRows(webAppUrl,sheet);
-    intraSetLoading(true,'Procesando filas intradiarias...');
-    parseIntradiarioRows(rows);
-    INTRA.lastSignature=signature;
+    const {rows}=await sheetFetchRows(webAppUrl,sheet,{
+      endpoint:latestKnown?'intraday_incremental':'intraday',
+      query,
+      allowEmpty:true
+    });
+    intraSetLoading(true,latestKnown?'Procesando delta intradiario...':'Procesando filas intradiarias...');
+    const previousCount=INTRA.allRows.length;
+    const parsedRows=intraParseRowsPayload(rows);
+    const mergedRows=latestKnown
+      ? intraMergeParsedRows(INTRA.allRows,parsedRows)
+      : parsedRows;
+    const addedRows=Math.max(0,mergedRows.length-previousCount);
+    if(!latestKnown&&!mergedRows.length){
+      throw new Error('Sin datos en la hoja');
+    }
+    intraHydrateRows(mergedRows);
+    INTRA.lastSignature=sheetRowsSignature(mergedRows);
     INTRA.fetchedAt=new Date();
     let indexedDbSaved=false;
     try{
-      indexedDbSaved=await intraDbWrite(webAppUrl,sheet,INTRA.allRows,signature);
+      indexedDbSaved=await intraDbWrite(webAppUrl,sheet,INTRA.allRows,INTRA.lastSignature);
     }catch(error){
       indexedDbSaved=false;
       intraLog('indexeddb save failed',{
@@ -1790,9 +2249,12 @@ async function fetchIntradiario(silent=false){
     intraLog('fetch applied',{
       sheet,
       rawRows:Array.isArray(rows)?rows.length:0,
-      parsedRows:INTRA.allRows.length,
+      parsedRows:parsedRows.length,
+      addedRows,
+      mergedRows:INTRA.allRows.length,
       scopedRows:INTRA.rows.length,
       hours:INTRA.hours.length,
+      mode:latestKnown?'incremental':'full',
       elapsedMs:Date.now()-startedAt,
       indexedDbSaved
     });
@@ -1800,12 +2262,25 @@ async function fetchIntradiario(silent=false){
       refreshLog('intradiario fetch applied',{
         sheet,
         rawRows:Array.isArray(rows)?rows.length:0,
+        parsedRows:parsedRows.length,
+        addedRows,
         scopedRows:INTRA.rows.length,
         elapsedMs:Date.now()-startedAt,
         indexedDbSaved
       });
     }
-    if(!silent)showToast(`Intradiario cargado - ${INTRA.rows.length} filas en alcance`);
+    if(status){
+      status.textContent=addedRows
+        ? `${INTRA.rows.length} registros en alcance | +${addedRows} nuevos`
+        : `${INTRA.rows.length} registros en alcance | sin novedades`;
+    }
+    if(!silent){
+      showToast(
+        addedRows
+          ? `Intradiario actualizado - ${addedRows} filas nuevas`
+          : 'Intradiario al dia - sin filas nuevas'
+      );
+    }
   }catch(e){
     intraLog('fetch error',{
       sheet,
@@ -1821,6 +2296,27 @@ async function fetchIntradiario(silent=false){
   }
 }
 
+async function intraReloadFull(){
+  if(INTRA.loading)return;
+  const status=document.getElementById('intra-status');
+  intraSetLoading(true,'Limpiando cache intradiario...');
+  if(status)status.textContent='Limpiando cache...';
+  try{
+    await intraClearCache();
+    intraResetDataState();
+    renderIntradiario();
+    await fetchIntradiario(false,true);
+  }catch(error){
+    intraLog('full reload error',{sheet:intraSheetName(),message:error?.message||String(error)});
+    if(status)status.textContent='Error: '+(error?.message||String(error));
+    showToast('Error al limpiar intradiario: '+(error?.message||String(error)));
+  }finally{
+    if(INTRA.loading!==true){
+      intraSetLoading(false);
+    }
+  }
+}
+
 async function intraEnsureData(){
   if(INTRA.loading||INTRA.allRows.length)return;
   if(await intraLoadFromCache()){
@@ -1832,6 +2328,7 @@ async function intraEnsureData(){
 
 window.INTRA=INTRA;
 window.fetchIntradiario=fetchIntradiario;
+window.intraReloadFull=intraReloadFull;
 window.renderIntradiario=renderIntradiario;
 window.intraEnsureData=intraEnsureData;
 window.intraOnScopeChange=intraOnScopeChange;
