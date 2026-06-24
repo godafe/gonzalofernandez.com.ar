@@ -7,10 +7,11 @@ function ahSwapStrikes(){ swapStrikeSelectors('ah-strike1','ah-strike2','ah-type
 
 function ahPopulateStrikes(){
   if(!HIST.cols?.length)return;
-  const strikes=[...new Set(HIST.cols.map(c=>c.strike))].sort((a,b)=>a-b);
+  const activeExpiry=typeof histSetActiveExpiry==='function'?histSetActiveExpiry(HIST.activeExpiry):'';
+  const scopedCols=HIST.cols.filter(c=>!activeExpiry||!c.expiry||c.expiry===activeExpiry);
+  const baseCols=scopedCols.length?scopedCols:HIST.cols;
+  const strikes=[...new Set(baseCols.map(c=>c.strike))].sort((a,b)=>a-b);
   populateStrikeDropdowns('ah-strike1','ah-strike2',strikes);
-  const expiryEl=document.getElementById('ah-expiry');
-  if(expiryEl&&!expiryEl.value&&ST.selExpiry)expiryEl.value=ST.selExpiry;
 }
 
 function ahCalcGreeks(price,K,type,spot,T,r,q){
@@ -93,7 +94,7 @@ function renderAnalHist(){
   const type2=document.getElementById('ah-type2')?.value||'call';
   const r=parseFloat(document.getElementById('ah-rate')?.value||'0')/100;
   const ri=Math.max(0.1,Math.min(4,parseFloat(document.getElementById('ah-ri')?.value)||2.0));
-  const expiryStr=document.getElementById('ah-expiry')?.value||ST.selExpiry||'';
+  const expiryStr=typeof histGetActiveExpiry==='function'?histGetActiveExpiry():(document.getElementById('ah-expiry')?.value||'');
   const expiryMs=expiryStr?new Date(expiryStr+'T12:00:00').getTime():null;
   const q=ST.q;
   const c1col=type1==='call'?'var(--green)':'var(--red)';
@@ -133,8 +134,8 @@ function renderAnalHist(){
   // Build rows with greeks and strategy metrics
   const rows=source.map(row=>{
     const spot=row.spot||ST.spot;
-    const e1=row.prices[`${type1}_${K1}`]||null;
-    const e2=row.prices[`${type2}_${K2}`]||null;
+    const e1=typeof histFindEntry==='function'?histFindEntry(row.prices,type1,K1,expiryStr):null;
+    const e2=typeof histFindEntry==='function'?histFindEntry(row.prices,type2,K2,expiryStr):null;
     const p1=e1?.price??null, p2=e2?.price??null;
     const k1=e1?.strike||K1, k2=e2?.strike||K2;
     let T=0;

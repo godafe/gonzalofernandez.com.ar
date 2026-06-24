@@ -420,13 +420,17 @@ function probGetDefaultStrike(strikes) {
 function probPopulateStrikes() {
   const histCols = Array.isArray(HIST?.cols) ? HIST.cols : [];
   const histRows = Array.isArray(HIST?.rows) ? HIST.rows : [];
-  let strikes = [...new Set(histCols.map(c => c.strike))].filter(v => isFinite(v)).sort((a, b) => a - b);
+  const activeExpiry = typeof histGetActiveExpiry === 'function' ? histGetActiveExpiry() : (ST.selExpiry || '');
+  const scopedCols = histCols.filter(c => !activeExpiry || !c.expiry || c.expiry === activeExpiry);
+  const sourceCols = scopedCols.length ? scopedCols : histCols;
+  let strikes = [...new Set(sourceCols.map(c => c.strike))].filter(v => isFinite(v)).sort((a, b) => a - b);
   if (!strikes.length && histRows.length) {
     const strikeSet = new Set();
     histRows.forEach(row => {
-      Object.keys(row.prices || {}).forEach(key => {
-        const parts = key.split('_');
-        const strike = parseFloat(parts[1]);
+      Object.values(row.prices || {}).forEach(entry => {
+        if (!entry || typeof entry !== 'object') return;
+        if (activeExpiry && entry.expiry && entry.expiry !== activeExpiry) return;
+        const strike = parseFloat(entry.strike);
         if (isFinite(strike)) strikeSet.add(strike);
       });
     });
@@ -612,7 +616,9 @@ function renderProbabilidades() {
   const lots = parseFloat(document.getElementById('pr-lots')?.value || '100') || 100;
   const thrP = Math.max(0, Math.min(100, parseFloat(document.getElementById('pr-threshold')?.value || '80') || 80)) / 100;
   const q = ST.q || 0;
-  const expiryStr = ST.selExpiry || document.getElementById('ah-expiry')?.value || '';
+  const expiryStr = typeof histGetActiveExpiry === 'function'
+    ? histGetActiveExpiry()
+    : (ST.selExpiry || document.getElementById('ah-expiry')?.value || '');
   const expiryMs = expiryStr ? new Date(expiryStr + 'T12:00:00').getTime() : null;
   const dateFrom = document.getElementById('pr-date-from')?.value.trim() || '';
   const dateTo = document.getElementById('pr-date-to')?.value.trim() || '';
@@ -621,8 +627,12 @@ function renderProbabilidades() {
   if (dateTo) source = source.filter(rw => rw.date <= dateTo);
 
   const baseRows = source.map(row => {
-    const e1 = row.prices[`${type1}_${K1}`] || null;
-    const e2 = row.prices[`${type2}_${K2}`] || null;
+    const e1 = typeof histFindEntry === 'function'
+      ? histFindEntry(row.prices, type1, K1, expiryStr)
+      : (row.prices[`${type1}_${K1}`] || null);
+    const e2 = typeof histFindEntry === 'function'
+      ? histFindEntry(row.prices, type2, K2, expiryStr)
+      : (row.prices[`${type2}_${K2}`] || null);
     const p1 = e1?.price ?? null;
     const p2 = e2?.price ?? null;
     const spot = row.spot || ST.spot;

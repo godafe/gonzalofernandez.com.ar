@@ -332,7 +332,10 @@ function histStratRenderCompareList(){
 function histStratPopulateStrikes(){
   histStratEnsureState();
   if(!HIST.cols?.length)return;
-  const strikes=[...new Set(HIST.cols.map(c=>c.strike))].sort((a,b)=>a-b);
+  const activeExpiry=typeof histGetActiveExpiry==='function'?histGetActiveExpiry():(histStratLiveExpiry()||'');
+  const scopedCols=HIST.cols.filter(c=>!activeExpiry||!c.expiry||c.expiry===activeExpiry);
+  const baseCols=scopedCols.length?scopedCols:HIST.cols;
+  const strikes=[...new Set(baseCols.map(c=>c.strike))].sort((a,b)=>a-b);
   const s1=document.getElementById('st-strike1');
   const s2=document.getElementById('st-strike2');
   if(!s1||!s2)return;
@@ -438,7 +441,7 @@ function histStratBuildLiveExtraRow(sourceRows){
   if(!Array.isArray(sourceRows)||!sourceRows.length)return null;
   const today=histStratTodayDate();
   if(sourceRows.some(row=>row?.date===today))return null;
-  const expiry=histStratLiveExpiry();
+  const expiry=(typeof histGetActiveExpiry==='function'?histGetActiveExpiry():'')||histStratLiveExpiry();
   const chainRows=expiry&&ST.chain?.[expiry];
   if(!Array.isArray(chainRows)||!chainRows.length)return null;
   const prices={__suby__:ST.spot||null};
@@ -449,11 +452,11 @@ function histStratBuildLiveExtraRow(sourceRows){
     const callPrice=parseFloat(row?.callMid);
     const putPrice=parseFloat(row?.putMid);
     if(isFinite(callPrice)&&callPrice>0){
-      prices[`call_${strike}`]={price:callPrice,strike};
+      prices[typeof histOptionKey==='function'?histOptionKey('call',strike,expiry):`call_${strike}`]={price:callPrice,strike,type:'call',expiry};
       added++;
     }
     if(isFinite(putPrice)&&putPrice>0){
-      prices[`put_${strike}`]={price:putPrice,strike};
+      prices[typeof histOptionKey==='function'?histOptionKey('put',strike,expiry):`put_${strike}`]={price:putPrice,strike,type:'put',expiry};
       added++;
     }
   });
@@ -704,6 +707,7 @@ function renderHistStrat(){
   const compareLegs=histStratVisibleLegs();
   histStratRenderCompareList();
   histStratWriteState();
+  const expiryStr=typeof histGetActiveExpiry==='function'?histGetActiveExpiry():(histStratLiveExpiry()||'');
 
   if(!compareLegs.length){
     hero.innerHTML='';
@@ -716,8 +720,12 @@ function renderHistStrat(){
 
   const seriesList=compareLegs.map(leg=>{
     const rows=source.map(row=>{
-      const e1=row.prices[`${type1}_${K1}`]||null;
-      const e2=row.prices[`${leg.type}_${leg.strike}`]||null;
+      const e1=typeof histFindEntry==='function'
+        ? histFindEntry(row.prices,type1,K1,expiryStr)
+        : (row.prices[`${type1}_${K1}`]||null);
+      const e2=typeof histFindEntry==='function'
+        ? histFindEntry(row.prices,leg.type,leg.strike,expiryStr)
+        : (row.prices[`${leg.type}_${leg.strike}`]||null);
       const p1=e1?.price??null;
       const p2=e2?.price??null;
       const bull=(p1!=null&&p2!=null&&isFinite(p1)&&isFinite(p2))?(p1-p2)*lots:null;

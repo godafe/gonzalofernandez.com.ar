@@ -1,6 +1,60 @@
 /* ===== DATOS HISTÓRICOS ===== */
 const HIST={rows:[],charts:{rc:null,vi:null,st:null,varr:null,bb:null,ri:null,rcband:null,lleno:null,ivpct:null}};
 
+function histExpiryColIndex(){
+  const explicit=document.getElementById('hist-col-expiry')?.value?.trim();
+  const fallback=document.getElementById('sh-col-expiry')?.value?.trim()||'G';
+  return colLetterToIndex(explicit||fallback);
+}
+
+function histOptionKey(type,strike,expiry=''){
+  return `${type}_${strike}_${expiry||'NOEXP'}`;
+}
+
+function histFindEntry(priceMap,type,strike,expiry=''){
+  if(!priceMap||!type||!(strike>0))return null;
+  const exact=priceMap[histOptionKey(type,strike,expiry)];
+  if(exact)return exact;
+  return Object.values(priceMap).find(entry=>
+    entry&&typeof entry==='object'&&entry.type===type&&entry.strike===strike&&(!expiry||!entry.expiry||entry.expiry===expiry)
+  )||null;
+}
+
+function histResolveActiveExpiry(preferred=''){
+  const expiries=(HIST.expiries||[]).filter(Boolean).sort();
+  if(preferred){
+    if(expiries.includes(preferred))return preferred;
+    if(ST.selExpiry===preferred)return preferred;
+  }
+  if(ST.selExpiry)return ST.selExpiry;
+  if(!expiries.length)return '';
+  const todayIso=new Date().toISOString().split('T')[0];
+  const next=expiries.find(exp=>exp>=todayIso);
+  return next||expiries[expiries.length-1]||'';
+}
+
+function histSetActiveExpiry(nextExpiry=''){
+  const resolved=histResolveActiveExpiry(nextExpiry);
+  HIST.activeExpiry=resolved;
+  ['hist-expiry','ah-expiry'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.value=resolved||'';
+  });
+  const sourceLabel=resolved
+    ? ((HIST.expiries||[]).includes(resolved)?'HMD':'LIVE')
+    : '';
+  const label=resolved?(typeof fmtExpiry==='function'?fmtExpiry(resolved):resolved):'--';
+  ['hist-expiry-display','ah-expiry-display'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.textContent=`Vto usado: ${label}${sourceLabel?` · ${sourceLabel}`:''}`;
+  });
+  return resolved;
+}
+
+function histGetActiveExpiry(){
+  return HIST.activeExpiry||histSetActiveExpiry();
+}
+
 function parseHistRows(rows){
   if(!rows||rows.length<2)return;
   const headerRowIdx=(+document.getElementById('sh-header-row-hist')?.value||1)-1;
@@ -9,6 +63,7 @@ function parseHistRows(rows){
   const typeIdx  =colLetterToIndex(document.getElementById('hist-col-type')?.value||'C');
   const strikeIdx=colLetterToIndex(document.getElementById('hist-col-strike')?.value||'E');
   const lastIdx  =colLetterToIndex(document.getElementById('hist-col-last')?.value||'E');
+  const expiryIdx=histExpiryColIndex();
 
   const dateMap={};
   const colMap=new Map();
@@ -21,6 +76,7 @@ function parseHistRows(rows){
     const tipoRaw=(r[typeIdx]||'').toString().trim().toLowerCase();
     const strikeF=parseARSNum(r[strikeIdx]);
     const lastRaw=r[lastIdx];
+    const expiry=normalizeExpiry((r[expiryIdx]||'').toString().trim())||'';
     if(!dateMap[date])dateMap[date]={};
     if(tipoRaw==='suby'||tipoRaw==='subyacente'){
       const last=parseARSNum(lastRaw);
@@ -30,15 +86,17 @@ function parseHistRows(rows){
     if(isNaN(strikeF)||strikeF<=0)return;
     const last=parseARSPrice(lastRaw);
     const type=tipoRaw.includes('put')?'put':'call';
-    const key=`${type}_${strikeF}`;
-    if(!colMap.has(key))colMap.set(key,{key,type,strike:strikeF});
-    dateMap[date][key]={price:isNaN(last)?null:last,strike:strikeF};
+    const key=histOptionKey(type,strikeF,expiry);
+    if(!colMap.has(key))colMap.set(key,{key,type,strike:strikeF,expiry:expiry||null});
+    dateMap[date][key]={price:isNaN(last)?null:last,strike:strikeF,type,expiry:expiry||null};
   });
 
-  HIST.cols=[...colMap.values()].sort((a,b)=>a.type.localeCompare(b.type)||a.strike-b.strike);
+  HIST.cols=[...colMap.values()].sort((a,b)=>(a.expiry||'').localeCompare(b.expiry||'')||a.type.localeCompare(b.type)||a.strike-b.strike);
   HIST.rows=Object.entries(dateMap)
     .sort((a,b)=>a[0].localeCompare(b[0]))
     .map(([date,priceMap])=>({date,prices:priceMap,spot:priceMap.__suby__||null}));
+  HIST.expiries=[...new Set(HIST.cols.map(c=>c.expiry).filter(Boolean))].sort();
+  histSetActiveExpiry(HIST.activeExpiry);
 
   histPopulateStrikes();
   if(typeof probPopulateStrikes==='function')probPopulateStrikes();
@@ -50,10 +108,11 @@ function parseHistRows(rows){
 
 function histPopulateStrikes(){
   if(!HIST.cols?.length)return;
-  const strikes=[...new Set(HIST.cols.map(c=>c.strike))].sort((a,b)=>a-b);
+  const activeExpiry=histSetActiveExpiry(HIST.activeExpiry);
+  const scopedCols=HIST.cols.filter(c=>!activeExpiry||!c.expiry||c.expiry===activeExpiry);
+  const baseCols=scopedCols.length?scopedCols:HIST.cols;
+  const strikes=[...new Set(baseCols.map(c=>c.strike))].sort((a,b)=>a-b);
   populateStrikeDropdowns('hist-strike1','hist-strike2',strikes);
-  const expiryEl=document.getElementById('hist-expiry');
-  if(expiryEl&&!expiryEl.value&&ST.selExpiry)expiryEl.value=ST.selExpiry;
   const rEl=document.getElementById('hist-rate');
   if(rEl&&rEl.value==='')rEl.value='0';
 }
@@ -82,7 +141,7 @@ function renderHistData(){
   const r=parseFloat(document.getElementById('hist-rate')?.value||'0')/100;
   const ri=Math.max(0.1,Math.min(4,parseFloat(document.getElementById('hist-ri')?.value)||1.0));
   const q=ST.q;
-  const expiryStr=document.getElementById('hist-expiry')?.value||ST.selExpiry||'';
+  const expiryStr=histGetActiveExpiry();
   const expiryMs=expiryStr?new Date(expiryStr+'T12:00:00').getTime():null;
   const c1col=type1==='call'?'var(--green)':'var(--red)';
   const c2col=type2==='call'?'var(--green)':'var(--red)';
@@ -134,8 +193,8 @@ function renderHistData(){
   // Build calculated rows
   const calc=source.map(row=>{
     const spot=row.spot||ST.spot;
-    const e1=row.prices[`${type1}_${K1}`]||null;
-    const e2=row.prices[`${type2}_${K2}`]||null;
+    const e1=histFindEntry(row.prices,type1,K1,expiryStr);
+    const e2=histFindEntry(row.prices,type2,K2,expiryStr);
     const p1=e1?.price??null, p2=e2?.price??null;
     const k1=e1?.strike||K1, k2=e2?.strike||K2;
     let T=0;

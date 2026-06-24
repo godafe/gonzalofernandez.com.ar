@@ -124,6 +124,7 @@
       <input type="hidden" id="hist-col-type" value="F">
       <input type="hidden" id="hist-col-strike" value="E">
       <input type="hidden" id="hist-col-last" value="C">
+      <input type="hidden" id="hist-col-expiry" value="G">
       <input type="hidden" id="intra-header-row" value="1">
       <input type="hidden" id="intra-col-datetime" value="A">
       <input type="hidden" id="intra-col-ticker" value="B">
@@ -1479,11 +1480,12 @@
         <label style="color:var(--muted);white-space:nowrap;font-size:11px">Tasa %</label>
         <input type="number" id="hist-rate" value="0" step="0.1" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderHistData()">
       </div>
-      <input type="hidden" id="hist-expiry" value="2026-06-19">
+      <input type="hidden" id="hist-expiry" value="">
       <div style="display:flex;align-items:center;gap:5px">
         <label style="color:var(--muted);white-space:nowrap">Relación RI</label>
         <input type="number" id="hist-ri" value="2.0" step="0.1" min="0.1" max="4" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderHistData()">
       </div>
+      <span id="hist-expiry-display" style="font-size:11px;color:var(--amber);white-space:nowrap">Vto usado: --</span>
       <div style="display:flex;align-items:center;gap:5px">
         <label style="color:var(--muted);white-space:nowrap;font-size:11px">Fecha desde</label>
         <input type="date" id="hist-date-from" style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;color-scheme:dark" onchange="renderHistData()">
@@ -2380,11 +2382,12 @@
         <label style="color:var(--muted);white-space:nowrap;font-size:11px">Tasa %</label>
         <input type="number" id="ah-rate" value="0" step="0.1" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderAnalHist()">
       </div>
-      <input type="hidden" id="ah-expiry" value="2026-06-19">
+      <input type="hidden" id="ah-expiry" value="">
       <div style="display:flex;align-items:center;gap:5px">
         <label style="color:var(--muted);white-space:nowrap">Relación RI</label>
         <input type="number" id="ah-ri" value="2.0" step="0.1" min="0.1" max="4" style="width:65px;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--amber);padding:3px 6px;border-radius:4px" onchange="renderAnalHist()">
       </div>
+      <span id="ah-expiry-display" style="font-size:11px;color:var(--amber);white-space:nowrap">Vto usado: --</span>
       <div style="display:flex;align-items:center;gap:5px">
         <label style="color:var(--muted);white-space:nowrap;font-size:11px">Fecha desde</label>
         <input type="date" id="ah-date-from" style="font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;color-scheme:dark" onchange="renderAnalHist()">
