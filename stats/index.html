@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resumen GGAL</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="controls-card">
+      <div class="controls-header panel-header">
+        <div class="panel-title">
+          <p class="eyebrow">Configuracion</p>
+          <p id="configCollapsedSummary" class="panel-summary" hidden></p>
+        </div>
+        <div class="header-actions">
+          <button id="configCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="configPanelBody" aria-label="Colapsar configuracion">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="configPanelBody" class="panel-body">
+        <section class="settings-panel">
+          <div class="settings-row">
+            <label class="settings-label">
+              <input id="autoRefreshCheckbox" type="checkbox">
+              <span>Actualizar Automaticamente cada:</span>
+            </label>
+            <select id="autoRefreshSecondsSelect" class="settings-select">
+              <option value="5">5 segundos</option>
+              <option value="6">6 segundos</option>
+              <option value="7">7 segundos</option>
+              <option value="8">8 segundos</option>
+              <option value="9">9 segundos</option>
+              <option value="10">10 segundos</option>
+            </select>
+            <button id="reloadButton" type="button" class="reload-button settings-reload-button">Recargar datos</button>
+          </div>
+        </section>
+
+        <div class="mode-bar">
+          <span class="mode-label">Modo</span>
+          <div class="mode-toggle" role="tablist" aria-label="Modo de visualizacion">
+            <button id="tableModeButton" type="button" class="mode-button is-active" data-mode="table">Tabla</button>
+            <button id="chartModeButton" type="button" class="mode-button" data-mode="chart">Grafico</button>
+          </div>
+        </div>
+
+        <div class="controls-grid">
+          <label class="field">
+            <span>Base 1</span>
+            <div class="field-inline">
+              <button id="base1TypeButton" type="button" class="option-type-button" data-base="1">Call</button>
+              <select id="base1Select"></select>
+            </div>
+          </label>
+
+          <div class="field field-swap">
+            <button id="swapBasesButton" type="button" class="swap-button" aria-label="Intercambiar Base 1 y Base 2">
+              &#8646;
+            </button>
+          </div>
+
+          <label class="field">
+            <span>Base 2</span>
+            <div class="field-inline">
+              <button id="base2TypeButton" type="button" class="option-type-button" data-base="2">Call</button>
+              <select id="base2Select"></select>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Lotes</span>
+            <input id="lotesInput" type="number" min="1" max="500" step="1" value="100">
+          </label>
+
+          <label class="field">
+            <span>Relacion RC/RI</span>
+            <input id="relationInput" type="text" inputmode="decimal" value="1,6" placeholder="1,6">
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="status-card">
+      <div class="panel-header">
+        <div class="panel-title">
+          <p class="eyebrow">Estado</p>
+          <p id="statusCollapsedSummary" class="panel-summary" hidden></p>
+        </div>
+        <button id="statusCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="statusPanelBody" aria-label="Colapsar estado">
+          <span class="caret-icon">&#9662;</span>
+        </button>
+      </div>
+
+      <div id="statusPanelBody" class="panel-body">
+        <div class="status-group">
+          <p id="statusMessage" class="status">Cargando datos...</p>
+          <p id="statusMetaMessage" class="status status-meta"></p>
+          <p id="statusUpdateMessage" class="status status-meta"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="legend-card" aria-label="Referencia de indicadores">
+      <div class="legend-head panel-header">
+        <div class="panel-title">
+          <p class="chart-kicker">Referencia</p>
+          <p id="legendCollapsedSummary" class="panel-summary" hidden></p>
+        </div>
+        <button id="legendCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="legendPanelBody" aria-label="Colapsar referencia">
+          <span class="caret-icon">&#9662;</span>
+        </button>
+      </div>
+      <div id="legendPanelBody" class="panel-body">
+        <div class="legend-grid">
+          <div class="legend-item">
+            <span class="metric-dot legend-dot legend-dot-max"></span>
+            <span>Rojo: maximo de la serie</span>
+          </div>
+          <div class="legend-item">
+            <span class="metric-dot legend-dot legend-dot-min"></span>
+            <span>Azul: minimo de la serie</span>
+          </div>
+          <div class="legend-item">
+            <span class="metric-dot legend-dot legend-dot-mid"></span>
+            <span>Amarillo: valor mas cercano a la mediana</span>
+          </div>
+          <div class="legend-item">
+            <span class="metric-dot legend-dot legend-dot-live"></span>
+            <span>Verde: ultimo registro live</span>
+          </div>
+          <div class="legend-item">
+            <span class="metric-dot legend-dot legend-dot-last"></span>
+            <span>Violeta: ultimo valor de la rueda</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-mean-line" aria-hidden="true"></span>
+            <span>Linea blanca punteada: mediana de la serie</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>GGAL</th>
+              <th id="base1Header">Base 1</th>
+              <th id="base2Header">Base 2</th>
+              <th>Ratio</th>
+              <th id="costoPrimaryHeader">Costo Bull</th>
+              <th id="spreadHeader">Spread</th>
+              <th id="costoRiHeader">Costo RI</th>
+              <th id="costoStraddleHeader" hidden>Costo Straddle</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="chartsSection" class="charts-grid" hidden>
+      <article id="ratioChartCard" class="chart-card">
+        <div class="chart-head">
+          <p class="chart-kicker">Serie</p>
+          <h2 id="ratioChartTitle">Ratio</h2>
+        </div>
+        <div class="chart-frame">
+          <canvas id="ratioChart"></canvas>
+        </div>
+      </article>
+
+      <article id="costoPrimaryChartCard" class="chart-card">
+        <div class="chart-head">
+          <p class="chart-kicker">Serie</p>
+          <h2 id="costoBullChartTitle">Costo Bull</h2>
+        </div>
+        <div class="chart-frame">
+          <canvas id="costoBullChart"></canvas>
+        </div>
+      </article>
+
+      <article id="spreadChartCard" class="chart-card">
+        <div class="chart-head">
+          <p class="chart-kicker">Serie</p>
+          <h2 id="spreadChartTitle">Spread</h2>
+        </div>
+        <div class="chart-frame">
+          <canvas id="spreadChart"></canvas>
+        </div>
+      </article>
+
+      <article id="costoRiChartCard" class="chart-card">
+        <div class="chart-head">
+          <p class="chart-kicker">Serie</p>
+          <h2 id="costoRiChartTitle">Costo RI</h2>
+        </div>
+        <div class="chart-frame">
+          <canvas id="costoRiChart"></canvas>
+        </div>
+      </article>
+
+      <article id="costoStraddleChartCard" class="chart-card" hidden>
+        <div class="chart-head">
+          <p class="chart-kicker">Serie</p>
+          <h2 id="costoStraddleChartTitle">Costo Straddle</h2>
+        </div>
+        <div class="chart-frame">
+          <canvas id="costoStraddleChart"></canvas>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
