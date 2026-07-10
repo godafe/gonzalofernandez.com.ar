@@ -214,7 +214,7 @@ body {
 
 .controls-grid {
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) 44px minmax(210px, 1fr) 150px 150px;
+  grid-template-columns: minmax(190px, 1fr) 44px minmax(190px, 1fr) 150px 150px 150px;
   gap: 10px 12px;
   align-items: end;
 }
@@ -518,7 +518,7 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 920px;
+  min-width: 1260px;
 }
 
 th,

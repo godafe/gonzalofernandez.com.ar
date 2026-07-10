@@ -8,6 +8,8 @@ const CONFIG = {
   dbKey: "history-HMD",
   defaultLotes: 100,
   defaultRelation: 1.6,
+  defaultRateDays: 365,
+  currentOpexDate: "2026-08-21",
   defaultAutoRefreshEnabled: false,
   defaultAutoRefreshSeconds: 7
 };
@@ -65,22 +67,31 @@ const elements = {
   base2TypeButton: document.getElementById("base2TypeButton"),
   base1Header: document.getElementById("base1Header"),
   base2Header: document.getElementById("base2Header"),
+  rateBase1Header: document.getElementById("rateBase1Header"),
+  rateBase2Header: document.getElementById("rateBase2Header"),
   base1Select: document.getElementById("base1Select"),
   base2Select: document.getElementById("base2Select"),
   swapBasesButton: document.getElementById("swapBasesButton"),
   lotesInput: document.getElementById("lotesInput"),
   relationInput: document.getElementById("relationInput"),
+  rateDaysInput: document.getElementById("rateDaysInput"),
   reloadButton: document.getElementById("reloadButton"),
+  ratesChartCard: document.getElementById("ratesChartCard"),
+  rateDiffChartCard: document.getElementById("rateDiffChartCard"),
   ratioChartCard: document.getElementById("ratioChartCard"),
   costoPrimaryChartCard: document.getElementById("costoPrimaryChartCard"),
   spreadChartCard: document.getElementById("spreadChartCard"),
   costoRiChartCard: document.getElementById("costoRiChartCard"),
   costoStraddleChartCard: document.getElementById("costoStraddleChartCard"),
+  ratesChartTitle: document.getElementById("ratesChartTitle"),
+  rateDiffChartTitle: document.getElementById("rateDiffChartTitle"),
   ratioChartTitle: document.getElementById("ratioChartTitle"),
   costoBullChartTitle: document.getElementById("costoBullChartTitle"),
   spreadChartTitle: document.getElementById("spreadChartTitle"),
   costoRiChartTitle: document.getElementById("costoRiChartTitle"),
   costoStraddleChartTitle: document.getElementById("costoStraddleChartTitle"),
+  ratesChart: document.getElementById("ratesChart"),
+  rateDiffChart: document.getElementById("rateDiffChart"),
   ratioChart: document.getElementById("ratioChart"),
   costoBullChart: document.getElementById("costoBullChart"),
   spreadChart: document.getElementById("spreadChart"),
@@ -103,6 +114,7 @@ elements.base2Select.addEventListener("change", renderTable);
 elements.lotesInput.addEventListener("input", renderTable);
 elements.relationInput.addEventListener("change", handleRelationCommit);
 elements.relationInput.addEventListener("blur", handleRelationCommit);
+elements.rateDaysInput.addEventListener("input", renderTable);
 elements.reloadButton.addEventListener("click", reloadSheetData);
 
 applyStoredPanelStates();
@@ -263,21 +275,24 @@ function setSelectValue(select, preferredValue, fallbackValue) {
 function renderTable() {
   const lotes = clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes);
   const relation = clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation);
+  const rateDays = clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays);
   const base1Strike = Number(elements.base1Select.value);
   const base2Strike = Number(elements.base2Select.value);
   const combinationMode = getCombinationMode();
+  elements.rateDaysInput.value = String(rateDays);
   persistSettings({
     base1: base1Strike,
     base2: base2Strike,
     lotes,
-    relation
+    relation,
+    rateDays
   });
   updateBaseHeaders(base1Strike, base2Strike);
   updateHeadersForMode(combinationMode);
   updateChartTitles(base1Strike, base2Strike, lotes, relation, combinationMode);
-  syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation);
+  syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, rateDays);
   const rows = buildRowsByDate(state.historyByDate, base1Strike, base2Strike);
-  const enrichedRows = rows.map((row) => addDerivedMetrics(row, lotes, relation));
+  const enrichedRows = rows.map((row) => addDerivedMetrics(row, lotes, relation, rateDays));
   const seriesStats = buildSeriesStats(enrichedRows);
   const rowsHtml = enrichedRows.map((row) => buildRowMarkup(row, seriesStats, combinationMode)).join("");
   renderCharts(enrichedRows, combinationMode);
@@ -287,7 +302,7 @@ function renderTable() {
 
   elements.tableBody.innerHTML = rowsHtml || `
     <tr>
-      <td colspan="${combinationMode === "straddle" ? "7" : "8"}" class="placeholder">No hay datos para mostrar todavia.</td>
+      <td colspan="${combinationMode === "straddle" ? "9" : "11"}" class="placeholder">No hay datos para mostrar todavia.</td>
     </tr>
   `;
 }
@@ -303,6 +318,12 @@ function updateBaseHeaders(base1Strike, base2Strike) {
   const base2Label = Number.isFinite(base2Strike) ? formatOptionLabel(state.optionTypes.base2, base2Strike, false) : "Base 2";
   elements.base1Header.textContent = base1Label;
   elements.base2Header.textContent = base2Label;
+  elements.rateBase1Header.textContent = Number.isFinite(base1Strike)
+    ? `Tasa ${formatOptionLabel(state.optionTypes.base1, base1Strike)}`
+    : "Tasa Base1";
+  elements.rateBase2Header.textContent = Number.isFinite(base2Strike)
+    ? `Tasa ${formatOptionLabel(state.optionTypes.base2, base2Strike)}`
+    : "Tasa Base2";
 }
 
 function getCombinationMode() {
@@ -350,6 +371,7 @@ function buildRowsByDate(historyByDate, base1Strike, base2Strike) {
       fecha: formatDate(entry.fechaRaw),
       ggal: entry.ggal,
       isLive: false,
+      daysToOpex: getDaysToOpex(entry.fechaRaw),
       strikeBase1: base1Strike,
       lastBase1: entry[base1TypeKey]?.[base1Key],
       strikeBase2: base2Strike,
@@ -364,6 +386,7 @@ function buildRowsByDate(historyByDate, base1Strike, base2Strike) {
       fecha: formatDate(state.liveEntry.fechaRaw),
       ggal: state.liveEntry.ggal,
       isLive: true,
+      daysToOpex: getDaysToOpex(state.liveEntry.fechaRaw),
       strikeBase1: base1Strike,
       lastBase1: state.liveEntry[base1TypeKey]?.[base1Key],
       strikeBase2: base2Strike,
@@ -380,7 +403,10 @@ function buildRowsByDate(historyByDate, base1Strike, base2Strike) {
   return rows;
 }
 
-function addDerivedMetrics(row, lotes, relation) {
+function addDerivedMetrics(row, lotes, relation, rateDays) {
+  const tasaBase1 = getAnnualizedBaseRate(row.strikeBase1, row.lastBase1, row.ggal, row.daysToOpex, rateDays);
+  const tasaBase2 = getAnnualizedBaseRate(row.strikeBase2, row.lastBase2, row.ggal, row.daysToOpex, rateDays);
+  const diferencialTasas = tasaBase2 - tasaBase1;
   const ratio = divide(row.lastBase1, row.lastBase2);
   const costoBull = (row.lastBase1 * lotes) - (row.lastBase2 * lotes);
   const spread = Math.abs(divide(costoBull, (row.strikeBase2 - row.strikeBase1) * lotes));
@@ -389,6 +415,9 @@ function addDerivedMetrics(row, lotes, relation) {
 
   return {
     ...row,
+    tasaBase1,
+    tasaBase2,
+    diferencialTasas,
     ratio,
     costoBull,
     spread,
@@ -399,6 +428,9 @@ function addDerivedMetrics(row, lotes, relation) {
 
 function buildSeriesStats(rows) {
   return {
+    tasaBase1: getMetricStats(rows.map((row) => row.tasaBase1)),
+    tasaBase2: getMetricStats(rows.map((row) => row.tasaBase2)),
+    diferencialTasas: getMetricStats(rows.map((row) => row.diferencialTasas)),
     ratio: getMetricStats(rows.map((row) => row.ratio)),
     costoBull: getMetricStats(rows.map((row) => row.costoBull)),
     spread: getMetricStats(rows.map((row) => row.spread)),
@@ -445,6 +477,9 @@ function buildRowMarkup(row, seriesStats, combinationMode) {
     <td>${formatGroupedNumber(row.ggal, 2)}</td>
     <td>${formatNumber(row.lastBase1, 2)}</td>
     <td>${formatNumber(row.lastBase2, 2)}</td>
+    <td>${renderMetricCell(formatPercent(row.tasaBase1), row.tasaBase1, seriesStats.tasaBase1)}</td>
+    <td>${renderMetricCell(formatPercent(row.tasaBase2), row.tasaBase2, seriesStats.tasaBase2)}</td>
+    <td>${renderMetricCell(formatPercent(row.diferencialTasas), row.diferencialTasas, seriesStats.diferencialTasas)}</td>
     <td>${renderMetricCell(formatNumber(row.ratio, 3), row.ratio, seriesStats.ratio)}</td>
   `;
 
@@ -548,6 +583,9 @@ function applyStoredSettings() {
   elements.relationInput.value = Number.isFinite(storedSettings.relation)
     ? formatStoredRelation(storedSettings.relation)
     : formatStoredRelation(CONFIG.defaultRelation);
+  elements.rateDaysInput.value = Number.isFinite(storedSettings.rateDays)
+    ? String(clampInteger(storedSettings.rateDays, 1, 5000, CONFIG.defaultRateDays))
+    : String(CONFIG.defaultRateDays);
   elements.autoRefreshCheckbox.checked = state.autoRefreshEnabled;
   elements.autoRefreshSecondsSelect.value = String(state.autoRefreshSeconds);
   updateAutoRefreshUi();
@@ -618,6 +656,7 @@ function readStoredSettings() {
       base2: Number(parsed.base2),
       lotes: Number(parsed.lotes),
       relation: Number(parsed.relation),
+      rateDays: Number(parsed.rateDays),
       viewMode: parsed.viewMode,
       autoRefreshEnabled: parsed.autoRefreshEnabled,
       autoRefreshSeconds: Number(parsed.autoRefreshSeconds),
@@ -658,7 +697,8 @@ function setViewMode(mode) {
     base1: Number(elements.base1Select.value),
     base2: Number(elements.base2Select.value),
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
-    relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation)
+    relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
+    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays)
   });
 }
 
@@ -715,7 +755,8 @@ function handleAutoRefreshSettingsChange() {
     base1: Number(elements.base1Select.value),
     base2: Number(elements.base2Select.value),
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
-    relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation)
+    relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
+    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays)
   });
   syncStatus();
 }
@@ -731,7 +772,8 @@ function togglePanel(panelKey) {
     base1: Number(elements.base1Select.value),
     base2: Number(elements.base2Select.value),
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
-    relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation)
+    relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
+    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays)
   });
 }
 
@@ -807,6 +849,8 @@ function updateChartTitles(base1Strike, base2Strike, lotes, relation, combinatio
   const relationLabel = Number.isFinite(relationFactor) ? formatCompactNumber(relationFactor, 2) : "0";
   const primaryCostLabel = combinationMode === "bear" ? "Costo Bear" : "Costo Bull";
 
+  elements.ratesChartTitle.textContent = `Tasas ${base1Label} y ${base2Label}`;
+  elements.rateDiffChartTitle.textContent = `Dif. Tasas ${base2Label} - ${base1Label}`;
   elements.ratioChartTitle.textContent = `Ratio ${base1Label}/${base2Label}`;
   elements.costoBullChartTitle.textContent = `${primaryCostLabel} ${base1Label}/${base2Label}`;
   elements.spreadChartTitle.textContent = `Spread % ${base1Label}/${base2Label}`;
@@ -815,6 +859,34 @@ function updateChartTitles(base1Strike, base2Strike, lotes, relation, combinatio
 }
 
 function renderCharts(rows, combinationMode) {
+  renderDualLineChart("rates", elements.ratesChart, rows, {
+    title: elements.ratesChartTitle.textContent,
+    yTickFormatter: (value) => formatPercent(value),
+    labelFormatter: (value) => formatPercent(value),
+    series: [
+      {
+        key: "tasaBase1",
+        title: elements.rateBase1Header.textContent,
+        color: "#4cb3ff",
+        valueAccessor: (row) => row.tasaBase1
+      },
+      {
+        key: "tasaBase2",
+        title: elements.rateBase2Header.textContent,
+        color: "#ff9f43",
+        valueAccessor: (row) => row.tasaBase2
+      }
+    ]
+  });
+
+  renderLineChart("rateDiff", elements.rateDiffChart, rows, {
+    title: elements.rateDiffChartTitle.textContent,
+    color: "#ff6b8a",
+    valueAccessor: (row) => row.diferencialTasas,
+    labelFormatter: (value) => formatPercent(value),
+    yTickFormatter: (value) => formatPercent(value)
+  });
+
   renderLineChart("ratio", elements.ratioChart, rows, {
     title: elements.ratioChartTitle.textContent,
     color: "#f0c24b",
@@ -915,6 +987,9 @@ function renderLineChart(chartKey, canvas, rows, config) {
           borderColor: config.color,
           backgroundColor: withAlphaFromHex(config.color, 0.18),
           borderWidth: 2,
+          segment: {
+            borderDash: (context) => getLiveSegmentBorderDash(context, liveIndex)
+          },
           tension: 0.28,
           fill: false,
           pointRadius: (context) => getChartPointRadius(context.dataIndex, specialIndices, liveIndex, lastSessionIndex),
@@ -996,6 +1071,158 @@ function renderLineChart(chartKey, canvas, rows, config) {
   });
 }
 
+function renderDualLineChart(chartKey, canvas, rows, config) {
+  const labels = rows.map((row) => formatChartDate(row.fecha));
+  const liveIndex = rows.findIndex((row) => row.isLive);
+  const lastSessionIndex = liveIndex === -1 && rows.length ? rows.length - 1 : -1;
+  const seriesEntries = config.series.map((series) => {
+    const values = rows.map((row) => series.valueAccessor(row));
+    const stats = getMetricStats(values);
+    const specialIndices = {
+      min: values.findIndex((value) => isClose(value, stats.min)),
+      max: values.findIndex((value) => isClose(value, stats.max)),
+      mean: values.findIndex((value) => isClose(value, stats.nearestToMedian))
+    };
+
+    return {
+      ...series,
+      values,
+      stats,
+      specialIndices
+    };
+  });
+
+  if (!seriesEntries.some((series) => series.values.some((value) => Number.isFinite(value)))) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  destroyChart(chartKey);
+
+  const datasets = [];
+
+  seriesEntries.forEach((series, index) => {
+    datasets.push({
+      label: `${series.title} mediana`,
+      data: series.values.map(() => series.stats.median),
+      borderColor: withAlphaFromHex(series.color, 0.6),
+      borderWidth: 1.25,
+      borderDash: [6, 6],
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      pointHitRadius: 7,
+      fill: false,
+      tension: 0,
+      spanGaps: true,
+      order: index * 2
+    });
+
+    datasets.push({
+      label: series.title,
+      data: series.values,
+      borderColor: series.color,
+      backgroundColor: withAlphaFromHex(series.color, 0.18),
+      borderWidth: 2,
+      segment: {
+        borderDash: (context) => getLiveSegmentBorderDash(context, liveIndex)
+      },
+      tension: 0.28,
+      fill: false,
+      pointRadius: (context) => getChartPointRadius(context.dataIndex, series.specialIndices, liveIndex, lastSessionIndex),
+      pointHoverRadius: (context) => Math.max(5, getChartPointRadius(context.dataIndex, series.specialIndices, liveIndex, lastSessionIndex) + 1),
+      pointBorderWidth: (context) => isHighlightedPoint(context.dataIndex, series.specialIndices, liveIndex, lastSessionIndex) ? 2 : 0,
+      pointBorderColor: "#d8e6ff",
+      pointBackgroundColor: (context) => getChartPointColor(context.dataIndex, series.specialIndices, liveIndex, lastSessionIndex),
+      spanGaps: true,
+      order: (index * 2) + 1
+    });
+  });
+
+  state.charts[chartKey] = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: "nearest",
+        intersect: false
+      },
+      layout: {
+        padding: {
+          left: 10,
+          right: 22,
+          top: 10
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: "#c7d7ef",
+            filter: (item) => !item.text.includes(" mediana")
+          }
+        },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: "#111c29",
+          borderColor: "rgba(116, 150, 189, 0.22)",
+          borderWidth: 1,
+          titleColor: "#eaf2ff",
+          bodyColor: "#c7d7ef",
+          callbacks: {
+            label: (context) => {
+              const isMedian = context.dataset.label.includes(" mediana");
+              const cleanLabel = context.dataset.label.replace(" mediana", "");
+              return isMedian
+                ? `${cleanLabel} mediana: ${config.labelFormatter(context.parsed.y)}`
+                : `${cleanLabel}: ${config.labelFormatter(context.parsed.y)}`;
+            }
+          }
+        }
+      },
+      animation: false,
+      scales: {
+        x: {
+          offset: true,
+          ticks: {
+            color: "#8ea7c6",
+            autoSkip: false,
+            maxRotation: 45,
+            minRotation: 45
+          },
+          grid: {
+            color: "rgba(116, 150, 189, 0.08)"
+          },
+          border: {
+            color: "rgba(116, 150, 189, 0.18)"
+          }
+        },
+        y: {
+          grace: "10%",
+          ticks: {
+            color: "#8ea7c6",
+            callback: (_, index, ticks) => {
+              const tick = ticks[index];
+              return config.yTickFormatter(Number(tick.value));
+            }
+          },
+          grid: {
+            color: "rgba(116, 150, 189, 0.12)"
+          },
+          border: {
+            color: "rgba(116, 150, 189, 0.18)"
+          }
+        }
+      }
+    },
+    plugins: [createDualPointLabelPlugin(chartKey, rows, seriesEntries, config, liveIndex, lastSessionIndex)]
+  });
+}
+
 function destroyChart(chartKey) {
   if (state.charts[chartKey]) {
     state.charts[chartKey].destroy();
@@ -1041,6 +1268,10 @@ function isSpecialPoint(index, specialIndices) {
 
 function isHighlightedPoint(index, specialIndices, liveIndex, lastSessionIndex) {
   return isSpecialPoint(index, specialIndices) || index === liveIndex || index === lastSessionIndex;
+}
+
+function getLiveSegmentBorderDash(context, liveIndex) {
+  return liveIndex > 0 && context.p1DataIndex === liveIndex ? [6, 6] : undefined;
 }
 
 function withAlphaFromHex(hex, alpha) {
@@ -1111,6 +1342,60 @@ function createPointLabelPlugin(chartKey, points, specialIndices, config, liveIn
         ctx.textAlign = placement.align;
         ctx.textBaseline = placement.baseline;
         ctx.fillText(label, placement.x, placement.y);
+      });
+
+      ctx.restore();
+    }
+  };
+}
+
+function createDualPointLabelPlugin(chartKey, rows, seriesEntries, config, liveIndex, lastSessionIndex) {
+  return {
+    id: `pointLabels-${chartKey}`,
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "12px Barlow, sans-serif";
+
+      seriesEntries.forEach((series, seriesIndex) => {
+        const datasetMeta = chart.getDatasetMeta((seriesIndex * 2) + 1);
+
+        if (!datasetMeta || !datasetMeta.data) {
+          return;
+        }
+
+        datasetMeta.data.forEach((element, index) => {
+          const value = series.values[index];
+
+          if (!Number.isFinite(value) || !isHighlightedPoint(index, series.specialIndices, liveIndex, lastSessionIndex)) {
+            return;
+          }
+
+          const label = config.labelFormatter(value);
+          const placement = chooseSpecialLabelPlacement(chart, element, label, ctx);
+          const kind = index === series.specialIndices.min
+            ? "min"
+            : index === series.specialIndices.max
+              ? "max"
+              : index === series.specialIndices.mean
+                ? "mean"
+                : index === liveIndex
+                  ? "live"
+                  : "last";
+
+          ctx.fillStyle = kind === "min"
+            ? "#39a0ff"
+            : kind === "max"
+              ? "#ff7b7b"
+              : kind === "mean"
+                ? "#f0c24b"
+                : kind === "live"
+                  ? "#22c55e"
+                  : "#a78bfa";
+          ctx.textAlign = placement.align;
+          ctx.textBaseline = placement.baseline;
+          ctx.fillText(label, placement.x, placement.y);
+        });
       });
 
       ctx.restore();
@@ -1481,6 +1766,16 @@ function isValidRow(row) {
     Number.isFinite(row.lastBase1) && Number.isFinite(row.strikeBase2) && Number.isFinite(row.lastBase2);
 }
 
+function getAnnualizedBaseRate(strike, optionPrice, ggal, daysToOpex, rateDays) {
+  if (!Number.isFinite(strike) || !Number.isFinite(optionPrice) || !Number.isFinite(ggal) ||
+    !Number.isFinite(daysToOpex) || !Number.isFinite(rateDays) || ggal === 0 || daysToOpex <= 0) {
+    return NaN;
+  }
+
+  const baseExtrinsic = divide((strike + optionPrice) - ggal, ggal);
+  return baseExtrinsic * divide(rateDays, daysToOpex);
+}
+
 function parseLocaleNumber(value) {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : NaN;
@@ -1532,6 +1827,27 @@ function formatDate(value) {
   }
 
   return `${day}/${month}/${year.slice(-2)}`;
+}
+
+function parseDateKeyAsUtc(value) {
+  const [year, month, day] = String(value).split("-").map(Number);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return NaN;
+  }
+
+  return Date.UTC(year, month - 1, day);
+}
+
+function getDaysToOpex(dateKey) {
+  const currentDateUtc = parseDateKeyAsUtc(dateKey);
+  const opexDateUtc = parseDateKeyAsUtc(CONFIG.currentOpexDate);
+
+  if (!Number.isFinite(currentDateUtc) || !Number.isFinite(opexDateUtc)) {
+    return NaN;
+  }
+
+  return Math.round((opexDateUtc - currentDateUtc) / 86400000);
 }
 
 function getTodayDateKey() {
@@ -1689,16 +2005,17 @@ function setStatus(message, metaMessage = "", updateMessage = "", collapsedSumma
   elements.statusCollapsedSummary.innerHTML = collapsedSummary;
 }
 
-function syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation) {
+function syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, rateDays) {
   const base1Text = Number.isFinite(base1Strike) ? formatNumber(base1Strike, 0) : "-";
   const base2Text = Number.isFinite(base2Strike) ? formatNumber(base2Strike, 0) : "-";
   const lotesText = Number.isFinite(lotes) ? String(lotes) : "-";
   const relationText = Number.isFinite(relation) ? formatStoredRelation(relation) : "-";
+  const rateDaysText = Number.isFinite(rateDays) ? String(rateDays) : "-";
   const base1TypeText = state.optionTypes.base1 === "put" ? "Put" : "Call";
   const base2TypeText = state.optionTypes.base2 === "put" ? "Put" : "Call";
 
   elements.configCollapsedSummary.textContent =
-    `Base 1: ${base1TypeText} ${base1Text} | Base 2: ${base2TypeText} ${base2Text} | Lotes: ${lotesText} | Relacion: ${relationText}`;
+    `Base 1: ${base1TypeText} ${base1Text} | Base 2: ${base2TypeText} ${base2Text} | Lotes: ${lotesText} | Relacion: ${relationText} | Dias tasa: ${rateDaysText}`;
 
   elements.legendCollapsedSummary.innerHTML = `
     <span class="summary-dots">
