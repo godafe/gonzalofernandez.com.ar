@@ -127,6 +127,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .settings-label {
@@ -134,6 +135,18 @@ body {
   align-items: center;
   gap: 10px;
   color: var(--text);
+}
+
+.settings-inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
+.settings-inline-field span {
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .settings-select {

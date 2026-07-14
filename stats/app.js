@@ -1,6 +1,6 @@
 const CONFIG = {
   dataUrl: "https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec?endpoint=history&sheet=HMD",
-  liveUrl: "https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec?endpoint=Live",
+  liveUrlBase: "https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec?endpoint=Live",
   storageKey: "panel-ggal-settings",
   dbName: "panel-ggal-cache",
   dbVersion: 1,
@@ -9,6 +9,8 @@ const CONFIG = {
   defaultLotes: 100,
   defaultRelation: 1.6,
   defaultRateDays: 365,
+  defaultLiveConnection: "DMD_Bot",
+  allowedLiveConnections: ["DMD_Bot", "DMD_Sabro"],
   currentOpexDate: "2026-08-21",
   defaultAutoRefreshEnabled: false,
   defaultAutoRefreshSeconds: 7
@@ -23,6 +25,7 @@ const state = {
   charts: {},
   autoRefreshEnabled: false,
   autoRefreshSeconds: 7,
+  liveConnection: "DMD_Bot",
   autoRefreshTimerId: null,
   countdownTimerId: null,
   nextRefreshAt: null,
@@ -63,6 +66,7 @@ const elements = {
   legendPanelBody: document.getElementById("legendPanelBody"),
   autoRefreshCheckbox: document.getElementById("autoRefreshCheckbox"),
   autoRefreshSecondsSelect: document.getElementById("autoRefreshSecondsSelect"),
+  liveConnectionSelect: document.getElementById("liveConnectionSelect"),
   base1TypeButton: document.getElementById("base1TypeButton"),
   base2TypeButton: document.getElementById("base2TypeButton"),
   base1Header: document.getElementById("base1Header"),
@@ -106,6 +110,7 @@ elements.statusCollapseButton.addEventListener("click", () => togglePanel("statu
 elements.legendCollapseButton.addEventListener("click", () => togglePanel("legendCollapsed"));
 elements.autoRefreshCheckbox.addEventListener("change", handleAutoRefreshSettingsChange);
 elements.autoRefreshSecondsSelect.addEventListener("change", handleAutoRefreshSettingsChange);
+elements.liveConnectionSelect.addEventListener("change", handleLiveConnectionChange);
 elements.base1TypeButton.addEventListener("click", () => toggleOptionType(1));
 elements.base2TypeButton.addEventListener("click", () => toggleOptionType(2));
 elements.swapBasesButton.addEventListener("click", swapBases);
@@ -219,7 +224,7 @@ async function loadLiveData() {
       return;
     }
 
-    const response = await fetch(CONFIG.liveUrl, { cache: "no-store" });
+    const response = await fetch(getLiveUrl(), { cache: "no-store" });
 
     if (!response.ok) {
       throw new Error(`No se pudo leer la fuente live (${response.status})`);
@@ -577,6 +582,7 @@ function applyStoredSettings() {
   state.panels.legendCollapsed = storedSettings.legendCollapsed === true;
   state.optionTypes.base1 = storedSettings.base1Type === "put" ? "put" : "call";
   state.optionTypes.base2 = storedSettings.base2Type === "put" ? "put" : "call";
+  state.liveConnection = getSafeLiveConnection(storedSettings.liveConnection);
   elements.lotesInput.value = Number.isFinite(storedSettings.lotes)
     ? String(storedSettings.lotes)
     : String(CONFIG.defaultLotes);
@@ -588,6 +594,7 @@ function applyStoredSettings() {
     : String(CONFIG.defaultRateDays);
   elements.autoRefreshCheckbox.checked = state.autoRefreshEnabled;
   elements.autoRefreshSecondsSelect.value = String(state.autoRefreshSeconds);
+  elements.liveConnectionSelect.value = state.liveConnection;
   updateAutoRefreshUi();
   syncOptionTypeUi();
   syncPanelUi();
@@ -660,6 +667,7 @@ function readStoredSettings() {
       viewMode: parsed.viewMode,
       autoRefreshEnabled: parsed.autoRefreshEnabled,
       autoRefreshSeconds: Number(parsed.autoRefreshSeconds),
+      liveConnection: parsed.liveConnection,
       base1Type: parsed.base1Type,
       base2Type: parsed.base2Type,
       configCollapsed: parsed.configCollapsed,
@@ -679,6 +687,7 @@ function persistSettings(settings) {
       viewMode: state.viewMode,
       autoRefreshEnabled: state.autoRefreshEnabled,
       autoRefreshSeconds: state.autoRefreshSeconds,
+      liveConnection: state.liveConnection,
       base1Type: state.optionTypes.base1,
       base2Type: state.optionTypes.base2,
       configCollapsed: state.panels.configCollapsed,
@@ -759,6 +768,29 @@ function handleAutoRefreshSettingsChange() {
     rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays)
   });
   syncStatus();
+}
+
+function handleLiveConnectionChange() {
+  state.liveConnection = getSafeLiveConnection(elements.liveConnectionSelect.value);
+  elements.liveConnectionSelect.value = state.liveConnection;
+  persistSettings({
+    base1: Number(elements.base1Select.value),
+    base2: Number(elements.base2Select.value),
+    lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
+    relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
+    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays)
+  });
+  void loadLiveData();
+}
+
+function getSafeLiveConnection(value) {
+  return CONFIG.allowedLiveConnections.includes(value)
+    ? value
+    : CONFIG.defaultLiveConnection;
+}
+
+function getLiveUrl() {
+  return `${CONFIG.liveUrlBase}&sheet=${encodeURIComponent(state.liveConnection)}`;
 }
 
 function updateAutoRefreshUi() {
@@ -1577,7 +1609,7 @@ function syncStatus() {
   const refreshText = state.autoRefreshEnabled
     ? `Auto-refresh activo cada ${state.autoRefreshSeconds}s (proxima en ${formatCountdown()})`
     : "Auto-refresh manual";
-  const liveStatusText = `Estado Live: ${renderStatusState(state.liveStatus)}`;
+  const liveStatusText = `Estado Live: ${renderStatusState(state.liveStatus)} (${state.liveConnection})`;
   const updatedText = state.lastUpdatedAt
     ? `Ultima actualizacion: ${formatTime(state.lastUpdatedAt)}`
     : "Ultima actualizacion: -";
@@ -1713,12 +1745,13 @@ function parseLivePayload(payload, todayKey, fallbackGgal) {
       ? payload
       : [];
 
+  const headerMap = getLiveHeaderMap(rows[0]);
   const calls = {};
   const puts = {};
-  let liveGgal = Number.isFinite(fallbackGgal) ? fallbackGgal : NaN;
+  let liveGgal = NaN;
 
   rows.forEach((rawRow, index) => {
-    if (!Array.isArray(rawRow)) {
+    if (!Array.isArray(rawRow) || (headerMap && index === 0)) {
       return;
     }
 
@@ -1726,22 +1759,23 @@ function parseLivePayload(payload, todayKey, fallbackGgal) {
       return;
     }
 
-    const strike = parseLocaleNumber(rawRow[0]);
-    const type = String(rawRow[1] ?? "").trim().toLowerCase();
-    const last = parseLocaleNumber(rawRow[4]);
+    const row = normalizeLiveRow(rawRow, headerMap);
 
-    if (type === "call" && Number.isFinite(strike) && Number.isFinite(last)) {
-      calls[strikeKey(strike)] = last;
+    if (!row) {
       return;
     }
 
-    if (type === "put" && Number.isFinite(strike) && Number.isFinite(last)) {
-      puts[strikeKey(strike)] = last;
+    if (row.isUnderlying) {
+      liveGgal = row.last;
+    }
+
+    if (row.isCall && Number.isFinite(row.strike)) {
+      calls[strikeKey(row.strike)] = row.last;
       return;
     }
 
-    if (!Number.isFinite(strike) && Number.isFinite(last) && !Number.isFinite(liveGgal)) {
-      liveGgal = last;
+    if (row.isPut && Number.isFinite(row.strike)) {
+      puts[strikeKey(row.strike)] = row.last;
     }
   });
 
@@ -1751,10 +1785,85 @@ function parseLivePayload(payload, todayKey, fallbackGgal) {
 
   return {
     fechaRaw: todayKey,
-    ggal: liveGgal,
+    ggal: Number.isFinite(liveGgal) ? liveGgal : fallbackGgal,
     calls,
     puts
   };
+}
+
+function getLiveHeaderMap(headerRow) {
+  if (!Array.isArray(headerRow)) {
+    return null;
+  }
+
+  const normalizedHeaders = headerRow.map((value) => normalizeHeaderLabel(value));
+
+  if (!normalizedHeaders.some(Boolean)) {
+    return null;
+  }
+
+  const tickerIndex = findHeaderIndex(normalizedHeaders, ["ticker", "especie", "simbolo", "symbol"]);
+  const typeIndex = findHeaderIndex(normalizedHeaders, ["tipo", "type"]);
+  const strikeIndex = findHeaderIndex(normalizedHeaders, ["strike", "base", "ejercicio"]);
+  const lastIndex = findHeaderIndex(normalizedHeaders, ["last", "ultimo", "precio", "cotizacion", "cierre"]);
+
+  if ([tickerIndex, typeIndex, strikeIndex, lastIndex].every((index) => index < 0)) {
+    return null;
+  }
+
+  return {
+    tickerIndex,
+    typeIndex,
+    strikeIndex,
+    lastIndex
+  };
+}
+
+function normalizeLiveRow(rawRow, headerMap) {
+  const strikeCell = getLiveCellValue(rawRow, headerMap?.strikeIndex, 0);
+  const tickerCell = getLiveCellValue(rawRow, headerMap?.tickerIndex, headerMap?.strikeIndex ?? 0);
+  const typeCell = getLiveCellValue(rawRow, headerMap?.typeIndex, 1);
+  const strikeLabel = String(strikeCell ?? "").trim().toUpperCase();
+  const ticker = String(tickerCell ?? "").trim().toUpperCase();
+  const type = String(typeCell ?? "").trim().toLowerCase();
+  const strike = parseLocaleNumber(strikeCell);
+  const last = parseLocaleNumber(getLiveCellValue(rawRow, headerMap?.lastIndex, 4));
+
+  if (!Number.isFinite(last)) {
+    return null;
+  }
+
+  return {
+    strikeLabel,
+    ticker,
+    type,
+    strike,
+    last,
+    isUnderlying: strikeLabel === "GGAL" && type === "suby",
+    isCall: type === "call",
+    isPut: type === "put"
+  };
+}
+
+function getLiveCellValue(rawRow, headerIndex, fallbackIndex) {
+  if (Number.isInteger(headerIndex) && headerIndex >= 0) {
+    return rawRow[headerIndex];
+  }
+
+  return rawRow[fallbackIndex];
+}
+
+function findHeaderIndex(headers, aliases) {
+  return headers.findIndex((header) => aliases.some((alias) => header.includes(alias)));
+}
+
+function normalizeHeaderLabel(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function strikeKey(value) {
@@ -2015,7 +2124,7 @@ function syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, 
   const base2TypeText = state.optionTypes.base2 === "put" ? "Put" : "Call";
 
   elements.configCollapsedSummary.textContent =
-    `Base 1: ${base1TypeText} ${base1Text} | Base 2: ${base2TypeText} ${base2Text} | Lotes: ${lotesText} | Relacion: ${relationText} | Dias tasa: ${rateDaysText}`;
+    `Base 1: ${base1TypeText} ${base1Text} | Base 2: ${base2TypeText} ${base2Text} | Lotes: ${lotesText} | Relacion: ${relationText} | Dias tasa: ${rateDaysText} | Conexion: ${state.liveConnection}`;
 
   elements.legendCollapsedSummary.innerHTML = `
     <span class="summary-dots">
