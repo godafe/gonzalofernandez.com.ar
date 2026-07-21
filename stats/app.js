@@ -13,7 +13,8 @@ const CONFIG = {
   allowedLiveConnections: ["DMD_Bot", "DMD_Sabro"],
   currentOpexDate: "2026-08-21",
   defaultAutoRefreshEnabled: false,
-  defaultAutoRefreshSeconds: 7
+  defaultAutoRefreshSeconds: 7,
+  defaultCrossCount: 4
 };
 
 const state = {
@@ -39,7 +40,9 @@ const state = {
   optionTypes: {
     base1: "call",
     base2: "call"
-  }
+  },
+  multiSeries: [],
+  multiSeriesExpanded: {}
 };
 
 const elements = {
@@ -58,6 +61,7 @@ const elements = {
   costoStraddleHeader: document.getElementById("costoStraddleHeader"),
   tableModeButton: document.getElementById("tableModeButton"),
   chartModeButton: document.getElementById("chartModeButton"),
+  multipleModeButton: document.getElementById("multipleModeButton"),
   configCollapseButton: document.getElementById("configCollapseButton"),
   configPanelBody: document.getElementById("configPanelBody"),
   statusCollapseButton: document.getElementById("statusCollapseButton"),
@@ -79,6 +83,8 @@ const elements = {
   lotesInput: document.getElementById("lotesInput"),
   relationInput: document.getElementById("relationInput"),
   rateDaysInput: document.getElementById("rateDaysInput"),
+  crossCountField: document.getElementById("crossCountField"),
+  crossCountInput: document.getElementById("crossCountInput"),
   reloadButton: document.getElementById("reloadButton"),
   ratesChartCard: document.getElementById("ratesChartCard"),
   rateDiffChartCard: document.getElementById("rateDiffChartCard"),
@@ -100,11 +106,31 @@ const elements = {
   costoBullChart: document.getElementById("costoBullChart"),
   spreadChart: document.getElementById("spreadChart"),
   costoRiChart: document.getElementById("costoRiChart"),
-  costoStraddleChart: document.getElementById("costoStraddleChart")
+  costoStraddleChart: document.getElementById("costoStraddleChart"),
+  multipleSection: document.getElementById("multipleSection"),
+  multipleTableBody: document.getElementById("multipleTableBody"),
+  multipleChartsSection: document.getElementById("multipleChartsSection"),
+  multipleCostoPrimaryHeader: document.getElementById("multipleCostoPrimaryHeader"),
+  multipleSpreadHeader: document.getElementById("multipleSpreadHeader"),
+  multipleCostoRiHeader: document.getElementById("multipleCostoRiHeader"),
+  multipleCostoStraddleHeader: document.getElementById("multipleCostoStraddleHeader"),
+  multipleRatioChartTitle: document.getElementById("multipleRatioChartTitle"),
+  multipleCostoChartTitle: document.getElementById("multipleCostoChartTitle"),
+  multipleSpreadChartTitle: document.getElementById("multipleSpreadChartTitle"),
+  multipleCostoRiChartTitle: document.getElementById("multipleCostoRiChartTitle"),
+  multipleRatioChartCard: document.getElementById("multipleRatioChartCard"),
+  multipleCostoChartCard: document.getElementById("multipleCostoChartCard"),
+  multipleSpreadChartCard: document.getElementById("multipleSpreadChartCard"),
+  multipleCostoRiChartCard: document.getElementById("multipleCostoRiChartCard"),
+  multipleRatioChart: document.getElementById("multipleRatioChart"),
+  multipleCostoChart: document.getElementById("multipleCostoChart"),
+  multipleSpreadChart: document.getElementById("multipleSpreadChart"),
+  multipleCostoRiChart: document.getElementById("multipleCostoRiChart")
 };
 
 elements.tableModeButton.addEventListener("click", () => setViewMode("table"));
 elements.chartModeButton.addEventListener("click", () => setViewMode("chart"));
+elements.multipleModeButton.addEventListener("click", () => setViewMode("multiple"));
 elements.configCollapseButton.addEventListener("click", () => togglePanel("configCollapsed"));
 elements.statusCollapseButton.addEventListener("click", () => togglePanel("statusCollapsed"));
 elements.legendCollapseButton.addEventListener("click", () => togglePanel("legendCollapsed"));
@@ -120,7 +146,9 @@ elements.lotesInput.addEventListener("input", renderTable);
 elements.relationInput.addEventListener("change", handleRelationCommit);
 elements.relationInput.addEventListener("blur", handleRelationCommit);
 elements.rateDaysInput.addEventListener("input", renderTable);
+elements.crossCountInput.addEventListener("input", renderTable);
 elements.reloadButton.addEventListener("click", reloadSheetData);
+elements.multipleTableBody.addEventListener("click", handleMultipleTableClick);
 
 applyStoredPanelStates();
 loadSheetData();
@@ -281,26 +309,31 @@ function renderTable() {
   const lotes = clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes);
   const relation = clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation);
   const rateDays = clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays);
+  const crossCount = clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount);
   const base1Strike = Number(elements.base1Select.value);
   const base2Strike = Number(elements.base2Select.value);
   const combinationMode = getCombinationMode();
   elements.rateDaysInput.value = String(rateDays);
+  elements.crossCountInput.value = String(crossCount);
   persistSettings({
     base1: base1Strike,
     base2: base2Strike,
     lotes,
     relation,
-    rateDays
+    rateDays,
+    crossCount
   });
   updateBaseHeaders(base1Strike, base2Strike);
   updateHeadersForMode(combinationMode);
   updateChartTitles(base1Strike, base2Strike, lotes, relation, combinationMode);
-  syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, rateDays);
+  updateMultipleTitles(base1Strike, base2Strike, lotes, relation, combinationMode);
+  syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, rateDays, crossCount);
   const rows = buildRowsByDate(state.historyByDate, base1Strike, base2Strike);
   const enrichedRows = rows.map((row) => addDerivedMetrics(row, lotes, relation, rateDays));
   const seriesStats = buildSeriesStats(enrichedRows);
   const rowsHtml = enrichedRows.map((row) => buildRowMarkup(row, seriesStats, combinationMode)).join("");
   renderCharts(enrichedRows, combinationMode);
+  renderMultipleView(base1Strike, base2Strike, lotes, relation, rateDays, crossCount, combinationMode);
   syncMetricVisibility(combinationMode);
   syncViewModeUi();
   syncStatus();
@@ -344,6 +377,7 @@ function getCombinationMode() {
 
 function updateHeadersForMode(combinationMode) {
   elements.costoPrimaryHeader.textContent = combinationMode === "bear" ? "Costo Bear" : "Costo Bull";
+  elements.multipleCostoPrimaryHeader.textContent = combinationMode === "bear" ? "Costo Bear" : "Costo Bull";
 }
 
 function syncMetricVisibility(combinationMode) {
@@ -353,11 +387,19 @@ function syncMetricVisibility(combinationMode) {
   elements.spreadHeader.hidden = isStraddle;
   elements.costoRiHeader.hidden = isStraddle;
   elements.costoStraddleHeader.hidden = !isStraddle;
+  elements.multipleCostoPrimaryHeader.hidden = isStraddle;
+  elements.multipleSpreadHeader.hidden = isStraddle;
+  elements.multipleCostoRiHeader.hidden = isStraddle;
+  elements.multipleCostoStraddleHeader.hidden = !isStraddle;
 
   elements.costoPrimaryChartCard.hidden = isStraddle;
   elements.spreadChartCard.hidden = isStraddle;
   elements.costoRiChartCard.hidden = isStraddle;
   elements.costoStraddleChartCard.hidden = !isStraddle;
+  elements.multipleCostoChartCard.hidden = false;
+  elements.multipleRatioChartCard.hidden = false;
+  elements.multipleSpreadChartCard.hidden = isStraddle;
+  elements.multipleCostoRiChartCard.hidden = isStraddle;
 }
 
 function buildRowsByDate(historyByDate, base1Strike, base2Strike) {
@@ -570,7 +612,9 @@ function getMetricExtreme(value, stats) {
 
 function applyStoredSettings() {
   const storedSettings = readStoredSettings();
-  state.viewMode = storedSettings.viewMode === "chart" ? "chart" : "table";
+  state.viewMode = storedSettings.viewMode === "chart" || storedSettings.viewMode === "multiple"
+    ? storedSettings.viewMode
+    : "table";
   state.autoRefreshEnabled = typeof storedSettings.autoRefreshEnabled === "boolean"
     ? storedSettings.autoRefreshEnabled
     : CONFIG.defaultAutoRefreshEnabled;
@@ -592,6 +636,9 @@ function applyStoredSettings() {
   elements.rateDaysInput.value = Number.isFinite(storedSettings.rateDays)
     ? String(clampInteger(storedSettings.rateDays, 1, 5000, CONFIG.defaultRateDays))
     : String(CONFIG.defaultRateDays);
+  elements.crossCountInput.value = Number.isFinite(storedSettings.crossCount)
+    ? String(clampInteger(storedSettings.crossCount, 0, 20, CONFIG.defaultCrossCount))
+    : String(CONFIG.defaultCrossCount);
   elements.autoRefreshCheckbox.checked = state.autoRefreshEnabled;
   elements.autoRefreshSecondsSelect.value = String(state.autoRefreshSeconds);
   elements.liveConnectionSelect.value = state.liveConnection;
@@ -664,6 +711,7 @@ function readStoredSettings() {
       lotes: Number(parsed.lotes),
       relation: Number(parsed.relation),
       rateDays: Number(parsed.rateDays),
+      crossCount: Number(parsed.crossCount),
       viewMode: parsed.viewMode,
       autoRefreshEnabled: parsed.autoRefreshEnabled,
       autoRefreshSeconds: Number(parsed.autoRefreshSeconds),
@@ -700,14 +748,15 @@ function persistSettings(settings) {
 }
 
 function setViewMode(mode) {
-  state.viewMode = mode === "chart" ? "chart" : "table";
+  state.viewMode = mode === "chart" || mode === "multiple" ? mode : "table";
   syncViewModeUi();
   persistSettings({
     base1: Number(elements.base1Select.value),
     base2: Number(elements.base2Select.value),
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
     relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
-    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays)
+    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays),
+    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount)
   });
 }
 
@@ -765,7 +814,8 @@ function handleAutoRefreshSettingsChange() {
     base2: Number(elements.base2Select.value),
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
     relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
-    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays)
+    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays),
+    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount)
   });
   syncStatus();
 }
@@ -778,7 +828,8 @@ function handleLiveConnectionChange() {
     base2: Number(elements.base2Select.value),
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
     relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
-    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays)
+    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays),
+    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount)
   });
   void loadLiveData();
 }
@@ -805,7 +856,8 @@ function togglePanel(panelKey) {
     base2: Number(elements.base2Select.value),
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
     relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
-    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays)
+    rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays),
+    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount)
   });
 }
 
@@ -864,13 +916,22 @@ function scheduleAutoRefresh() {
 }
 
 function syncViewModeUi() {
+  const isTable = state.viewMode === "table";
   const isChart = state.viewMode === "chart";
-  elements.tableModeButton.classList.toggle("is-active", !isChart);
+  const isMultiple = state.viewMode === "multiple";
+  elements.tableModeButton.classList.toggle("is-active", isTable);
   elements.chartModeButton.classList.toggle("is-active", isChart);
-  elements.tableModeButton.setAttribute("aria-selected", String(!isChart));
+  elements.multipleModeButton.classList.toggle("is-active", isMultiple);
+  elements.tableModeButton.setAttribute("aria-selected", String(isTable));
   elements.chartModeButton.setAttribute("aria-selected", String(isChart));
-  elements.tableCard.hidden = isChart;
+  elements.multipleModeButton.setAttribute("aria-selected", String(isMultiple));
+  elements.tableCard.hidden = !isTable;
   elements.chartsSection.hidden = !isChart;
+  elements.multipleSection.hidden = !isMultiple;
+  elements.tableCard.classList.toggle("is-hidden-view", !isTable);
+  elements.chartsSection.classList.toggle("is-hidden-view", !isChart);
+  elements.multipleSection.classList.toggle("is-hidden-view", !isMultiple);
+  elements.crossCountField.hidden = !isMultiple;
 }
 
 function updateChartTitles(base1Strike, base2Strike, lotes, relation, combinationMode) {
@@ -888,6 +949,231 @@ function updateChartTitles(base1Strike, base2Strike, lotes, relation, combinatio
   elements.spreadChartTitle.textContent = `Spread % ${base1Label}/${base2Label}`;
   elements.costoRiChartTitle.textContent = `Costo RI ${base1Label}/${base2Label} (-${lotesLabel}*${relationLabel})`;
   elements.costoStraddleChartTitle.textContent = `Costo Straddle ${base1Label}/${base2Label}`;
+}
+
+function updateMultipleTitles(base1Strike, base2Strike, lotes, relation, combinationMode) {
+  const base1Label = Number.isFinite(base1Strike) ? formatOptionLabel(state.optionTypes.base1, base1Strike) : "Base1";
+  const base2Label = Number.isFinite(base2Strike) ? formatOptionLabel(state.optionTypes.base2, base2Strike) : "Base2";
+  const pairLabel = `${base1Label}/${base2Label}`;
+  const relationFactor = lotes * relation;
+  const lotesLabel = Number.isFinite(lotes) ? Math.round(lotes) : 0;
+  const relationLabel = Number.isFinite(relationFactor) ? formatCompactNumber(relationFactor, 2) : "0";
+  const primaryCostLabel = combinationMode === "straddle"
+    ? "Costo Straddle"
+    : combinationMode === "bear"
+      ? "Costo Bear"
+      : "Costo Bull";
+
+  elements.multipleRatioChartTitle.textContent = `Ratio multiples ${pairLabel}`;
+  elements.multipleCostoChartTitle.textContent = `${primaryCostLabel} multiples ${pairLabel}`;
+  elements.multipleSpreadChartTitle.textContent = `Spread % multiples ${pairLabel}`;
+  elements.multipleCostoRiChartTitle.textContent = `Costo RI multiples ${pairLabel} (-${lotesLabel}*${relationLabel})`;
+}
+
+function renderMultipleView(base1Strike, base2Strike, lotes, relation, rateDays, crossCount, combinationMode) {
+  const series = buildMultipleSeries(base1Strike, base2Strike, lotes, relation, rateDays, crossCount);
+  state.multiSeries = series;
+  syncMultipleSeriesExpandedState(series);
+
+  const rowsHtml = series.map((seriesEntry) => buildMultipleSeriesGroupMarkup(seriesEntry, combinationMode)).join("");
+
+  elements.multipleTableBody.innerHTML = rowsHtml || `
+    <tr>
+      <td colspan="${combinationMode === "straddle" ? "7" : "9"}" class="placeholder">No hay cruces suficientes para mostrar en modo multiple.</td>
+    </tr>
+  `;
+
+  renderMultipleCharts(series, combinationMode);
+}
+
+function buildMultipleSeries(base1Strike, base2Strike, lotes, relation, rateDays, crossCount) {
+  if (!Number.isFinite(base1Strike) || !Number.isFinite(base2Strike)) {
+    return [];
+  }
+
+  const sortedStrikes = state.availableStrikes.slice().sort((left, right) => left - right);
+  const base1Index = sortedStrikes.indexOf(base1Strike);
+  const base2Index = sortedStrikes.indexOf(base2Strike);
+
+  if (base1Index === -1 || base2Index === -1) {
+    return [];
+  }
+
+  const backwardCount = Math.floor(crossCount / 2);
+  const forwardCount = Math.ceil(crossCount / 2);
+  const offsets = [];
+
+  for (let offset = backwardCount; offset >= 1; offset -= 1) {
+    offsets.push(-offset);
+  }
+
+  offsets.push(0);
+
+  for (let offset = 1; offset <= forwardCount; offset += 1) {
+    offsets.push(offset);
+  }
+
+  return offsets
+    .map((offset) => {
+      const strike1 = sortedStrikes[base1Index + offset];
+      const strike2 = sortedStrikes[base2Index + offset];
+
+      if (!Number.isFinite(strike1) || !Number.isFinite(strike2)) {
+        return null;
+      }
+
+      const rows = buildRowsByDate(state.historyByDate, strike1, strike2)
+        .map((row) => addDerivedMetrics(row, lotes, relation, rateDays));
+
+      if (!rows.length) {
+        return null;
+      }
+
+      return {
+        key: `${strike1}-${strike2}`,
+        offset,
+        base1Strike: strike1,
+        base2Strike: strike2,
+        label: formatMultipleSeriesLabel(offset, strike1, strike2),
+        rows
+      };
+    })
+    .filter(Boolean);
+}
+
+function formatMultipleSeriesLabel(offset, base1Strike, base2Strike) {
+  const pairLabel = `${formatOptionLabel(state.optionTypes.base1, base1Strike, false)}/${formatOptionLabel(state.optionTypes.base2, base2Strike, false)}`;
+
+  if (offset === 0) {
+    return `Serie Base ${pairLabel}`;
+  }
+
+  return offset < 0
+    ? `Serie${offset}: ${pairLabel}`
+    : `Serie+${offset}: ${pairLabel}`;
+}
+
+function buildMultipleRowMarkup(seriesEntry, row, seriesStats, combinationMode) {
+  const sharedCells = `
+    <td>${renderDateCell(row)}</td>
+    <td>${formatGroupedNumber(row.ggal, 2)}</td>
+    <td>${formatNumber(row.lastBase1, 2)}</td>
+    <td>${formatNumber(row.lastBase2, 2)}</td>
+    <td>${renderMetricCell(formatNumber(row.ratio, 3), row.ratio, seriesStats.ratio)}</td>
+  `;
+
+  const metricCells = combinationMode === "straddle"
+    ? `<td>${renderMetricCell(formatGroupedCurrency(row.costoStraddle), row.costoStraddle, seriesStats.costoStraddle)}</td>`
+    : `
+      <td>${renderMetricCell(formatGroupedCurrency(row.costoBull), row.costoBull, seriesStats.costoBull)}</td>
+      <td>${renderMetricCell(formatPercent(row.spread), row.spread, seriesStats.spread)}</td>
+      <td>${renderMetricCell(formatGroupedCurrency(row.costoRi), row.costoRi, seriesStats.costoRi)}</td>
+    `;
+
+  return `${sharedCells}${metricCells}`;
+}
+
+function buildMultipleSeriesGroupMarkup(seriesEntry, combinationMode) {
+  const orderedRows = seriesEntry.rows.slice().sort((left, right) => left.fechaRaw.localeCompare(right.fechaRaw));
+  const stats = buildSeriesStats(orderedRows);
+  const latestRow = orderedRows.at(-1);
+  const isExpanded = state.multiSeriesExpanded[seriesEntry.key] === true;
+  const summaryCells = buildMultipleRowMarkup(seriesEntry, latestRow, stats, combinationMode);
+  const detailRows = isExpanded
+    ? orderedRows
+      .slice(0, -1)
+      .map((row) => buildMultipleDetailRowMarkup(seriesEntry, row, stats, combinationMode))
+      .join("")
+    : "";
+  const summaryRow = `
+    <tr class="multiple-summary-row ${latestRow.isLive ? "live-row" : ""}">
+      <td>
+        <button
+          type="button"
+          class="series-toggle-button"
+          data-series-key="${escapeHtml(seriesEntry.key)}"
+          aria-expanded="${String(isExpanded)}"
+        >
+          <span class="series-toggle-symbol">${isExpanded ? "-" : "+"}</span>
+          <span>${escapeHtml(seriesEntry.label)}</span>
+        </button>
+      </td>
+      ${summaryCells}
+    </tr>
+  `;
+
+  return isExpanded
+    ? `${detailRows}${summaryRow}`
+    : summaryRow;
+}
+
+function buildMultipleDetailRowMarkup(seriesEntry, row, seriesStats, combinationMode) {
+  return `
+    <tr class="multiple-detail-row ${row.isLive ? "live-row" : ""}">
+      <td class="series-detail-label">${escapeHtml(seriesEntry.label)}</td>
+      ${buildMultipleRowMarkup(seriesEntry, row, seriesStats, combinationMode)}
+    </tr>
+  `;
+}
+
+function syncMultipleSeriesExpandedState(series) {
+  const nextExpandedState = {};
+
+  series.forEach((seriesEntry) => {
+    nextExpandedState[seriesEntry.key] = state.multiSeriesExpanded[seriesEntry.key] === true;
+  });
+
+  state.multiSeriesExpanded = nextExpandedState;
+}
+
+function handleMultipleTableClick(event) {
+  const toggleButton = event.target.closest(".series-toggle-button");
+
+  if (!toggleButton) {
+    return;
+  }
+
+  const seriesKey = toggleButton.dataset.seriesKey;
+
+  if (!seriesKey) {
+    return;
+  }
+
+  state.multiSeriesExpanded[seriesKey] = !(state.multiSeriesExpanded[seriesKey] === true);
+  renderTable();
+}
+
+function renderMultipleCharts(series, combinationMode) {
+  renderAggregateLineChart("multipleRatio", elements.multipleRatioChart, series, {
+    title: elements.multipleRatioChartTitle.textContent,
+    valueKey: "ratio",
+    labelFormatter: (value) => formatNumber(value, 3),
+    yTickFormatter: (value) => formatNumber(value, 3)
+  });
+
+  const primaryMetricKey = combinationMode === "straddle" ? "costoStraddle" : "costoBull";
+  renderAggregateLineChart("multipleCosto", elements.multipleCostoChart, series, {
+    title: elements.multipleCostoChartTitle.textContent,
+    valueKey: primaryMetricKey,
+    labelFormatter: (value) => formatGroupedCurrency(value),
+    yTickFormatter: (value) => formatGroupedNumber(value, 2)
+  });
+
+  renderAggregateLineChart("multipleSpread", elements.multipleSpreadChart, series, {
+    title: elements.multipleSpreadChartTitle.textContent,
+    valueKey: "spread",
+    labelFormatter: (value) => formatPercent(value),
+    yTickFormatter: (value) => formatPercent(value),
+    skip: combinationMode === "straddle"
+  });
+
+  renderAggregateLineChart("multipleCostoRi", elements.multipleCostoRiChart, series, {
+    title: elements.multipleCostoRiChartTitle.textContent,
+    valueKey: "costoRi",
+    labelFormatter: (value) => formatGroupedCurrency(value),
+    yTickFormatter: (value) => formatGroupedNumber(value, 2),
+    skip: combinationMode === "straddle"
+  });
 }
 
 function renderCharts(rows, combinationMode) {
@@ -1255,6 +1541,174 @@ function renderDualLineChart(chartKey, canvas, rows, config) {
   });
 }
 
+function renderAggregateLineChart(chartKey, canvas, seriesList, config) {
+  if (config.skip) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const labels = collectSeriesLabels(seriesList);
+
+  if (!labels.length || !seriesList.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const palette = ["#4cb3ff", "#ff9f43", "#19c37d", "#b388ff", "#f0c24b", "#ff6b8a", "#67e8f9", "#f97316"];
+  const datasets = [];
+  const pluginSeries = [];
+
+  seriesList.forEach((seriesEntry, index) => {
+    const pointMap = new Map(seriesEntry.rows.map((row) => [formatChartDate(row.fecha), row]));
+    const values = labels.map((label) => {
+      const row = pointMap.get(label);
+      return row ? row[config.valueKey] : NaN;
+    });
+    const stats = getMetricStats(values);
+    const specialIndices = {
+      min: values.findIndex((value) => isClose(value, stats.min)),
+      max: values.findIndex((value) => isClose(value, stats.max)),
+      mean: values.findIndex((value) => isClose(value, stats.nearestToMedian))
+    };
+    const liveIndex = labels.findIndex((label) => pointMap.get(label)?.isLive);
+    const lastFiniteIndex = getLastFiniteIndex(values, liveIndex);
+    const color = palette[index % palette.length];
+
+    datasets.push({
+      label: `${seriesEntry.label} mediana`,
+      data: values.map((value) => Number.isFinite(value) ? stats.median : NaN),
+      borderColor: withAlphaFromHex(color, 0.6),
+      borderWidth: 1.25,
+      borderDash: [6, 6],
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      pointHitRadius: 7,
+      fill: false,
+      tension: 0,
+      spanGaps: true,
+      order: index * 2
+    });
+
+    datasets.push({
+      label: seriesEntry.label,
+      data: values,
+      borderColor: color,
+      backgroundColor: withAlphaFromHex(color, 0.18),
+      borderWidth: 2,
+      segment: {
+        borderDash: (context) => getLiveSegmentBorderDash(context, liveIndex)
+      },
+      tension: 0.28,
+      fill: false,
+      pointRadius: (context) => getChartPointRadius(context.dataIndex, specialIndices, liveIndex, lastFiniteIndex),
+      pointHoverRadius: (context) => Math.max(5, getChartPointRadius(context.dataIndex, specialIndices, liveIndex, lastFiniteIndex) + 1),
+      pointBorderWidth: (context) => isHighlightedPoint(context.dataIndex, specialIndices, liveIndex, lastFiniteIndex) ? 2 : 0,
+      pointBorderColor: "#d8e6ff",
+      pointBackgroundColor: (context) => getChartPointColor(context.dataIndex, specialIndices, liveIndex, lastFiniteIndex),
+      spanGaps: true,
+      order: (index * 2) + 1
+    });
+
+    pluginSeries.push({
+      values,
+      specialIndices,
+      liveIndex,
+      lastFiniteIndex
+    });
+  });
+
+  if (!datasets.some((dataset) => dataset.data.some((value) => Number.isFinite(value)))) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  destroyChart(chartKey);
+
+  state.charts[chartKey] = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: "nearest",
+        intersect: false
+      },
+      layout: {
+        padding: {
+          left: 10,
+          right: 22,
+          top: 10
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: "#c7d7ef",
+            filter: (item) => !item.text.includes(" mediana")
+          }
+        },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: "#111c29",
+          borderColor: "rgba(116, 150, 189, 0.22)",
+          borderWidth: 1,
+          titleColor: "#eaf2ff",
+          bodyColor: "#c7d7ef",
+          callbacks: {
+            label: (context) => {
+              const isMedian = context.dataset.label.includes(" mediana");
+              const cleanLabel = context.dataset.label.replace(" mediana", "");
+              return isMedian
+                ? `${cleanLabel} mediana: ${config.labelFormatter(context.parsed.y)}`
+                : `${cleanLabel}: ${config.labelFormatter(context.parsed.y)}`;
+            }
+          }
+        }
+      },
+      animation: false,
+      scales: {
+        x: {
+          offset: true,
+          ticks: {
+            color: "#8ea7c6",
+            autoSkip: false,
+            maxRotation: 45,
+            minRotation: 45
+          },
+          grid: {
+            color: "rgba(116, 150, 189, 0.08)"
+          },
+          border: {
+            color: "rgba(116, 150, 189, 0.18)"
+          }
+        },
+        y: {
+          grace: "10%",
+          ticks: {
+            color: "#8ea7c6",
+            callback: (_, index, ticks) => {
+              const tick = ticks[index];
+              return config.yTickFormatter(Number(tick.value));
+            }
+          },
+          grid: {
+            color: "rgba(116, 150, 189, 0.12)"
+          },
+          border: {
+            color: "rgba(116, 150, 189, 0.18)"
+          }
+        }
+      }
+    },
+    plugins: [createAggregatePointLabelPlugin(chartKey, pluginSeries, config)]
+  });
+}
+
 function destroyChart(chartKey) {
   if (state.charts[chartKey]) {
     state.charts[chartKey].destroy();
@@ -1326,6 +1780,26 @@ function hexToRgb(hex) {
 
 function isClose(left, right) {
   return Math.abs(left - right) < 0.0000001;
+}
+
+function collectSeriesLabels(seriesList) {
+  return Array.from(new Set(
+    seriesList.flatMap((seriesEntry) => seriesEntry.rows.map((row) => formatChartDate(row.fecha)))
+  ));
+}
+
+function getLastFiniteIndex(values, liveIndex) {
+  if (liveIndex >= 0) {
+    return -1;
+  }
+
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    if (Number.isFinite(values[index])) {
+      return index;
+    }
+  }
+
+  return -1;
 }
 
 function createPointLabelPlugin(chartKey, points, specialIndices, config, liveIndex, lastSessionIndex) {
@@ -1412,6 +1886,60 @@ function createDualPointLabelPlugin(chartKey, rows, seriesEntries, config, liveI
               : index === series.specialIndices.mean
                 ? "mean"
                 : index === liveIndex
+                  ? "live"
+                  : "last";
+
+          ctx.fillStyle = kind === "min"
+            ? "#39a0ff"
+            : kind === "max"
+              ? "#ff7b7b"
+              : kind === "mean"
+                ? "#f0c24b"
+                : kind === "live"
+                  ? "#22c55e"
+                  : "#a78bfa";
+          ctx.textAlign = placement.align;
+          ctx.textBaseline = placement.baseline;
+          ctx.fillText(label, placement.x, placement.y);
+        });
+      });
+
+      ctx.restore();
+    }
+  };
+}
+
+function createAggregatePointLabelPlugin(chartKey, seriesEntries, config) {
+  return {
+    id: `pointLabels-${chartKey}`,
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "12px Barlow, sans-serif";
+
+      seriesEntries.forEach((series, seriesIndex) => {
+        const datasetMeta = chart.getDatasetMeta((seriesIndex * 2) + 1);
+
+        if (!datasetMeta || !datasetMeta.data) {
+          return;
+        }
+
+        datasetMeta.data.forEach((element, index) => {
+          const value = series.values[index];
+
+          if (!Number.isFinite(value) || !isHighlightedPoint(index, series.specialIndices, series.liveIndex, series.lastFiniteIndex)) {
+            return;
+          }
+
+          const label = config.labelFormatter(value);
+          const placement = chooseSpecialLabelPlacement(chart, element, label, ctx);
+          const kind = index === series.specialIndices.min
+            ? "min"
+            : index === series.specialIndices.max
+              ? "max"
+              : index === series.specialIndices.mean
+                ? "mean"
+                : index === series.liveIndex
                   ? "live"
                   : "last";
 
@@ -2114,17 +2642,19 @@ function setStatus(message, metaMessage = "", updateMessage = "", collapsedSumma
   elements.statusCollapsedSummary.innerHTML = collapsedSummary;
 }
 
-function syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, rateDays) {
+function syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, rateDays, crossCount) {
   const base1Text = Number.isFinite(base1Strike) ? formatNumber(base1Strike, 0) : "-";
   const base2Text = Number.isFinite(base2Strike) ? formatNumber(base2Strike, 0) : "-";
   const lotesText = Number.isFinite(lotes) ? String(lotes) : "-";
   const relationText = Number.isFinite(relation) ? formatStoredRelation(relation) : "-";
   const rateDaysText = Number.isFinite(rateDays) ? String(rateDays) : "-";
+  const crossCountText = Number.isFinite(crossCount) ? String(crossCount) : "-";
   const base1TypeText = state.optionTypes.base1 === "put" ? "Put" : "Call";
   const base2TypeText = state.optionTypes.base2 === "put" ? "Put" : "Call";
+  const modeText = state.viewMode === "chart" ? "Grafico" : state.viewMode === "multiple" ? "Multiple" : "Tabla";
 
   elements.configCollapsedSummary.textContent =
-    `Base 1: ${base1TypeText} ${base1Text} | Base 2: ${base2TypeText} ${base2Text} | Lotes: ${lotesText} | Relacion: ${relationText} | Dias tasa: ${rateDaysText} | Conexion: ${state.liveConnection}`;
+    `Modo: ${modeText} | Base 1: ${base1TypeText} ${base1Text} | Base 2: ${base2TypeText} ${base2Text} | Lotes: ${lotesText} | Relacion: ${relationText} | Dias tasa: ${rateDaysText} | Cruces: ${crossCountText} | Conexion: ${state.liveConnection}`;
 
   elements.legendCollapsedSummary.innerHTML = `
     <span class="summary-dots">

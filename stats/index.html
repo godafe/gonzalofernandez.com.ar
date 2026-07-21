@@ -56,6 +56,7 @@
           <div class="mode-toggle" role="tablist" aria-label="Modo de visualizacion">
             <button id="tableModeButton" type="button" class="mode-button is-active" data-mode="table">Tabla</button>
             <button id="chartModeButton" type="button" class="mode-button" data-mode="chart">Grafico</button>
+            <button id="multipleModeButton" type="button" class="mode-button" data-mode="multiple">Multiple</button>
           </div>
         </div>
 
@@ -95,6 +96,11 @@
           <label class="field">
             <span>Dias tasa</span>
             <input id="rateDaysInput" type="number" min="1" max="5000" step="1" value="365">
+          </label>
+
+          <label id="crossCountField" class="field" hidden>
+            <span>Cantidad Cruces</span>
+            <input id="crossCountInput" type="number" min="0" max="20" step="1" value="4">
           </label>
         </div>
       </div>
@@ -254,6 +260,72 @@
           <canvas id="costoStraddleChart"></canvas>
         </div>
       </article>
+    </section>
+
+    <section id="multipleSection" class="multiple-layout" hidden>
+      <section class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Serie</th>
+                <th>Fecha</th>
+                <th>GGAL</th>
+                <th>Base 1</th>
+                <th>Base 2</th>
+                <th>Ratio</th>
+                <th id="multipleCostoPrimaryHeader">Costo Bull</th>
+                <th id="multipleSpreadHeader">Spread</th>
+                <th id="multipleCostoRiHeader">Costo RI</th>
+                <th id="multipleCostoStraddleHeader" hidden>Costo Straddle</th>
+              </tr>
+            </thead>
+            <tbody id="multipleTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="multipleChartsSection" class="charts-grid">
+        <article id="multipleRatioChartCard" class="chart-card">
+          <div class="chart-head">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="multipleRatioChartTitle">Ratio</h2>
+          </div>
+          <div class="chart-frame">
+            <canvas id="multipleRatioChart"></canvas>
+          </div>
+        </article>
+
+        <article id="multipleCostoChartCard" class="chart-card">
+          <div class="chart-head">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="multipleCostoChartTitle">Costo Bull</h2>
+          </div>
+          <div class="chart-frame">
+            <canvas id="multipleCostoChart"></canvas>
+          </div>
+        </article>
+
+        <article id="multipleSpreadChartCard" class="chart-card">
+          <div class="chart-head">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="multipleSpreadChartTitle">Spread %</h2>
+          </div>
+          <div class="chart-frame">
+            <canvas id="multipleSpreadChart"></canvas>
+          </div>
+        </article>
+
+        <article id="multipleCostoRiChartCard" class="chart-card">
+          <div class="chart-head">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="multipleCostoRiChartTitle">Costo RI</h2>
+          </div>
+          <div class="chart-frame">
+            <canvas id="multipleCostoRiChart"></canvas>
+          </div>
+        </article>
+      </section>
     </section>
   </main>
 

@@ -227,9 +227,18 @@ body {
 
 .controls-grid {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) 44px minmax(190px, 1fr) 150px 150px 150px;
+  grid-template-columns: minmax(190px, 1fr) 44px minmax(190px, 1fr) 150px 150px 150px 150px;
   gap: 10px 12px;
   align-items: end;
+}
+
+.multiple-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.is-hidden-view {
+  display: none !important;
 }
 
 .field {
@@ -627,6 +636,45 @@ tbody tr.live-row td:last-child {
   border-radius: 999px;
   flex: 0 0 auto;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+.series-toggle-button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.series-toggle-symbol {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(116, 150, 189, 0.24);
+  border-radius: 6px;
+  background: #111a27;
+  color: #9fd0ff;
+  flex: 0 0 auto;
+}
+
+.multiple-summary-row td:first-child,
+.multiple-detail-row td:first-child {
+  text-align: left;
+}
+
+.series-detail-label {
+  padding-left: 46px;
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 @media (max-width: 720px) {
