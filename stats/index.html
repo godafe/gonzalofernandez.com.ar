@@ -166,163 +166,261 @@
       </div>
     </section>
 
-    <section class="table-card">
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>GGAL</th>
-              <th id="base1Header">Base 1</th>
-              <th id="base2Header">Base 2</th>
-              <th id="rateBase1Header">Tasa Base1</th>
-              <th id="rateBase2Header">Tasa Base2</th>
-              <th>Diferencial</th>
-              <th>Ratio</th>
-              <th id="costoPrimaryHeader">Costo Bull</th>
-              <th id="spreadHeader">Spread</th>
-              <th id="costoRiHeader">Costo RI</th>
-              <th id="costoStraddleHeader" hidden>Costo Straddle</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
+    <section id="tableSection" class="table-card">
+      <div class="panel-header">
+        <div class="panel-title">
+          <p class="chart-kicker">Tabla</p>
+        </div>
+        <button id="tableCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tablePanelBody" aria-label="Colapsar tabla">
+          <span class="caret-icon">&#9662;</span>
+        </button>
       </div>
+      <div id="tablePanelBody" class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>GGAL</th>
+                <th id="base1Header">Base 1</th>
+                <th id="base2Header">Base 2</th>
+                <th id="rateBase1Header">Tasa Base1</th>
+                <th id="rateBase2Header">Tasa Base2</th>
+                <th>Diferencial</th>
+                <th>Ratio</th>
+                <th id="costoPrimaryHeader">Costo Bull</th>
+                <th id="spreadHeader">Spread</th>
+                <th id="costoRiHeader">Costo RI</th>
+                <th id="costoStraddleHeader" hidden>Costo Straddle</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="tableCollapsedPreview" class="table-collapsed-preview" hidden></div>
     </section>
 
     <section id="chartsSection" class="charts-grid" hidden>
       <article id="ratesChartCard" class="chart-card">
-        <div class="chart-head">
-          <p class="chart-kicker">Serie</p>
-          <h2 id="ratesChartTitle">Tasas</h2>
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="ratesChartTitle">Tasas</h2>
+          </div>
+          <button id="ratesChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="ratesChartPanelBody" aria-label="Colapsar grafico de tasas">
+            <span class="caret-icon">&#9662;</span>
+          </button>
         </div>
-        <div class="chart-frame">
-          <canvas id="ratesChart"></canvas>
+        <div id="ratesChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="ratesChart"></canvas>
+          </div>
         </div>
       </article>
 
       <article id="rateDiffChartCard" class="chart-card">
-        <div class="chart-head">
-          <p class="chart-kicker">Serie</p>
-          <h2 id="rateDiffChartTitle">Diferencial de Tasas</h2>
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="rateDiffChartTitle">Diferencial de Tasas</h2>
+          </div>
+          <button id="rateDiffChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="rateDiffChartPanelBody" aria-label="Colapsar grafico de diferencial de tasas">
+            <span class="caret-icon">&#9662;</span>
+          </button>
         </div>
-        <div class="chart-frame">
-          <canvas id="rateDiffChart"></canvas>
+        <div id="rateDiffChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="rateDiffChart"></canvas>
+          </div>
         </div>
       </article>
 
       <article id="ratioChartCard" class="chart-card">
-        <div class="chart-head">
-          <p class="chart-kicker">Serie</p>
-          <h2 id="ratioChartTitle">Ratio</h2>
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="ratioChartTitle">Ratio</h2>
+          </div>
+          <button id="ratioChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="ratioChartPanelBody" aria-label="Colapsar grafico de ratio">
+            <span class="caret-icon">&#9662;</span>
+          </button>
         </div>
-        <div class="chart-frame">
-          <canvas id="ratioChart"></canvas>
+        <div id="ratioChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="ratioChart"></canvas>
+          </div>
         </div>
       </article>
 
       <article id="costoPrimaryChartCard" class="chart-card">
-        <div class="chart-head">
-          <p class="chart-kicker">Serie</p>
-          <h2 id="costoBullChartTitle">Costo Bull</h2>
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="costoBullChartTitle">Costo Bull</h2>
+          </div>
+          <button id="costoPrimaryChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="costoPrimaryChartPanelBody" aria-label="Colapsar grafico de costo principal">
+            <span class="caret-icon">&#9662;</span>
+          </button>
         </div>
-        <div class="chart-frame">
-          <canvas id="costoBullChart"></canvas>
+        <div id="costoPrimaryChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="costoBullChart"></canvas>
+          </div>
         </div>
       </article>
 
       <article id="spreadChartCard" class="chart-card">
-        <div class="chart-head">
-          <p class="chart-kicker">Serie</p>
-          <h2 id="spreadChartTitle">Spread</h2>
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="spreadChartTitle">Spread</h2>
+          </div>
+          <button id="spreadChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="spreadChartPanelBody" aria-label="Colapsar grafico de spread">
+            <span class="caret-icon">&#9662;</span>
+          </button>
         </div>
-        <div class="chart-frame">
-          <canvas id="spreadChart"></canvas>
+        <div id="spreadChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="spreadChart"></canvas>
+          </div>
         </div>
       </article>
 
       <article id="costoRiChartCard" class="chart-card">
-        <div class="chart-head">
-          <p class="chart-kicker">Serie</p>
-          <h2 id="costoRiChartTitle">Costo RI</h2>
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="costoRiChartTitle">Costo RI</h2>
+          </div>
+          <button id="costoRiChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="costoRiChartPanelBody" aria-label="Colapsar grafico de costo RI">
+            <span class="caret-icon">&#9662;</span>
+          </button>
         </div>
-        <div class="chart-frame">
-          <canvas id="costoRiChart"></canvas>
+        <div id="costoRiChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="costoRiChart"></canvas>
+          </div>
         </div>
       </article>
 
       <article id="costoStraddleChartCard" class="chart-card" hidden>
-        <div class="chart-head">
-          <p class="chart-kicker">Serie</p>
-          <h2 id="costoStraddleChartTitle">Costo Straddle</h2>
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Serie</p>
+            <h2 id="costoStraddleChartTitle">Costo Straddle</h2>
+          </div>
+          <button id="costoStraddleChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="costoStraddleChartPanelBody" aria-label="Colapsar grafico de costo straddle">
+            <span class="caret-icon">&#9662;</span>
+          </button>
         </div>
-        <div class="chart-frame">
-          <canvas id="costoStraddleChart"></canvas>
+        <div id="costoStraddleChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="costoStraddleChart"></canvas>
+          </div>
         </div>
       </article>
     </section>
 
     <section id="multipleSection" class="multiple-layout" hidden>
-      <section class="table-card">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Serie</th>
-                <th>Fecha</th>
-                <th>GGAL</th>
-                <th>Base 1</th>
-                <th>Base 2</th>
-                <th>Ratio</th>
-                <th id="multipleCostoPrimaryHeader">Costo Bull</th>
-                <th id="multipleSpreadHeader">Spread</th>
-                <th id="multipleCostoRiHeader">Costo RI</th>
-                <th id="multipleCostoStraddleHeader" hidden>Costo Straddle</th>
-              </tr>
-            </thead>
-            <tbody id="multipleTableBody"></tbody>
-          </table>
+      <section id="multipleTableSection" class="table-card">
+        <div class="panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Tabla multiple</p>
+          </div>
+          <button id="multipleTableCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="multipleTablePanelBody" aria-label="Colapsar tabla multiple">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="multipleTablePanelBody" class="panel-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Serie</th>
+                  <th>Fecha</th>
+                  <th>GGAL</th>
+                  <th>Base 1</th>
+                  <th>Base 2</th>
+                  <th>Ratio</th>
+                  <th id="multipleCostoPrimaryHeader">Costo Bull</th>
+                  <th id="multipleSpreadHeader">Spread</th>
+                  <th id="multipleCostoRiHeader">Costo RI</th>
+                  <th id="multipleCostoStraddleHeader" hidden>Costo Straddle</th>
+                </tr>
+              </thead>
+              <tbody id="multipleTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
       <section id="multipleChartsSection" class="charts-grid">
         <article id="multipleRatioChartCard" class="chart-card">
-          <div class="chart-head">
-            <p class="chart-kicker">Serie</p>
-            <h2 id="multipleRatioChartTitle">Ratio</h2>
+          <div class="chart-head panel-header">
+            <div class="panel-title">
+              <p class="chart-kicker">Serie</p>
+              <h2 id="multipleRatioChartTitle">Ratio</h2>
+            </div>
+            <button id="multipleRatioChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="multipleRatioChartPanelBody" aria-label="Colapsar grafico multiple de ratio">
+              <span class="caret-icon">&#9662;</span>
+            </button>
           </div>
-          <div class="chart-frame">
-            <canvas id="multipleRatioChart"></canvas>
+          <div id="multipleRatioChartPanelBody" class="panel-body">
+            <div class="chart-frame">
+              <canvas id="multipleRatioChart"></canvas>
+            </div>
           </div>
         </article>
 
         <article id="multipleCostoChartCard" class="chart-card">
-          <div class="chart-head">
-            <p class="chart-kicker">Serie</p>
-            <h2 id="multipleCostoChartTitle">Costo Bull</h2>
+          <div class="chart-head panel-header">
+            <div class="panel-title">
+              <p class="chart-kicker">Serie</p>
+              <h2 id="multipleCostoChartTitle">Costo Bull</h2>
+            </div>
+            <button id="multipleCostoChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="multipleCostoChartPanelBody" aria-label="Colapsar grafico multiple de costo">
+              <span class="caret-icon">&#9662;</span>
+            </button>
           </div>
-          <div class="chart-frame">
-            <canvas id="multipleCostoChart"></canvas>
+          <div id="multipleCostoChartPanelBody" class="panel-body">
+            <div class="chart-frame">
+              <canvas id="multipleCostoChart"></canvas>
+            </div>
           </div>
         </article>
 
         <article id="multipleSpreadChartCard" class="chart-card">
-          <div class="chart-head">
-            <p class="chart-kicker">Serie</p>
-            <h2 id="multipleSpreadChartTitle">Spread %</h2>
+          <div class="chart-head panel-header">
+            <div class="panel-title">
+              <p class="chart-kicker">Serie</p>
+              <h2 id="multipleSpreadChartTitle">Spread %</h2>
+            </div>
+            <button id="multipleSpreadChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="multipleSpreadChartPanelBody" aria-label="Colapsar grafico multiple de spread">
+              <span class="caret-icon">&#9662;</span>
+            </button>
           </div>
-          <div class="chart-frame">
-            <canvas id="multipleSpreadChart"></canvas>
+          <div id="multipleSpreadChartPanelBody" class="panel-body">
+            <div class="chart-frame">
+              <canvas id="multipleSpreadChart"></canvas>
+            </div>
           </div>
         </article>
 
         <article id="multipleCostoRiChartCard" class="chart-card">
-          <div class="chart-head">
-            <p class="chart-kicker">Serie</p>
-            <h2 id="multipleCostoRiChartTitle">Costo RI</h2>
+          <div class="chart-head panel-header">
+            <div class="panel-title">
+              <p class="chart-kicker">Serie</p>
+              <h2 id="multipleCostoRiChartTitle">Costo RI</h2>
+            </div>
+            <button id="multipleCostoRiChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="multipleCostoRiChartPanelBody" aria-label="Colapsar grafico multiple de costo RI">
+              <span class="caret-icon">&#9662;</span>
+            </button>
           </div>
-          <div class="chart-frame">
-            <canvas id="multipleCostoRiChart"></canvas>
+          <div id="multipleCostoRiChartPanelBody" class="panel-body">
+            <div class="chart-frame">
+              <canvas id="multipleCostoRiChart"></canvas>
+            </div>
           </div>
         </article>
       </section>

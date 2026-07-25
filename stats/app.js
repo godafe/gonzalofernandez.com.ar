@@ -32,10 +32,24 @@ const state = {
   nextRefreshAt: null,
   lastUpdatedAt: null,
   liveStatus: "Actualizando",
+  chartVisibility: {},
   panels: {
     configCollapsed: false,
     statusCollapsed: false,
-    legendCollapsed: false
+    legendCollapsed: false,
+    tableCollapsed: false,
+    ratesChartCollapsed: false,
+    rateDiffChartCollapsed: false,
+    ratioChartCollapsed: false,
+    costoPrimaryChartCollapsed: false,
+    spreadChartCollapsed: false,
+    costoRiChartCollapsed: false,
+    costoStraddleChartCollapsed: false,
+    multipleTableCollapsed: false,
+    multipleRatioChartCollapsed: false,
+    multipleCostoChartCollapsed: false,
+    multipleSpreadChartCollapsed: false,
+    multipleCostoRiChartCollapsed: false
   },
   optionTypes: {
     base1: "call",
@@ -53,7 +67,10 @@ const elements = {
   statusUpdateMessage: document.getElementById("statusUpdateMessage"),
   statusCollapsedSummary: document.getElementById("statusCollapsedSummary"),
   legendCollapsedSummary: document.getElementById("legendCollapsedSummary"),
-  tableCard: document.querySelector(".table-card"),
+  tableSection: document.getElementById("tableSection"),
+  tableCollapseButton: document.getElementById("tableCollapseButton"),
+  tablePanelBody: document.getElementById("tablePanelBody"),
+  tableCollapsedPreview: document.getElementById("tableCollapsedPreview"),
   chartsSection: document.getElementById("chartsSection"),
   costoPrimaryHeader: document.getElementById("costoPrimaryHeader"),
   spreadHeader: document.getElementById("spreadHeader"),
@@ -87,12 +104,26 @@ const elements = {
   crossCountInput: document.getElementById("crossCountInput"),
   reloadButton: document.getElementById("reloadButton"),
   ratesChartCard: document.getElementById("ratesChartCard"),
+  ratesChartCollapseButton: document.getElementById("ratesChartCollapseButton"),
+  ratesChartPanelBody: document.getElementById("ratesChartPanelBody"),
   rateDiffChartCard: document.getElementById("rateDiffChartCard"),
+  rateDiffChartCollapseButton: document.getElementById("rateDiffChartCollapseButton"),
+  rateDiffChartPanelBody: document.getElementById("rateDiffChartPanelBody"),
   ratioChartCard: document.getElementById("ratioChartCard"),
+  ratioChartCollapseButton: document.getElementById("ratioChartCollapseButton"),
+  ratioChartPanelBody: document.getElementById("ratioChartPanelBody"),
   costoPrimaryChartCard: document.getElementById("costoPrimaryChartCard"),
+  costoPrimaryChartCollapseButton: document.getElementById("costoPrimaryChartCollapseButton"),
+  costoPrimaryChartPanelBody: document.getElementById("costoPrimaryChartPanelBody"),
   spreadChartCard: document.getElementById("spreadChartCard"),
+  spreadChartCollapseButton: document.getElementById("spreadChartCollapseButton"),
+  spreadChartPanelBody: document.getElementById("spreadChartPanelBody"),
   costoRiChartCard: document.getElementById("costoRiChartCard"),
+  costoRiChartCollapseButton: document.getElementById("costoRiChartCollapseButton"),
+  costoRiChartPanelBody: document.getElementById("costoRiChartPanelBody"),
   costoStraddleChartCard: document.getElementById("costoStraddleChartCard"),
+  costoStraddleChartCollapseButton: document.getElementById("costoStraddleChartCollapseButton"),
+  costoStraddleChartPanelBody: document.getElementById("costoStraddleChartPanelBody"),
   ratesChartTitle: document.getElementById("ratesChartTitle"),
   rateDiffChartTitle: document.getElementById("rateDiffChartTitle"),
   ratioChartTitle: document.getElementById("ratioChartTitle"),
@@ -108,6 +139,9 @@ const elements = {
   costoRiChart: document.getElementById("costoRiChart"),
   costoStraddleChart: document.getElementById("costoStraddleChart"),
   multipleSection: document.getElementById("multipleSection"),
+  multipleTableSection: document.getElementById("multipleTableSection"),
+  multipleTableCollapseButton: document.getElementById("multipleTableCollapseButton"),
+  multipleTablePanelBody: document.getElementById("multipleTablePanelBody"),
   multipleTableBody: document.getElementById("multipleTableBody"),
   multipleChartsSection: document.getElementById("multipleChartsSection"),
   multipleCostoPrimaryHeader: document.getElementById("multipleCostoPrimaryHeader"),
@@ -119,9 +153,17 @@ const elements = {
   multipleSpreadChartTitle: document.getElementById("multipleSpreadChartTitle"),
   multipleCostoRiChartTitle: document.getElementById("multipleCostoRiChartTitle"),
   multipleRatioChartCard: document.getElementById("multipleRatioChartCard"),
+  multipleRatioChartCollapseButton: document.getElementById("multipleRatioChartCollapseButton"),
+  multipleRatioChartPanelBody: document.getElementById("multipleRatioChartPanelBody"),
   multipleCostoChartCard: document.getElementById("multipleCostoChartCard"),
+  multipleCostoChartCollapseButton: document.getElementById("multipleCostoChartCollapseButton"),
+  multipleCostoChartPanelBody: document.getElementById("multipleCostoChartPanelBody"),
   multipleSpreadChartCard: document.getElementById("multipleSpreadChartCard"),
+  multipleSpreadChartCollapseButton: document.getElementById("multipleSpreadChartCollapseButton"),
+  multipleSpreadChartPanelBody: document.getElementById("multipleSpreadChartPanelBody"),
   multipleCostoRiChartCard: document.getElementById("multipleCostoRiChartCard"),
+  multipleCostoRiChartCollapseButton: document.getElementById("multipleCostoRiChartCollapseButton"),
+  multipleCostoRiChartPanelBody: document.getElementById("multipleCostoRiChartPanelBody"),
   multipleRatioChart: document.getElementById("multipleRatioChart"),
   multipleCostoChart: document.getElementById("multipleCostoChart"),
   multipleSpreadChart: document.getElementById("multipleSpreadChart"),
@@ -134,6 +176,19 @@ elements.multipleModeButton.addEventListener("click", () => setViewMode("multipl
 elements.configCollapseButton.addEventListener("click", () => togglePanel("configCollapsed"));
 elements.statusCollapseButton.addEventListener("click", () => togglePanel("statusCollapsed"));
 elements.legendCollapseButton.addEventListener("click", () => togglePanel("legendCollapsed"));
+elements.tableCollapseButton.addEventListener("click", () => togglePanel("tableCollapsed"));
+elements.ratesChartCollapseButton.addEventListener("click", () => togglePanel("ratesChartCollapsed"));
+elements.rateDiffChartCollapseButton.addEventListener("click", () => togglePanel("rateDiffChartCollapsed"));
+elements.ratioChartCollapseButton.addEventListener("click", () => togglePanel("ratioChartCollapsed"));
+elements.costoPrimaryChartCollapseButton.addEventListener("click", () => togglePanel("costoPrimaryChartCollapsed"));
+elements.spreadChartCollapseButton.addEventListener("click", () => togglePanel("spreadChartCollapsed"));
+elements.costoRiChartCollapseButton.addEventListener("click", () => togglePanel("costoRiChartCollapsed"));
+elements.costoStraddleChartCollapseButton.addEventListener("click", () => togglePanel("costoStraddleChartCollapsed"));
+elements.multipleTableCollapseButton.addEventListener("click", () => togglePanel("multipleTableCollapsed"));
+elements.multipleRatioChartCollapseButton.addEventListener("click", () => togglePanel("multipleRatioChartCollapsed"));
+elements.multipleCostoChartCollapseButton.addEventListener("click", () => togglePanel("multipleCostoChartCollapsed"));
+elements.multipleSpreadChartCollapseButton.addEventListener("click", () => togglePanel("multipleSpreadChartCollapsed"));
+elements.multipleCostoRiChartCollapseButton.addEventListener("click", () => togglePanel("multipleCostoRiChartCollapsed"));
 elements.autoRefreshCheckbox.addEventListener("change", handleAutoRefreshSettingsChange);
 elements.autoRefreshSecondsSelect.addEventListener("change", handleAutoRefreshSettingsChange);
 elements.liveConnectionSelect.addEventListener("change", handleLiveConnectionChange);
@@ -343,6 +398,7 @@ function renderTable() {
       <td colspan="${combinationMode === "straddle" ? "9" : "11"}" class="placeholder">No hay datos para mostrar todavia.</td>
     </tr>
   `;
+  renderCollapsedTablePreview(enrichedRows, seriesStats, combinationMode);
 }
 
 function handleRelationCommit() {
@@ -624,6 +680,19 @@ function applyStoredSettings() {
   state.panels.configCollapsed = storedSettings.configCollapsed === true;
   state.panels.statusCollapsed = storedSettings.statusCollapsed === true;
   state.panels.legendCollapsed = storedSettings.legendCollapsed === true;
+  state.panels.tableCollapsed = storedSettings.tableCollapsed === true;
+  state.panels.ratesChartCollapsed = storedSettings.ratesChartCollapsed === true;
+  state.panels.rateDiffChartCollapsed = storedSettings.rateDiffChartCollapsed === true;
+  state.panels.ratioChartCollapsed = storedSettings.ratioChartCollapsed === true;
+  state.panels.costoPrimaryChartCollapsed = storedSettings.costoPrimaryChartCollapsed === true;
+  state.panels.spreadChartCollapsed = storedSettings.spreadChartCollapsed === true;
+  state.panels.costoRiChartCollapsed = storedSettings.costoRiChartCollapsed === true;
+  state.panels.costoStraddleChartCollapsed = storedSettings.costoStraddleChartCollapsed === true;
+  state.panels.multipleTableCollapsed = storedSettings.multipleTableCollapsed === true;
+  state.panels.multipleRatioChartCollapsed = storedSettings.multipleRatioChartCollapsed === true;
+  state.panels.multipleCostoChartCollapsed = storedSettings.multipleCostoChartCollapsed === true;
+  state.panels.multipleSpreadChartCollapsed = storedSettings.multipleSpreadChartCollapsed === true;
+  state.panels.multipleCostoRiChartCollapsed = storedSettings.multipleCostoRiChartCollapsed === true;
   state.optionTypes.base1 = storedSettings.base1Type === "put" ? "put" : "call";
   state.optionTypes.base2 = storedSettings.base2Type === "put" ? "put" : "call";
   state.liveConnection = getSafeLiveConnection(storedSettings.liveConnection);
@@ -653,6 +722,19 @@ function applyStoredPanelStates() {
   state.panels.configCollapsed = storedSettings.configCollapsed === true;
   state.panels.statusCollapsed = storedSettings.statusCollapsed === true;
   state.panels.legendCollapsed = storedSettings.legendCollapsed === true;
+  state.panels.tableCollapsed = storedSettings.tableCollapsed === true;
+  state.panels.ratesChartCollapsed = storedSettings.ratesChartCollapsed === true;
+  state.panels.rateDiffChartCollapsed = storedSettings.rateDiffChartCollapsed === true;
+  state.panels.ratioChartCollapsed = storedSettings.ratioChartCollapsed === true;
+  state.panels.costoPrimaryChartCollapsed = storedSettings.costoPrimaryChartCollapsed === true;
+  state.panels.spreadChartCollapsed = storedSettings.spreadChartCollapsed === true;
+  state.panels.costoRiChartCollapsed = storedSettings.costoRiChartCollapsed === true;
+  state.panels.costoStraddleChartCollapsed = storedSettings.costoStraddleChartCollapsed === true;
+  state.panels.multipleTableCollapsed = storedSettings.multipleTableCollapsed === true;
+  state.panels.multipleRatioChartCollapsed = storedSettings.multipleRatioChartCollapsed === true;
+  state.panels.multipleCostoChartCollapsed = storedSettings.multipleCostoChartCollapsed === true;
+  state.panels.multipleSpreadChartCollapsed = storedSettings.multipleSpreadChartCollapsed === true;
+  state.panels.multipleCostoRiChartCollapsed = storedSettings.multipleCostoRiChartCollapsed === true;
   syncPanelUi();
 }
 
@@ -720,7 +802,20 @@ function readStoredSettings() {
       base2Type: parsed.base2Type,
       configCollapsed: parsed.configCollapsed,
       statusCollapsed: parsed.statusCollapsed,
-      legendCollapsed: parsed.legendCollapsed
+      legendCollapsed: parsed.legendCollapsed,
+      tableCollapsed: parsed.tableCollapsed,
+      ratesChartCollapsed: parsed.ratesChartCollapsed,
+      rateDiffChartCollapsed: parsed.rateDiffChartCollapsed,
+      ratioChartCollapsed: parsed.ratioChartCollapsed,
+      costoPrimaryChartCollapsed: parsed.costoPrimaryChartCollapsed,
+      spreadChartCollapsed: parsed.spreadChartCollapsed,
+      costoRiChartCollapsed: parsed.costoRiChartCollapsed,
+      costoStraddleChartCollapsed: parsed.costoStraddleChartCollapsed,
+      multipleTableCollapsed: parsed.multipleTableCollapsed,
+      multipleRatioChartCollapsed: parsed.multipleRatioChartCollapsed,
+      multipleCostoChartCollapsed: parsed.multipleCostoChartCollapsed,
+      multipleSpreadChartCollapsed: parsed.multipleSpreadChartCollapsed,
+      multipleCostoRiChartCollapsed: parsed.multipleCostoRiChartCollapsed
     };
   } catch (error) {
     console.warn("No se pudo leer localStorage", error);
@@ -740,7 +835,20 @@ function persistSettings(settings) {
       base2Type: state.optionTypes.base2,
       configCollapsed: state.panels.configCollapsed,
       statusCollapsed: state.panels.statusCollapsed,
-      legendCollapsed: state.panels.legendCollapsed
+      legendCollapsed: state.panels.legendCollapsed,
+      tableCollapsed: state.panels.tableCollapsed,
+      ratesChartCollapsed: state.panels.ratesChartCollapsed,
+      rateDiffChartCollapsed: state.panels.rateDiffChartCollapsed,
+      ratioChartCollapsed: state.panels.ratioChartCollapsed,
+      costoPrimaryChartCollapsed: state.panels.costoPrimaryChartCollapsed,
+      spreadChartCollapsed: state.panels.spreadChartCollapsed,
+      costoRiChartCollapsed: state.panels.costoRiChartCollapsed,
+      costoStraddleChartCollapsed: state.panels.costoStraddleChartCollapsed,
+      multipleTableCollapsed: state.panels.multipleTableCollapsed,
+      multipleRatioChartCollapsed: state.panels.multipleRatioChartCollapsed,
+      multipleCostoChartCollapsed: state.panels.multipleCostoChartCollapsed,
+      multipleSpreadChartCollapsed: state.panels.multipleSpreadChartCollapsed,
+      multipleCostoRiChartCollapsed: state.panels.multipleCostoRiChartCollapsed
     }));
   } catch (error) {
     console.warn("No se pudo guardar localStorage", error);
@@ -865,6 +973,19 @@ function syncPanelUi() {
   syncSinglePanel(elements.configCollapseButton, elements.configPanelBody, state.panels.configCollapsed);
   syncSinglePanel(elements.statusCollapseButton, elements.statusPanelBody, state.panels.statusCollapsed);
   syncSinglePanel(elements.legendCollapseButton, elements.legendPanelBody, state.panels.legendCollapsed);
+  syncSinglePanel(elements.tableCollapseButton, elements.tablePanelBody, state.panels.tableCollapsed);
+  syncSinglePanel(elements.ratesChartCollapseButton, elements.ratesChartPanelBody, state.panels.ratesChartCollapsed);
+  syncSinglePanel(elements.rateDiffChartCollapseButton, elements.rateDiffChartPanelBody, state.panels.rateDiffChartCollapsed);
+  syncSinglePanel(elements.ratioChartCollapseButton, elements.ratioChartPanelBody, state.panels.ratioChartCollapsed);
+  syncSinglePanel(elements.costoPrimaryChartCollapseButton, elements.costoPrimaryChartPanelBody, state.panels.costoPrimaryChartCollapsed);
+  syncSinglePanel(elements.spreadChartCollapseButton, elements.spreadChartPanelBody, state.panels.spreadChartCollapsed);
+  syncSinglePanel(elements.costoRiChartCollapseButton, elements.costoRiChartPanelBody, state.panels.costoRiChartCollapsed);
+  syncSinglePanel(elements.costoStraddleChartCollapseButton, elements.costoStraddleChartPanelBody, state.panels.costoStraddleChartCollapsed);
+  syncSinglePanel(elements.multipleTableCollapseButton, elements.multipleTablePanelBody, state.panels.multipleTableCollapsed);
+  syncSinglePanel(elements.multipleRatioChartCollapseButton, elements.multipleRatioChartPanelBody, state.panels.multipleRatioChartCollapsed);
+  syncSinglePanel(elements.multipleCostoChartCollapseButton, elements.multipleCostoChartPanelBody, state.panels.multipleCostoChartCollapsed);
+  syncSinglePanel(elements.multipleSpreadChartCollapseButton, elements.multipleSpreadChartPanelBody, state.panels.multipleSpreadChartCollapsed);
+  syncSinglePanel(elements.multipleCostoRiChartCollapseButton, elements.multipleCostoRiChartPanelBody, state.panels.multipleCostoRiChartCollapsed);
 }
 
 function syncSinglePanel(button, body, collapsed) {
@@ -883,6 +1004,51 @@ function syncSinglePanel(button, body, collapsed) {
   if (body === elements.legendPanelBody) {
     elements.legendCollapsedSummary.hidden = !collapsed;
   }
+
+  if (body === elements.tablePanelBody) {
+    elements.tableCollapsedPreview.hidden = !collapsed;
+  }
+}
+
+function renderCollapsedTablePreview(rows, seriesStats, combinationMode) {
+  const liveRows = rows.filter((row) => row.isLive);
+  const latestLiveRow = liveRows.at(-1);
+
+  if (!latestLiveRow) {
+    elements.tableCollapsedPreview.innerHTML = `
+      <div class="table-collapsed-empty">No hay registro live para mostrar.</div>
+    `;
+    return;
+  }
+
+  elements.tableCollapsedPreview.innerHTML = `
+    <div class="table-wrap table-wrap-collapsed">
+      <table class="collapsed-preview-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>GGAL</th>
+            <th>${escapeHtml(elements.base1Header.textContent || "Base 1")}</th>
+            <th>${escapeHtml(elements.base2Header.textContent || "Base 2")}</th>
+            <th>${escapeHtml(elements.rateBase1Header.textContent || "Tasa Base1")}</th>
+            <th>${escapeHtml(elements.rateBase2Header.textContent || "Tasa Base2")}</th>
+            <th>Diferencial</th>
+            <th>Ratio</th>
+            ${combinationMode === "straddle"
+              ? `<th>${escapeHtml(elements.costoStraddleHeader.textContent || "Costo Straddle")}</th>`
+              : `
+                <th>${escapeHtml(elements.costoPrimaryHeader.textContent || "Costo Bull")}</th>
+                <th>${escapeHtml(elements.spreadHeader.textContent || "Spread")}</th>
+                <th>${escapeHtml(elements.costoRiHeader.textContent || "Costo RI")}</th>
+              `}
+          </tr>
+        </thead>
+        <tbody>
+          ${buildRowMarkup(latestLiveRow, seriesStats, combinationMode)}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function scheduleAutoRefresh() {
@@ -925,10 +1091,10 @@ function syncViewModeUi() {
   elements.tableModeButton.setAttribute("aria-selected", String(isTable));
   elements.chartModeButton.setAttribute("aria-selected", String(isChart));
   elements.multipleModeButton.setAttribute("aria-selected", String(isMultiple));
-  elements.tableCard.hidden = !isTable;
+  elements.tableSection.hidden = !isTable;
   elements.chartsSection.hidden = !isChart;
   elements.multipleSection.hidden = !isMultiple;
-  elements.tableCard.classList.toggle("is-hidden-view", !isTable);
+  elements.tableSection.classList.toggle("is-hidden-view", !isTable);
   elements.chartsSection.classList.toggle("is-hidden-view", !isChart);
   elements.multipleSection.classList.toggle("is-hidden-view", !isMultiple);
   elements.crossCountField.hidden = !isMultiple;
@@ -1622,6 +1788,8 @@ function renderAggregateLineChart(chartKey, canvas, seriesList, config) {
     return;
   }
 
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
   destroyChart(chartKey);
 
   state.charts[chartKey] = new Chart(canvas, {
@@ -1647,6 +1815,7 @@ function renderAggregateLineChart(chartKey, canvas, seriesList, config) {
       plugins: {
         legend: {
           display: true,
+          onClick: handlePersistentLegendClick,
           labels: {
             color: "#c7d7ef",
             filter: (item) => !item.text.includes(" mediana")
@@ -1714,6 +1883,93 @@ function destroyChart(chartKey) {
     state.charts[chartKey].destroy();
     delete state.charts[chartKey];
   }
+}
+
+function captureChartVisibilityState(chartKey) {
+  const chart = state.charts[chartKey];
+
+  if (!chart) {
+    return;
+  }
+
+  const hiddenLabels = {};
+
+  chart.data.datasets.forEach((dataset, datasetIndex) => {
+    const label = getVisibilityLabel(dataset.label);
+
+    if (!label) {
+      return;
+    }
+
+    if (!chart.isDatasetVisible(datasetIndex)) {
+      hiddenLabels[label] = true;
+    }
+  });
+
+  state.chartVisibility[chartKey] = hiddenLabels;
+}
+
+function applyChartVisibilityState(chartKey, datasets) {
+  const hiddenLabels = state.chartVisibility[chartKey];
+
+  if (!hiddenLabels) {
+    return;
+  }
+
+  datasets.forEach((dataset) => {
+    const label = getVisibilityLabel(dataset.label);
+
+    if (label && hiddenLabels[label]) {
+      dataset.hidden = true;
+    }
+  });
+}
+
+function getVisibilityLabel(label) {
+  if (typeof label !== "string" || !label) {
+    return "";
+  }
+
+  return label.replace(" mediana", "");
+}
+
+function handlePersistentLegendClick(event, legendItem, legend) {
+  const chart = legend.chart;
+  const datasetIndex = legendItem.datasetIndex;
+  const dataset = chart.data.datasets[datasetIndex];
+  const label = getVisibilityLabel(dataset?.label);
+
+  if (!label) {
+    return;
+  }
+
+  const matchingDatasetIndices = chart.data.datasets.reduce((indices, currentDataset, currentIndex) => {
+    if (getVisibilityLabel(currentDataset.label) === label) {
+      indices.push(currentIndex);
+    }
+
+    return indices;
+  }, []);
+
+  const shouldHide = matchingDatasetIndices.some((index) => chart.isDatasetVisible(index));
+
+  matchingDatasetIndices.forEach((index) => {
+    chart.setDatasetVisibility(index, !shouldHide);
+  });
+
+  const chartKey = Object.entries(state.charts).find(([, currentChart]) => currentChart === chart)?.[0];
+
+  if (chartKey) {
+    state.chartVisibility[chartKey] = state.chartVisibility[chartKey] || {};
+
+    if (shouldHide) {
+      state.chartVisibility[chartKey][label] = true;
+    } else {
+      delete state.chartVisibility[chartKey][label];
+    }
+  }
+
+  chart.update();
 }
 
 function getChartPointRadius(index, specialIndices, liveIndex, lastSessionIndex) {
@@ -1918,9 +2174,10 @@ function createAggregatePointLabelPlugin(chartKey, seriesEntries, config) {
       ctx.font = "12px Barlow, sans-serif";
 
       seriesEntries.forEach((series, seriesIndex) => {
-        const datasetMeta = chart.getDatasetMeta((seriesIndex * 2) + 1);
+        const datasetIndex = (seriesIndex * 2) + 1;
+        const datasetMeta = chart.getDatasetMeta(datasetIndex);
 
-        if (!datasetMeta || !datasetMeta.data) {
+        if (!datasetMeta || !datasetMeta.data || !chart.isDatasetVisible(datasetIndex)) {
           return;
         }
 

@@ -53,6 +53,7 @@ body {
 }
 
 .controls-card.is-collapsed,
+.table-card.is-collapsed,
 .status-card.is-collapsed,
 .legend-card.is-collapsed {
   padding: 10px 16px;
@@ -393,6 +394,42 @@ body {
   padding: 12px;
 }
 
+.table-card .panel-header,
+.chart-card .panel-header {
+  margin-bottom: 12px;
+}
+
+.table-card.is-collapsed .panel-header,
+.chart-card.is-collapsed .panel-header {
+  margin-bottom: 0;
+}
+
+.table-collapsed-preview {
+  margin-top: 12px;
+}
+
+.table-collapsed-empty {
+  padding: 14px 16px;
+  border: 1px dashed rgba(116, 150, 189, 0.24);
+  border-radius: 14px;
+  color: var(--muted);
+  background: rgba(11, 20, 31, 0.55);
+  font-style: italic;
+}
+
+.table-wrap-collapsed {
+  border: 1px solid var(--separator);
+  border-radius: 14px;
+}
+
+.collapsed-preview-table {
+  min-width: 0;
+}
+
+.collapsed-preview-table thead th {
+  position: static;
+}
+
 .legend-card {
   padding: 16px 18px;
 }
@@ -493,9 +530,15 @@ body {
 }
 
 .chart-head {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
   margin-bottom: 12px;
+}
+
+.chart-head .panel-title {
+  gap: 4px;
 }
 
 .chart-head h2 {
