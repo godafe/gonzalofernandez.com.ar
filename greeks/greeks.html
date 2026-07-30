@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Griegas</title>
+  <link rel="stylesheet" href="greeks.css">
+</head>
+<body>
+
+  <header>
+    <h1>Simulador de Griegas — Opciones CALL</h1>
+  </header>
+
+  <nav class="page-nav">
+    <a href="greeks.html" class="active">Simulador base única</a>
+    <a href="portfolio.html">Posición multi-base</a>
+    <a href="simulator.html">Simulador</a>
+  </nav>
+
+  <!-- Panel de inputs -->
+  <section class="panel" id="inputs-panel">
+    <h2>Parámetros</h2>
+    <div class="input-grid">
+
+      <div class="input-group">
+        <label for="S">Subyacente (S)</label>
+        <input type="range" id="S-slider" min="1000" max="20000" step="10">
+        <input type="number" id="S" min="1" step="10">
+      </div>
+
+      <div class="input-group">
+        <label for="K">Strike (K)</label>
+        <input type="number" id="K" min="1" step="10">
+      </div>
+
+      <div class="input-group">
+        <label for="dias">Días al vencimiento</label>
+        <input type="range" id="dias-slider" min="1" max="365" step="1">
+        <input type="number" id="dias" min="1" max="365" step="1">
+      </div>
+
+      <div class="input-group">
+        <label for="r">Tasa libre de riesgo (%)</label>
+        <input type="number" id="r" min="0" max="200" step="0.1">
+      </div>
+
+      <div class="input-group">
+        <label>VI Actual (%) <span class="calc-badge">calculada</span></label>
+        <div class="calc-display" id="sigma-display">—</div>
+      </div>
+
+      <div class="input-group">
+        <label for="sigmaNueva">VI Escenario (%)</label>
+        <input type="range" id="sigmaNueva-slider" min="1" max="200" step="0.1">
+        <input type="number" id="sigmaNueva" min="0.1" max="200" step="0.1">
+      </div>
+
+      <div class="input-group">
+        <label for="precio">Precio real de la opción ($)</label>
+        <input type="number" id="precio" min="0" step="1">
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Resumen de griegas en precio base -->
+  <section class="panel" id="summary-panel">
+    <h2>Griegas al precio base</h2>
+    <div class="greeks-grid">
+      <div class="greek-card">
+        <span class="greek-label">Precio BS</span>
+        <span class="greek-value" id="base-bs">—</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Delta (Δ)</span>
+        <span class="greek-value" id="base-delta">—</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Gamma (Γ)</span>
+        <span class="greek-value" id="base-gamma">—</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Theta (θ)</span>
+        <span class="greek-value" id="base-theta">—</span>
+        <span class="greek-sub">$ / día</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Vega (ν)</span>
+        <span class="greek-value" id="base-vega">—</span>
+        <span class="greek-sub">$ / 1% VI</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tabla de sensibilidad -->
+  <section class="panel" id="table-panel">
+    <h2>Tabla de Sensibilidad</h2>
+    <div class="table-wrapper">
+      <table id="sensitivity-table">
+        <thead>
+          <tr>
+            <th>% Cambio</th>
+            <th>Precio Suby</th>
+            <th>Cambio Suby</th>
+            <th title="Delta + Gamma estimado: Δ·ΔS + ½·Γ·ΔS²">Δ+Γ Est.</th>
+            <th title="Precio original + estimación Δ+Γ">Precio Δ+Γ</th>
+            <th title="Black-Scholes completo con VI actual">Precio BS (σ act.)</th>
+            <th title="Black-Scholes completo con VI escenario">Precio BS (σ esc.)</th>
+            <th title="Vega al nuevo subyacente ($ por 1% de VI)">Vega</th>
+            <th title="% ganancia/pérdida por movimiento de precio">% Δ BS</th>
+            <th title="% efecto adicional del cambio de VI">% Δ VI</th>
+            <th>Delta</th>
+            <th>Gamma</th>
+            <th>Theta/día</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Gráficos -->
+  <section class="panel" id="charts-panel">
+    <div class="charts-grid">
+      <div class="chart-box">
+        <h2>Precio de la Opción</h2>
+        <canvas id="priceChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <h2>Griegas</h2>
+        <canvas id="greeksChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="greeks-engine.js"></script>
+  <script src="greeks.js"></script>
+</body>
+</html>

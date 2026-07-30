@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Posiciones</title>
+  <link rel="stylesheet" href="greeks.css">
+  <style>
+    /* ── Header ── */
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-shrink: 0;
+    }
+    .api-status {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .api-status.ok      { color: var(--positive); }
+    .api-status.error   { color: var(--negative); }
+    .api-status.loading { color: var(--warning); }
+    .api-countdown {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .btn-refresh {
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1;
+      padding: 0.28rem 0.5rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      padding: 0.5rem 1.1rem;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: #0d1117;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .btn-primary:hover { filter: brightness(1.12); }
+
+    .btn-secondary {
+      padding: 0.45rem 0.9rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-danger {
+      padding: 0.45rem 0.9rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-danger:hover { border-color: var(--negative); color: var(--negative); }
+
+    /* ── Action bar ── */
+    .action-bar {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+    }
+
+    /* ── Positions table ── */
+    .td-left  { text-align: left !important; font-weight: 600; }
+    .td-type  { min-width: 54px; }
+    .td-live  { color: var(--accent); font-weight: 600; }
+    .td-live-edited { color: var(--warning) !important; }
+    .td-price-wrap { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .price-reset-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      opacity: 0.7;
+      transition: color 0.15s, opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .price-reset-btn:hover { color: var(--negative); opacity: 1; }
+
+    .remove-pos-btn {
+      background: none;
+      border: 1px solid var(--panel-border);
+      color: #8b949e;
+      border-radius: 4px;
+      width: 24px;
+      height: 24px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .remove-pos-btn:hover {
+      background: #f85149;
+      border-color: #f85149;
+      color: #fff;
+    }
+
+    /* ── Summary stats ── */
+    .summary-grid {
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--panel-border);
+    }
+    .summary-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .sum-row {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem 2rem;
+      flex-wrap: wrap;
+      padding: 0.55rem 0;
+    }
+    .sum-row + .sum-row { border-top: 1px solid var(--panel-border); }
+    .sum-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      white-space: nowrap;
+    }
+    .sum-value {
+      font-size: 0.92rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-bright);
+      white-space: nowrap;
+      margin-right: 1rem;
+    }
+    .sum-value.pos { color: var(--positive); }
+    .sum-value.neg { color: var(--negative); }
+    .sum-sep {
+      width: 1px;
+      align-self: stretch;
+      background: #3d444d;
+      margin: 0 0.75rem;
+      flex-shrink: 0;
+    }
+
+    /* ── Simulation parameters ── */
+    .sim-top {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2rem;
+      align-items: start;
+      margin-bottom: 1.25rem;
+    }
+    .sim-inputs {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem 1.25rem;
+    }
+
+    .scenario-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      flex-shrink: 0;
+    }
+    .scenario-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-top: 0.35rem;
+    }
+    .scenario-label:first-child { margin-top: 0; }
+
+    .scenarios-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .scen-btn {
+      padding: 0.4rem 0.75rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+    .scen-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .scen-reset-btn { color: #8b949e; }
+    .scen-reset-btn:hover { border-color: #f85149 !important; color: #f85149 !important; }
+
+    /* ── IV table ── */
+    .iv-section-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 0.6rem;
+    }
+    .iv-rows {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .iv-row {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.4rem 0.65rem;
+    }
+    .iv-strike {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      min-width: 58px;
+      font-variant-numeric: tabular-nums;
+    }
+    .iv-input {
+      width: 78px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-bright);
+      padding: 0.28rem 0.4rem;
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+      transition: border-color 0.15s;
+    }
+    .iv-input:focus { outline: none; border-color: var(--accent); }
+    .iv-unit { font-size: 0.75rem; color: var(--text-muted); }
+    .iv-reset-btn {
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      color: #8b949e;
+      width: 22px;
+      height: 22px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .iv-reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Modals ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 520px;
+    }
+    .modal-box h3 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      color: #c9d1d9;
+    }
+    .modal-hint {
+      font-size: 0.78rem;
+      color: #8b949e;
+      margin-bottom: 0.75rem;
+      line-height: 1.55;
+    }
+    .modal-hint code {
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      padding: 0.1rem 0.35rem;
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+    .modal-field {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .modal-field label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .modal-field select {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      padding: 0.4rem 0.6rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .modal-field select:focus { outline: none; border-color: var(--accent); }
+    .modal-textarea {
+      width: 100%;
+      height: 140px;
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-family: monospace;
+      font-size: 0.85rem;
+      padding: 0.6rem 0.75rem;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .modal-textarea:focus { outline: none; border-color: var(--accent); }
+    .modal-error {
+      font-size: 0.78rem;
+      color: #f85149;
+      min-height: 1.2em;
+      margin-top: 0.4rem;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .modal-actions button {
+      padding: 0.5rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      border: 1px solid var(--panel-border);
+    }
+    .modal-cancel  { background: none; color: #8b949e; }
+    .modal-cancel:hover  { border-color: #8b949e; color: #c9d1d9; }
+    .modal-confirm { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
+    .modal-confirm:hover { filter: brightness(1.1); }
+
+    /* Config modal specific */
+    .config-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .config-row label {
+      font-size: 0.82rem;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .config-row select {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      padding: 0.4rem 0.6rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .config-row select:focus { outline: none; border-color: var(--accent); }
+    .config-row input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: var(--accent); }
+
+    /* ── Portfolio panel accent ── */
+    #greeks-panel { border-top: 2px solid #3fb950; }
+    #greeks-panel h2 { color: #3fb950; }
+    #greeks-panel .greek-card { border-color: rgba(63, 185, 80, 0.25); }
+    #greeks-panel .greek-value { color: #3fb950; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    .empty-state .empty-icon { font-size: 2rem; margin-bottom: 0.5rem; display: block; }
+
+    /* ── Inline cell editing ── */
+    td[data-field] { cursor: default; }
+    td[data-field]:not(.editing):hover { background: rgba(88,166,255,0.06); cursor: pointer; }
+    td.editing { padding: 0 !important; }
+    .cell-edit-input {
+      width: 100%;
+      height: 100%;
+      min-width: 70px;
+      background: #0d1117;
+      border: 1px solid var(--accent);
+      border-radius: 0;
+      color: var(--text-bright);
+      padding: 0.4rem 0.5rem;
+      font-size: 0.81rem;
+      font-variant-numeric: tabular-nums;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .cell-edit-input:focus { outline: none; }
+    .cell-edit-input[type="number"]::-webkit-inner-spin-button,
+    .cell-edit-input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .cell-edit-input[type="number"] { -moz-appearance: textfield; }
+    .cell-edit-select { min-width: 90px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-row">
+      <h1>Simulador de Posiciones</h1>
+      <div class="header-actions">
+        <span id="api-status" class="api-status">Sin datos</span>
+        <span id="api-countdown" class="api-countdown"></span>
+        <button id="manual-refresh-btn" class="btn-refresh" style="display:none" title="Actualizar ahora">↻</button>
+        <button id="config-btn" class="btn-secondary">⚙ Configuración</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="page-nav">
+    <a href="greeks.html">Base única</a>
+    <a href="portfolio.html">Multi-base</a>
+    <a href="simulator.html" class="active">Simulador</a>
+  </nav>
+
+  <!-- Action bar -->
+  <div class="panel action-bar">
+    <button id="import-btn" class="btn-primary">↓ Importar posiciones</button>
+    <button id="clear-btn" class="btn-danger">↺ Limpiar</button>
+  </div>
+
+  <!-- Positions panel -->
+  <section class="panel" id="positions-panel">
+    <h2>Posición</h2>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left">Tipo</th>
+            <th>Lotes</th>
+            <th>Strike</th>
+            <th>Prima</th>
+            <th>Precio Actual</th>
+            <th>Var %</th>
+            <th>P&amp;L Actual</th>
+            <th>Vol. Impl.</th>
+            <th>Delta (Δ)</th>
+            <th>Gamma (Γ)</th>
+            <th>Vega (ν)</th>
+            <th>Theta (θ)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="positions-tbody">
+          <tr id="empty-row">
+            <td colspan="13">
+              <div class="empty-state">
+                <span class="empty-icon">📋</span>
+                Importá posiciones para comenzar
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="summary-grid" class="summary-grid"></div>
+  </section>
+
+  <!-- Simulation parameters -->
+  <section class="panel" id="sim-panel">
+    <h2>Parámetros de Simulación</h2>
+    <div class="sim-top">
+      <div class="sim-inputs">
+        <div class="input-group">
+          <label for="sim-S">Subyacente (S)</label>
+          <input type="number" id="sim-S" step="0.01" min="0" placeholder="—">
+        </div>
+        <div class="input-group">
+          <label for="sim-r">Tasa libre de riesgo (%)</label>
+          <input type="number" id="sim-r" value="40" step="0.1" min="0">
+        </div>
+        <div class="input-group">
+          <label for="sim-dte">Días al vencimiento</label>
+          <input type="number" id="sim-dte" step="1" min="0" placeholder="—">
+        </div>
+        <div class="input-group">
+          <label for="sim-comisiones">Comisiones (%)</label>
+          <input type="number" id="sim-comisiones" step="0.001" min="0" value="0.500">
+        </div>
+      </div>
+      <div class="scenario-group">
+        <div class="scenario-label">Subyacente</div>
+        <div class="scenarios-btns">
+          <button class="scen-btn" data-act="s" data-p="-5">−5%</button>
+          <button class="scen-btn" data-act="s" data-p="-2">−2%</button>
+          <button class="scen-btn" data-act="s" data-p="2">+2%</button>
+          <button class="scen-btn" data-act="s" data-p="5">+5%</button>
+          <button class="scen-btn scen-reset-btn" data-act="reset-s">↺ Reset</button>
+        </div>
+        <div class="scenario-label">Volatilidad Implícita</div>
+        <div class="scenarios-btns">
+          <button class="scen-btn" data-act="vi" data-p="-5">−5 pp</button>
+          <button class="scen-btn" data-act="vi" data-p="-2">−2 pp</button>
+          <button class="scen-btn" data-act="vi" data-p="2">+2 pp</button>
+          <button class="scen-btn" data-act="vi" data-p="5">+5 pp</button>
+          <button class="scen-btn scen-reset-btn" data-act="reset-vi">↺ Reset</button>
+        </div>
+      </div>
+    </div>
+    <div id="iv-table-wrap"></div>
+  </section>
+
+  <!-- P&L chart -->
+  <section class="panel" id="pnl-panel">
+    <h2>P&amp;L de la Posición</h2>
+    <div class="chart-box" style="height:420px">
+      <canvas id="pnlChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Greeks summary -->
+  <section class="panel" id="greeks-panel">
+    <h2>Griegas de la Posición</h2>
+    <div class="greeks-grid">
+      <div class="greek-card">
+        <span class="greek-label">Delta (Δ)</span>
+        <span class="greek-value" id="g-delta">—</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Gamma (Γ)</span>
+        <span class="greek-value" id="g-gamma">—</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Vega (ν)</span>
+        <span class="greek-value" id="g-vega">—</span>
+        <span class="greek-sub">$ / 1% VI</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Theta (θ)</span>
+        <span class="greek-value" id="g-theta">—</span>
+        <span class="greek-sub">$ / día</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Import Modal ── -->
+  <div id="import-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Importar posiciones</h3>
+      <p class="modal-hint">
+        Una posición por línea, columnas separadas por <code>Tab</code> o espacios:<br>
+        <code>lotes &nbsp;&nbsp; strike &nbsp;&nbsp; prima</code><br>
+        Número negativo = venta. Decimales con coma o punto.
+      </p>
+      <div class="modal-field">
+        <label>Tipo de opción</label>
+        <select id="import-type">
+          <option value="call">Call</option>
+          <option value="put">Put</option>
+          <option value="suby">Acción</option>
+        </select>
+      </div>
+      <textarea id="import-textarea" class="modal-textarea"
+        placeholder="30&#9;8000,00&#9;313,631&#10;-45&#9;8600,00&#9;138,749"></textarea>
+      <div id="import-error" class="modal-error"></div>
+      <div class="modal-actions">
+        <button id="import-cancel" class="modal-cancel">Cancelar</button>
+        <button id="import-confirm" class="modal-confirm">Importar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Config Modal ── -->
+  <div id="config-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Configuración</h3>
+      <div class="config-row">
+        <input type="checkbox" id="cfg-auto" checked>
+        <label for="cfg-auto">Actualizar automáticamente cada:</label>
+        <select id="cfg-interval">
+          <option value="3">3 segundos</option>
+          <option value="5">5 segundos</option>
+          <option value="7" selected>7 segundos</option>
+          <option value="10">10 segundos</option>
+          <option value="30">30 segundos</option>
+          <option value="0">Manual</option>
+        </select>
+      </div>
+      <div class="config-row">
+        <label for="cfg-connection">Conexión</label>
+        <select id="cfg-connection">
+          <option value="DMD_Bot">DMD_Bot</option>
+          <option value="DMD_Sabro">DMD_Sabro</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button id="config-cancel" class="modal-cancel">Cancelar</button>
+        <button id="config-reload" class="modal-cancel" style="margin-right:auto">Recargar datos</button>
+        <button id="config-save" class="modal-confirm">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="greeks-engine.js"></script>
+  <script src="simulator.js"></script>
+</body>
+</html>

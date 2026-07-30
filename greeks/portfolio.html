@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Posición Multi-Base — Opciones CALL</title>
+  <link rel="stylesheet" href="greeks.css">
+  <style>
+    /* ── Base card ── */
+    .base-card {
+      border: 1px solid var(--panel-border);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      background: var(--panel-bg);
+    }
+
+    .base-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .base-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--accent);
+    }
+
+    .remove-base-btn {
+      background: none;
+      border: 1px solid var(--panel-border);
+      color: #8b949e;
+      border-radius: 4px;
+      width: 26px;
+      height: 26px;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      padding: 0;
+    }
+    .remove-base-btn:hover {
+      background: #f85149;
+      border-color: #f85149;
+      color: #fff;
+    }
+
+    /* ── Base-panel action buttons ── */
+    .bases-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    #add-base-btn {
+      flex: 1;
+      padding: 0.75rem;
+      background: none;
+      border: 1px dashed var(--panel-border);
+      border-radius: 6px;
+      color: var(--accent);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #add-base-btn:hover {
+      background: rgba(88, 166, 255, 0.07);
+      border-color: var(--accent);
+    }
+
+    #import-btn {
+      padding: 0.75rem 1.25rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 0.875rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #import-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── VI Escenario reset button ── */
+    .sigma-row {
+      display: flex;
+      gap: 0.35rem;
+      align-items: center;
+    }
+    .sigma-row input[type="number"] { flex: 1; min-width: 0; }
+    .sigma-reset-btn {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      color: #8b949e;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .sigma-reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Adaptive greek cards ── */
+    .base-card .greeks-grid,
+    #portfolio-panel .greeks-grid {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .base-card .greek-card,
+    #portfolio-panel .greek-card {
+      flex: 0 1 auto;
+      min-width: max-content;
+    }
+
+    /* ── Scenarios panel ── */
+    .scenarios-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .scen-btn {
+      padding: 0.5rem 1rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .scen-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .scen-reset-btn { color: #8b949e; }
+    .scen-reset-btn:hover { border-color: #f85149; color: #f85149; }
+
+    /* ── Portfolio total panel ── */
+    #portfolio-panel { border-top: 2px solid #3fb950; }
+    #portfolio-panel h2 { color: #3fb950; }
+    #portfolio-panel .greek-card { border-color: rgba(63, 185, 80, 0.25); }
+    #portfolio-panel .greek-value { color: #3fb950; }
+
+    /* ── Import modal ── */
+    #import-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .modal-box h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1rem;
+      color: #c9d1d9;
+    }
+
+    .modal-hint {
+      font-size: 0.78rem;
+      color: #8b949e;
+      margin-bottom: 0.75rem;
+      line-height: 1.5;
+    }
+
+    .modal-hint code {
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      padding: 0.1rem 0.35rem;
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+
+    #import-textarea {
+      width: 100%;
+      height: 140px;
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-family: monospace;
+      font-size: 0.85rem;
+      padding: 0.6rem 0.75rem;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    #import-textarea:focus { outline: none; border-color: var(--accent); }
+
+    #import-error {
+      font-size: 0.78rem;
+      color: #f85149;
+      min-height: 1.2em;
+      margin-top: 0.4rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .modal-actions button {
+      padding: 0.5rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      border: 1px solid var(--panel-border);
+    }
+
+    #import-cancel {
+      background: none;
+      color: #8b949e;
+    }
+    #import-cancel:hover { border-color: #8b949e; color: #c9d1d9; }
+
+    #import-confirm {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0d1117;
+      font-weight: 600;
+    }
+    #import-confirm:hover { filter: brightness(1.1); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Posición Multi-Base — Opciones CALL</h1>
+  </header>
+
+  <nav class="page-nav">
+    <a href="greeks.html">Simulador base única</a>
+    <a href="portfolio.html" class="active">Posición multi-base</a>
+    <a href="simulator.html">Simulador</a>
+  </nav>
+
+  <!-- Parámetros globales -->
+  <section class="panel" id="globals-panel">
+    <h2>Parámetros Globales</h2>
+    <div class="input-grid">
+
+      <div class="input-group">
+        <label for="S">Subyacente (S)</label>
+        <input type="range" id="S-slider" min="1000" max="20000" step="10">
+        <input type="number" id="S" min="1" step="10">
+      </div>
+
+      <div class="input-group">
+        <label for="dias">Días al vencimiento</label>
+        <input type="range" id="dias-slider" min="1" max="365" step="1">
+        <input type="number" id="dias" min="1" max="365" step="1">
+      </div>
+
+      <div class="input-group">
+        <label for="r">Tasa libre de riesgo (%)</label>
+        <input type="number" id="r" min="0" max="200" step="0.1">
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Escenarios -->
+  <section class="panel" id="scenarios-panel">
+    <h2>Escenarios</h2>
+    <div class="scenarios-btns">
+      <button id="scen-s-plus"  class="scen-btn">+3% Subyacente</button>
+      <button id="scen-s-minus" class="scen-btn">−3% Subyacente</button>
+      <button id="scen-vi-plus"  class="scen-btn">+5% VI</button>
+      <button id="scen-vi-minus" class="scen-btn">−5% VI</button>
+      <button id="scen-reset"   class="scen-btn scen-reset-btn">↺ Reset</button>
+    </div>
+  </section>
+
+  <!-- Bases individuales -->
+  <section class="panel" id="bases-panel">
+    <h2>Bases</h2>
+    <div id="bases-list"></div>
+    <div class="bases-actions">
+      <button id="add-base-btn">+ Agregar base</button>
+      <button id="import-btn">↓ Importar</button>
+    </div>
+  </section>
+
+  <!-- Posición total -->
+  <section class="panel" id="portfolio-panel">
+    <h2>Posición Total</h2>
+    <div class="greeks-grid">
+      <div class="greek-card">
+        <span class="greek-label">Precio Total</span>
+        <span class="greek-value" id="total-bs">—</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Total (σ esc.)</span>
+        <span class="greek-value" id="total-bs-scenario">—</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Delta Total (Δ)</span>
+        <span class="greek-value" id="total-delta">—</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Gamma Total (Γ)</span>
+        <span class="greek-value" id="total-gamma">—</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Vega Total (ν)</span>
+        <span class="greek-value" id="total-vega">—</span>
+        <span class="greek-sub">$ / 1% VI</span>
+      </div>
+      <div class="greek-card">
+        <span class="greek-label">Theta Total (θ)</span>
+        <span class="greek-value" id="total-theta">—</span>
+        <span class="greek-sub">$ / día</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- P&L chart -->
+  <section class="panel" id="pnl-panel">
+    <h2>P&amp;L de la Posición</h2>
+    <div class="chart-box" style="height:420px">
+      <canvas id="pnlChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Modal de importación -->
+  <div id="import-modal">
+    <div class="modal-box">
+      <h3>Importar posiciones</h3>
+      <p class="modal-hint">
+        Una posición por línea, columnas separadas por <code>Tab</code>:<br>
+        <code>lotes &nbsp; strike &nbsp; prima</code><br>
+        Número negativo de lotes = venta. Decimales con coma.
+      </p>
+      <textarea id="import-textarea" placeholder="100&#9;8000,00&#9;333,000&#10;-150&#9;8600,00&#9;166,002"></textarea>
+      <div id="import-error"></div>
+      <div class="modal-actions">
+        <button id="import-cancel">Cancelar</button>
+        <button id="import-confirm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="greeks-engine.js"></script>
+  <script src="portfolio.js"></script>
+</body>
+</html>
