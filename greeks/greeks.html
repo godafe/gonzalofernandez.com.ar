@@ -16,6 +16,13 @@
     <a href="greeks.html" class="active">Simulador base única</a>
     <a href="portfolio.html">Posición multi-base</a>
     <a href="simulator.html">Simulador</a>
+    <div class="nav-iv-select">
+      <label for="nav-iv-method">Modelo VI</label>
+      <select id="nav-iv-method" class="cfg-iv-method" onchange="setIvMethod(this.value); update()">
+        <option value="bs">Black &amp; Scholes</option>
+        <option value="schadner">Schadner (2025)</option>
+      </select>
+    </div>
   </nav>
 
   <!-- Panel de inputs -->
@@ -136,6 +143,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="greeks-engine.js"></script>
+  <script src="Schadner.js"></script>
   <script src="greeks.js"></script>
 </body>
 </html>

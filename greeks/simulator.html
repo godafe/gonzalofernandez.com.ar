@@ -84,6 +84,67 @@
     }
     .btn-danger:hover { border-color: var(--negative); color: var(--negative); }
 
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(1rem);
+      background: #1f2937;
+      border: 1px solid var(--panel-border);
+      color: #e6edf3;
+      font-size: 0.85rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      white-space: nowrap;
+      z-index: 9999;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .btn-success {
+      padding: 0.5rem 1.1rem;
+      background: var(--positive);
+      border: 1px solid var(--positive);
+      border-radius: 6px;
+      color: #0d1117;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .btn-success:hover { filter: brightness(1.12); }
+
+    .btn-outline-accent {
+      padding: 0.45rem 0.9rem;
+      background: none;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .btn-outline-accent:hover { filter: brightness(1.2); }
+
+    .btn-outline-danger {
+      padding: 0.45rem 0.9rem;
+      background: none;
+      border: 1px solid var(--negative);
+      border-radius: 6px;
+      color: var(--negative);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .btn-outline-danger:hover { filter: brightness(1.2); }
+
     /* ── Action bar ── */
     .action-bar {
       display: flex;
@@ -258,7 +319,7 @@
       font-variant-numeric: tabular-nums;
     }
     .iv-input {
-      width: 78px;
+      width: 148px;
       background: var(--input-bg);
       border: 1px solid var(--border);
       border-radius: 4px;
@@ -471,8 +532,10 @@
 
   <!-- Action bar -->
   <div class="panel action-bar">
-    <button id="import-btn" class="btn-primary">↓ Importar posiciones</button>
-    <button id="clear-btn" class="btn-danger">↺ Limpiar</button>
+    <button id="add-row-btn" class="btn-success">+ Agregar</button>
+    <button id="import-btn" class="btn-primary">↓ Importar</button>
+    <button id="export-btn" class="btn-outline-accent">↑ Exportar</button>
+    <button id="clear-btn" class="btn-outline-danger">↺ Limpiar</button>
   </div>
 
   <!-- Positions panel -->
@@ -590,6 +653,8 @@
   </section>
 
   <!-- ── Import Modal ── -->
+  <div id="toast">✓ Se ha copiado la posición al portapapeles.</div>
+
   <div id="import-modal" class="modal-overlay">
     <div class="modal-box">
       <h3>Importar posiciones</h3>
@@ -639,6 +704,14 @@
           <option value="DMD_Sabro">DMD_Sabro</option>
         </select>
       </div>
+      <div class="config-row">
+        <label for="cfg-iv-method">Modelo VI</label>
+        <select id="cfg-iv-method" class="cfg-iv-method">
+          <option value="bs">Black &amp; Scholes</option>
+          <option value="schadner">Schadner (2025)</option>
+          <option value="bs-hp">BS Alta Precisión</option>
+        </select>
+      </div>
       <div class="modal-actions">
         <button id="config-cancel" class="modal-cancel">Cancelar</button>
         <button id="config-reload" class="modal-cancel" style="margin-right:auto">Recargar datos</button>
@@ -649,6 +722,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="greeks-engine.js"></script>
+  <script src="Schadner.js"></script>
+  <script src="black-scholes.js"></script>
   <script src="simulator.js"></script>
 </body>
 </html>

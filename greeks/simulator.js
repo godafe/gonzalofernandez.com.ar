@@ -19,6 +19,14 @@ function parseNum(s) {
   return parseFloat(String(s).trim().replace(',', '.'));
 }
 
+let _toastTimer = null;
+function showToast() {
+  const el = document.getElementById('toast');
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
 // ── Constants ───────────────────────────────────────────────────
 const API_BASE = 'https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec';
 const EXPIRY_DATE = new Date(2026, 7, 21); // 21 Aug 2026, hora local
@@ -57,6 +65,7 @@ const state = {
 
 let autoTimer = null;
 let countdownVal = 0;
+let isFetching = false;
 
 // ── API ──────────────────────────────────────────────────────────
 function mapApiResponse(json) {
@@ -81,6 +90,10 @@ function mapApiResponse(json) {
 }
 
 async function fetchPrices() {
+  if (isFetching) return;
+  isFetching = true;
+  countdownVal = state.config.intervalSec;
+  updateCountdownUI();
   const url = `${API_BASE}?endpoint=Live&sheet=${state.config.connection}`;
   const statusEl = document.getElementById('api-status');
   try {
@@ -111,9 +124,9 @@ async function fetchPrices() {
   } catch {
     statusEl.textContent = 'Error de conexión';
     statusEl.className = 'api-status error';
+  } finally {
+    isFetching = false;
   }
-  countdownVal = state.config.intervalSec;
-  updateCountdownUI();
 }
 
 function updateCountdownUI() {
@@ -235,10 +248,12 @@ function computeAll() {
 function computeSummary(computed) {
   if (!computed.length) return null;
 
+  const comFactor = (state.simParams.comisiones / 100 + 0.002) * 1.21;
   let costoArmado = 0, costoDesarmado = 0;
   for (const { pos, g } of computed) {
-    costoArmado    += -(pos.lotes * 100) * pos.prima;
-    costoDesarmado +=  (pos.lotes * 100) * g.currentPrice;
+    const sign = Math.sign(pos.lotes);
+    costoArmado    += -100 * pos.lotes * pos.prima      * (1 + sign * comFactor);
+    costoDesarmado +=  100 * pos.lotes * g.currentPrice * (1 - sign * comFactor);
   }
   const resultado = costoDesarmado + costoArmado;
 
@@ -314,9 +329,9 @@ function startEdit(td, pos, field) {
     el.value = pos.lotes;
   } else if (field === 'prima') {
     el = document.createElement('input');
-    el.type = 'number'; el.step = '0.001'; el.min = '0.001';
+    el.type = 'number'; el.step = '0.0001'; el.min = '0.0001';
     el.className = 'cell-edit-input';
-    el.value = pos.prima;
+    el.value = pos.prima.toFixed(4);
   } else if (field === 'currentPrice') {
     el = document.createElement('input');
     el.type = 'number'; el.step = '0.001'; el.min = '0.001';
@@ -364,7 +379,7 @@ function applyEdit(pos, field, rawValue) {
   } else if (field === 'prima') {
     const v = parseFloat(rawValue);
     if (isFinite(v) && v > 0) {
-      pos.prima = +v.toFixed(3);
+      pos.prima = +v.toFixed(4);
       pos.cachedSigma = 0.30;
       delete state.simParams.ivOriginals[pos.strike];
     }
@@ -400,6 +415,7 @@ function renderTable(computed) {
     const lotesCls  = pos.lotes > 0 ? 'pos' : 'neg';
     const lotesStr  = (pos.lotes > 0 ? '+' : '') + pos.lotes;
     const ivStr     = isFinite(g.sigmaImpl) && g.sigmaImpl > 0 ? (g.sigmaImpl * 100).toFixed(2) + '%' : '—';
+    const ivTooltip = isFinite(g.sigmaImpl) && g.sigmaImpl > 0 ? (g.sigmaImpl * 100).toFixed(12) + '%' : '';
     const curStr    = g.currentPrice > 0 ? fmt3(g.currentPrice) : '—';
     const pnlStr    = g.pnl !== 0 ? '$' + fmt2(g.pnl) : '—';
     const isEdited  = pos.priceOverride !== undefined;
@@ -429,7 +445,7 @@ function renderTable(computed) {
       </td>
       <td class="${varCls}">${varStr}</td>
       <td class="${pnlCls}">${pnlStr}</td>
-      <td class="muted">${ivStr}</td>
+      <td class="muted" title="${ivTooltip}">${ivStr}</td>
       <td class="${gc(g.delta)}">${fmt4(g.delta)}</td>
       <td class="${gc(g.gamma)}">${fmt6(g.gamma)}</td>
       <td class="${gc(g.vega)}">${fmt4(g.vega)}</td>
@@ -539,13 +555,13 @@ function renderIVTable() {
   const rows = strikes.map(k => {
     const ov = state.simParams.ivOverrides[k];
     const or = state.simParams.ivOriginals[k];
-    const val = ov !== undefined ? ov.toFixed(4) : or !== undefined ? or.toFixed(4) : '';
+    const val = ov !== undefined ? ov.toFixed(12) : or !== undefined ? or.toFixed(12) : '';
     const highlighted = ov !== undefined;
     return `
       <div class="iv-row" style="${highlighted ? 'border-color:var(--accent)' : ''}">
         <span class="iv-strike">${fmt2(k)}</span>
         <input type="number" class="iv-input" data-strike="${k}"
-               value="${val}" min="0.0001" max="500" step="0.01" placeholder="—">
+               value="${val}" min="0.000000000001" max="500" step="any" placeholder="—">
         <span class="iv-unit">%</span>
         <button class="iv-reset-btn" data-strike="${k}" title="Restablecer">↺</button>
       </div>`;
@@ -839,6 +855,7 @@ function openConfigModal() {
   document.getElementById('cfg-auto').checked     = state.config.autoUpdate;
   document.getElementById('cfg-interval').value   = state.config.intervalSec;
   document.getElementById('cfg-connection').value = state.config.connection;
+  document.getElementById('cfg-iv-method').value  = window.APP_IV_METHOD || 'bs';
   document.getElementById('config-modal').style.display = 'flex';
 }
 
@@ -850,8 +867,10 @@ function applyConfig() {
   state.config.autoUpdate  = document.getElementById('cfg-auto').checked;
   state.config.intervalSec = parseInt(document.getElementById('cfg-interval').value) || 0;
   state.config.connection  = document.getElementById('cfg-connection').value;
+  setIvMethod(document.getElementById('cfg-iv-method').value);
   startAutoTimer();
   saveConfig();
+  recompute();
 }
 
 // ── Persistence ──────────────────────────────────────────────────
@@ -940,6 +959,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!td) return;
     const pos = state.positions.find(p => p.id === +td.dataset.posId);
     if (pos) startEdit(td, pos, td.dataset.field);
+  });
+
+  // Export positions to clipboard
+  document.getElementById('export-btn').addEventListener('click', () => {
+    if (!state.positions.length) return;
+    const lines = state.positions.map(p => `${p.lotes}\t${p.strike}\t${p.prima}`);
+    navigator.clipboard.writeText(lines.join('\n'));
+    showToast();
+  });
+
+  // Add empty row
+  document.getElementById('add-row-btn').addEventListener('click', () => {
+    state.positions.push({ id: nextId++, type: 'call', lotes: 1, strike: 0, prima: 0, cachedSigma: 0.30 });
+    saveState();
+    recompute();
   });
 
   // Import modal

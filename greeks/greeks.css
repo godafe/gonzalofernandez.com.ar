@@ -49,6 +49,28 @@ body {
 .page-nav a.active,
 .page-nav a:hover { border-color: var(--accent); color: var(--accent); }
 
+.nav-iv-select {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.nav-iv-select label {
+  font-size: 0.8rem;
+  color: #8b949e;
+  white-space: nowrap;
+}
+.nav-iv-select select {
+  background: var(--input-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: #c9d1d9;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.nav-iv-select select:focus { outline: none; border-color: var(--accent); }
+
 /* ===== Header ===== */
 header {
   margin-bottom: 1.25rem;

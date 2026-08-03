@@ -84,6 +84,21 @@ function bsVega(S, K, T, r, sigma) {
 // Implied volatility (Newton-Raphson)
 // ============================================================
 
+function impliedVolBisection(S, K, T, r, targetPrice, bsFn, tol = 1e-6) {
+  let lo = 1e-4, hi = 20;
+  let flo = bsFn(S, K, T, r, lo) - targetPrice;
+  const fhi = bsFn(S, K, T, r, hi) - targetPrice;
+  if (flo * fhi > 0) return NaN;
+  for (let i = 0; i < 300; i++) {
+    const mid = (lo + hi) / 2;
+    const fmid = bsFn(S, K, T, r, mid) - targetPrice;
+    if (Math.abs(fmid) < tol || (hi - lo) / 2 < tol) return mid;
+    if (flo * fmid < 0) { hi = mid; }
+    else { lo = mid; flo = fmid; }
+  }
+  return (lo + hi) / 2;
+}
+
 function impliedVol(S, K, T, r, targetPrice, tol = 1e-10, maxIter = 200) {
   if (T <= 0 || targetPrice <= 0) return NaN;
   const intrinsic = Math.max(S - K * Math.exp(-r * T), 0);
@@ -101,7 +116,8 @@ function impliedVol(S, K, T, r, targetPrice, tol = 1e-10, maxIter = 200) {
     if (sigma <= 1e-4) sigma = 1e-4;
     if (sigma > 20)    sigma = 20;
   }
-  return Math.abs(bsCall(S, K, T, r, sigma) - targetPrice) < 0.5 ? sigma : NaN;
+  if (Math.abs(bsCall(S, K, T, r, sigma) - targetPrice) < 0.5) return sigma;
+  return impliedVolBisection(S, K, T, r, targetPrice, bsCall, tol);
 }
 
 // ============================================================
@@ -145,5 +161,6 @@ function impliedVolPut(S, K, T, r, targetPrice, tol = 1e-10, maxIter = 200) {
     if (sigma <= 1e-4) sigma = 1e-4;
     if (sigma > 20)    sigma = 20;
   }
-  return Math.abs(bsPut(S, K, T, r, sigma) - targetPrice) < 0.5 ? sigma : NaN;
+  if (Math.abs(bsPut(S, K, T, r, sigma) - targetPrice) < 0.5) return sigma;
+  return impliedVolBisection(S, K, T, r, targetPrice, bsPut, tol);
 }
