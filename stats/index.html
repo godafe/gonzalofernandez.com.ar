@@ -57,6 +57,7 @@
             <button id="tableModeButton" type="button" class="mode-button is-active" data-mode="table">Tabla</button>
             <button id="chartModeButton" type="button" class="mode-button" data-mode="chart">Grafico</button>
             <button id="multipleModeButton" type="button" class="mode-button" data-mode="multiple">Multiple</button>
+            <button id="chainModeButton" type="button" class="mode-button" data-mode="chain">Spread</button>
           </div>
         </div>
 
@@ -424,6 +425,25 @@
           </div>
         </article>
       </section>
+    </section>
+
+    <section id="chainSection" class="chain-section" hidden>
+      <div class="chain-table-wrap">
+        <table class="chain-table">
+          <thead>
+            <tr>
+              <th class="chain-th-price">PRECIO CALL</th>
+              <th class="chain-th-badges">SPREAD</th>
+              <th class="chain-th-dist">DIST% CALL</th>
+              <th class="chain-th-strike">STRIKE</th>
+              <th class="chain-th-dist">DIST% PUT</th>
+              <th class="chain-th-badges">SPREAD</th>
+              <th class="chain-th-price">PRECIO PUT</th>
+            </tr>
+          </thead>
+          <tbody id="chainTableBody"></tbody>
+        </table>
+      </div>
     </section>
   </main>
 

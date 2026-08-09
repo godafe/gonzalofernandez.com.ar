@@ -790,3 +790,195 @@ tbody tr.live-row td:last-child {
     grid-template-columns: 1fr;
   }
 }
+
+/* === Modo Spread (chain) === */
+.chain-section {
+  padding: 0;
+}
+
+.chain-table-wrap {
+  overflow-x: auto;
+}
+
+.chain-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.chain-table thead tr {
+  border-bottom: 1px solid var(--separator);
+}
+
+.chain-table th {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 10px;
+}
+
+.chain-table tbody tr {
+  border-bottom: 1px solid rgba(116, 150, 189, 0.08);
+}
+
+.chain-table tbody tr:hover {
+  background: rgba(31, 143, 255, 0.04);
+}
+
+.chain-th-price {
+  width: 8%;
+  text-align: right;
+}
+
+.chain-th-badges {
+  width: 32%;
+}
+
+.chain-th-dist {
+  width: 6%;
+  text-align: center;
+}
+
+.chain-th-strike {
+  width: 8%;
+  text-align: center;
+}
+
+.chain-price {
+  text-align: right;
+  padding: 5px 14px;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.chain-price-call {
+  color: #22c55e;
+}
+
+.chain-price-put {
+  color: #e14d4d;
+}
+
+.chain-strike {
+  text-align: center;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 5px 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.chain-badges {
+  padding: 4px 8px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.chain-badges-put {
+  text-align: center;
+}
+
+.chain-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  margin: 2px 3px;
+  transition: opacity 0.12s, transform 0.1s;
+  font-variant-numeric: tabular-nums;
+}
+
+.chain-badge:hover {
+  opacity: 0.82;
+  transform: scale(1.04);
+}
+
+.chain-badge-green {
+  background: #16a34a;
+  color: #fff;
+}
+
+.chain-badge-yellow {
+  background: #eab308;
+  color: #000;
+}
+
+.chain-badge-red {
+  background: #dc2626;
+  color: #fff;
+}
+
+.chain-badge-empty {
+  background: transparent;
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.5;
+}
+
+.chain-badge-empty:hover {
+  opacity: 0.5;
+  transform: none;
+}
+
+.chain-row-atm {
+  background: rgba(240, 194, 75, 0.28);
+  box-shadow: inset 3px 0 0 #f0c24b, inset -3px 0 0 #f0c24b;
+}
+
+.chain-row-atm .chain-strike {
+  color: #f0c24b;
+  text-shadow: 0 0 8px rgba(240, 194, 75, 0.5);
+}
+
+.chain-dist {
+  text-align: center;
+  padding: 5px 6px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chain-dist-below {
+  color: #22c55e;
+}
+
+.chain-dist-above {
+  color: #e14d4d;
+}
+
+.chain-dist-call-neg {
+  color: #e14d4d;
+}
+
+.chain-dist-call-pos {
+  color: #22c55e;
+}
+
+.chain-dist-ggal {
+  color: #4cb3ff;
+  font-weight: 700;
+}
+
+.chain-row-ggal {
+  background: rgba(240, 194, 75, 0.50);
+  box-shadow: inset 4px 0 0 #f0c24b, inset -4px 0 0 #f0c24b;
+  border-top: 1px solid rgba(240, 194, 75, 0.8);
+  border-bottom: 1px solid rgba(240, 194, 75, 0.8);
+}
+
+.chain-strike-ggal {
+  color: #f0c24b;
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-shadow: 0 0 10px rgba(240, 194, 75, 0.7);
+}

@@ -167,12 +167,16 @@ const elements = {
   multipleRatioChart: document.getElementById("multipleRatioChart"),
   multipleCostoChart: document.getElementById("multipleCostoChart"),
   multipleSpreadChart: document.getElementById("multipleSpreadChart"),
-  multipleCostoRiChart: document.getElementById("multipleCostoRiChart")
+  multipleCostoRiChart: document.getElementById("multipleCostoRiChart"),
+  chainModeButton: document.getElementById("chainModeButton"),
+  chainSection: document.getElementById("chainSection"),
+  chainTableBody: document.getElementById("chainTableBody")
 };
 
 elements.tableModeButton.addEventListener("click", () => setViewMode("table"));
 elements.chartModeButton.addEventListener("click", () => setViewMode("chart"));
 elements.multipleModeButton.addEventListener("click", () => setViewMode("multiple"));
+elements.chainModeButton.addEventListener("click", () => setViewMode("chain"));
 elements.configCollapseButton.addEventListener("click", () => togglePanel("configCollapsed"));
 elements.statusCollapseButton.addEventListener("click", () => togglePanel("statusCollapsed"));
 elements.legendCollapseButton.addEventListener("click", () => togglePanel("legendCollapsed"));
@@ -297,7 +301,22 @@ async function loadLiveData() {
     state.liveStatus = "Actualizando";
     syncStatus();
     const todayKey = getTodayDateKey();
-    const alreadyCovered = state.historyByDate.some((entry) => entry.fechaRaw === todayKey);
+    const todayHistoryEntry = state.historyByDate.find((entry) => entry.fechaRaw === todayKey);
+
+    let alreadyCovered = false;
+    if (todayHistoryEntry) {
+      const base1Strike = Number(elements.base1Select.value);
+      const base2Strike = Number(elements.base2Select.value);
+      if (Number.isFinite(base1Strike) && Number.isFinite(base2Strike)) {
+        const b1Key = strikeKey(base1Strike);
+        const b2Key = strikeKey(base2Strike);
+        const b1TypeKey = state.optionTypes.base1 === "put" ? "puts" : "calls";
+        const b2TypeKey = state.optionTypes.base2 === "put" ? "puts" : "calls";
+        alreadyCovered = Number.isFinite(todayHistoryEntry.ggal) &&
+          Number.isFinite(todayHistoryEntry[b1TypeKey]?.[b1Key]) &&
+          Number.isFinite(todayHistoryEntry[b2TypeKey]?.[b2Key]);
+      }
+    }
 
     if (alreadyCovered) {
       state.liveEntry = null;
@@ -389,6 +408,7 @@ function renderTable() {
   const rowsHtml = enrichedRows.map((row) => buildRowMarkup(row, seriesStats, combinationMode)).join("");
   renderCharts(enrichedRows, combinationMode);
   renderMultipleView(base1Strike, base2Strike, lotes, relation, rateDays, crossCount, combinationMode);
+  renderSpreadChain();
   syncMetricVisibility(combinationMode);
   syncViewModeUi();
   syncStatus();
@@ -502,7 +522,6 @@ function buildRowsByDate(historyByDate, base1Strike, base2Strike) {
     }
   }
 
-  console.log("Filas renderizadas", rows.length, "bases", base1Strike, base2Strike);
   return rows;
 }
 
@@ -668,7 +687,7 @@ function getMetricExtreme(value, stats) {
 
 function applyStoredSettings() {
   const storedSettings = readStoredSettings();
-  state.viewMode = storedSettings.viewMode === "chart" || storedSettings.viewMode === "multiple"
+  state.viewMode = ["chart", "multiple", "chain"].includes(storedSettings.viewMode)
     ? storedSettings.viewMode
     : "table";
   state.autoRefreshEnabled = typeof storedSettings.autoRefreshEnabled === "boolean"
@@ -856,7 +875,7 @@ function persistSettings(settings) {
 }
 
 function setViewMode(mode) {
-  state.viewMode = mode === "chart" || mode === "multiple" ? mode : "table";
+  state.viewMode = ["chart", "multiple", "chain"].includes(mode) ? mode : "table";
   syncViewModeUi();
   persistSettings({
     base1: Number(elements.base1Select.value),
@@ -1085,18 +1104,23 @@ function syncViewModeUi() {
   const isTable = state.viewMode === "table";
   const isChart = state.viewMode === "chart";
   const isMultiple = state.viewMode === "multiple";
+  const isChain = state.viewMode === "chain";
   elements.tableModeButton.classList.toggle("is-active", isTable);
   elements.chartModeButton.classList.toggle("is-active", isChart);
   elements.multipleModeButton.classList.toggle("is-active", isMultiple);
+  elements.chainModeButton.classList.toggle("is-active", isChain);
   elements.tableModeButton.setAttribute("aria-selected", String(isTable));
   elements.chartModeButton.setAttribute("aria-selected", String(isChart));
   elements.multipleModeButton.setAttribute("aria-selected", String(isMultiple));
+  elements.chainModeButton.setAttribute("aria-selected", String(isChain));
   elements.tableSection.hidden = !isTable;
   elements.chartsSection.hidden = !isChart;
   elements.multipleSection.hidden = !isMultiple;
+  elements.chainSection.hidden = !isChain;
   elements.tableSection.classList.toggle("is-hidden-view", !isTable);
   elements.chartsSection.classList.toggle("is-hidden-view", !isChart);
   elements.multipleSection.classList.toggle("is-hidden-view", !isMultiple);
+  elements.chainSection.classList.toggle("is-hidden-view", !isChain);
   elements.crossCountField.hidden = !isMultiple;
 }
 
@@ -2534,7 +2558,6 @@ function parseLivePayload(payload, todayKey, fallbackGgal) {
   const calls = {};
   const puts = {};
   let liveGgal = NaN;
-
   rows.forEach((rawRow, index) => {
     if (!Array.isArray(rawRow) || (headerMap && index === 0)) {
       return;
@@ -2549,6 +2572,15 @@ function parseLivePayload(payload, todayKey, fallbackGgal) {
     if (!row) {
       return;
     }
+
+    const isGgal = row.isUnderlying
+      || (row.isCall && row.ticker.startsWith("GFGC"))
+      || (row.isPut && row.ticker.startsWith("GFGV"));
+
+    if (!isGgal) {
+      return;
+    }
+
 
     if (row.isUnderlying) {
       liveGgal = row.last;
@@ -3026,4 +3058,188 @@ async function clearCachedPayload() {
       reject(request.error ?? new Error("No se pudo limpiar indexedDB"));
     };
   });
+}
+
+function renderSpreadChain() {
+  const entry = state.liveEntry;
+  const allStrikes = state.availableStrikes; // sorted ascending
+  const tbody = elements.chainTableBody;
+  tbody.innerHTML = "";
+
+  if (!entry) {
+    tbody.innerHTML = `<tr><td colspan="7" class="placeholder">Sin datos live disponibles.</td></tr>`;
+    return;
+  }
+
+  const ggal = entry.ggal;
+
+  // Show only strikes within ±25% of the underlying price
+  const visibleStrikes = Number.isFinite(ggal)
+    ? allStrikes.filter((s) => s >= ggal * 0.75 && s <= ggal * 1.25)
+    : allStrikes;
+
+  // Find the two strikes bracketing the underlying for ATM highlight
+  let atmLow = null;
+  let atmHigh = null;
+  if (Number.isFinite(ggal)) {
+    for (const s of visibleStrikes) {
+      if (s <= ggal) atmLow = s;
+      else if (atmHigh === null) atmHigh = s;
+    }
+  }
+
+  // Render ascending (low strike at top)
+  visibleStrikes.forEach((strike) => {
+    const i = allStrikes.indexOf(strike);
+    const callPrice = entry.calls[strikeKey(strike)];
+    const putPrice = entry.puts[strikeKey(strike)];
+    const isAtm = strike === atmLow || strike === atmHigh;
+    const dist = Number.isFinite(ggal) && ggal !== 0 ? (strike - ggal) / ggal * 100 : NaN;
+    const distText = Number.isFinite(dist) ? `${dist >= 0 ? "+" : ""}${formatNumber(dist, 2)}%` : "--";
+    // Call dist: negative=red, positive=green (reversed vs puts)
+    const distCallClass = `chain-dist ${dist < 0 ? "chain-dist-call-neg" : "chain-dist-call-pos"}`;
+    // Put dist: negative=green, positive=red
+    const distPutClass = `chain-dist ${dist < 0 ? "chain-dist-below" : "chain-dist-above"}`;
+
+    const tr = document.createElement("tr");
+    if (isAtm) tr.classList.add("chain-row-atm");
+
+    // Call price
+    const callPriceTd = document.createElement("td");
+    callPriceTd.className = "chain-price chain-price-call";
+    callPriceTd.textContent = Number.isFinite(callPrice) ? formatNumber(callPrice, 2) : "--";
+    tr.appendChild(callPriceTd);
+
+    // Call badges: this strike vs +1, +2, +3, +4
+    const callBadgesTd = document.createElement("td");
+    callBadgesTd.className = "chain-badges";
+    for (let j = 0; j < 4; j++) {
+      if (i + j + 1 < allStrikes.length) {
+        callBadgesTd.appendChild(createChainBadge(entry.calls, allStrikes[i], allStrikes[i + j + 1], "call"));
+      } else {
+        callBadgesTd.appendChild(createEmptyChainBadge());
+      }
+    }
+    tr.appendChild(callBadgesTd);
+
+    // Distance (call side)
+    const distCallTd = document.createElement("td");
+    distCallTd.className = distCallClass;
+    distCallTd.textContent = distText;
+    tr.appendChild(distCallTd);
+
+    // Strike
+    const strikeTd = document.createElement("td");
+    strikeTd.className = "chain-strike";
+    strikeTd.textContent = formatNumber(strike, 0);
+    tr.appendChild(strikeTd);
+
+    // Distance (put side)
+    const distPutTd = document.createElement("td");
+    distPutTd.className = distPutClass;
+    distPutTd.textContent = distText;
+    tr.appendChild(distPutTd);
+
+    // Put badges: this strike vs -1, -2, -3, -4
+    const putBadgesTd = document.createElement("td");
+    putBadgesTd.className = "chain-badges chain-badges-put";
+    for (let j = 0; j < 4; j++) {
+      if (i - j - 1 >= 0) {
+        putBadgesTd.appendChild(createChainBadge(entry.puts, allStrikes[i - j - 1], allStrikes[i], "put"));
+      } else {
+        putBadgesTd.appendChild(createEmptyChainBadge());
+      }
+    }
+    tr.appendChild(putBadgesTd);
+
+    // Put price
+    const putPriceTd = document.createElement("td");
+    putPriceTd.className = "chain-price chain-price-put";
+    putPriceTd.textContent = Number.isFinite(putPrice) ? formatNumber(putPrice, 2) : "--";
+    tr.appendChild(putPriceTd);
+
+    tbody.appendChild(tr);
+
+    // Insert GGAL live price row between atmLow and atmHigh
+    if (strike === atmLow && Number.isFinite(ggal)) {
+      tbody.appendChild(buildGgalRow(ggal));
+    }
+  });
+
+  requestAnimationFrame(equalizeChainBadgeWidths);
+}
+
+function buildGgalRow(ggal) {
+  const tr = document.createElement("tr");
+  tr.className = "chain-row-ggal";
+  const ggalText = formatNumber(ggal, 2);
+  const cells = [
+    { cls: "chain-price chain-price-call", text: ggalText },  // 0: PRECIO CALL
+    { cls: "", text: "" },                                      // 1: SPREAD (call)
+    { cls: "chain-dist chain-dist-ggal", text: "0,00%" },      // 2: DIST% CALL
+    { cls: "chain-strike chain-strike-ggal", text: ggalText }, // 3: STRIKE
+    { cls: "chain-dist chain-dist-ggal", text: "0,00%" },      // 4: DIST% PUT
+    { cls: "", text: "" },                                      // 5: SPREAD (put)
+    { cls: "chain-price chain-price-put", text: ggalText }     // 6: PRECIO PUT
+  ];
+  cells.forEach(({ cls, text }) => {
+    const td = document.createElement("td");
+    if (cls) td.className = cls;
+    if (text) td.textContent = text;
+    tr.appendChild(td);
+  });
+  return tr;
+}
+
+function createChainBadge(priceMap, s1, s2, type) {
+  const p1 = priceMap[strikeKey(s1)];
+  const p2 = priceMap[strikeKey(s2)];
+  const value = (Number.isFinite(p1) && Number.isFinite(p2) && s2 !== s1)
+    ? Math.abs(p1 - p2) / Math.abs(s2 - s1)
+    : NaN;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  const pct = Number.isFinite(value) ? value * 100 : NaN;
+  let colorClass = "chain-badge-red";
+  if (!Number.isFinite(pct)) {
+    colorClass = "chain-badge-empty";
+  } else if (pct <= 33) {
+    colorClass = "chain-badge-green";
+  } else if (pct <= 66) {
+    colorClass = "chain-badge-yellow";
+  }
+  btn.className = `chain-badge ${colorClass}`;
+  btn.textContent = Number.isFinite(value) ? formatPercent(value) : "--";
+
+  const tl = type === "call" ? "C" : "P";
+  btn.title = `${tl}${Math.round(s1 / 100)}/${tl}${Math.round(s2 / 100)}`;
+
+  btn.addEventListener("click", () => {
+    const lower = Math.min(s1, s2);
+    const upper = Math.max(s1, s2);
+    elements.base1Select.value = String(lower);
+    elements.base2Select.value = String(upper);
+    state.optionTypes.base1 = type;
+    state.optionTypes.base2 = type;
+    syncOptionTypeUi();
+    setViewMode("chart");
+    renderTable();
+  });
+  return btn;
+}
+
+function equalizeChainBadgeWidths() {
+  const badges = elements.chainTableBody.querySelectorAll(".chain-badge");
+  badges.forEach((b) => { b.style.width = ""; });
+  let maxW = 0;
+  badges.forEach((b) => { maxW = Math.max(maxW, b.offsetWidth); });
+  if (maxW > 0) badges.forEach((b) => { b.style.width = `${maxW}px`; });
+}
+
+function createEmptyChainBadge() {
+  const span = document.createElement("span");
+  span.className = "chain-badge chain-badge-empty";
+  span.textContent = "--";
+  return span;
 }
