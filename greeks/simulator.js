@@ -14,14 +14,17 @@ function fmt3(n) { return isFinite(n) ? FMT3.format(n) : '—'; }
 function fmt4(n) { return isFinite(n) ? FMT4.format(n) : '—'; }
 function fmt6(n) { return isFinite(n) ? FMT6.format(n) : '—'; }
 
+function fmtExport(n) { return String(n).replace('.', ','); }
+
 function parseNum(s) {
   if (typeof s === 'number') return s;
   return parseFloat(String(s).trim().replace(',', '.'));
 }
 
 let _toastTimer = null;
-function showToast() {
+function showToast(msg) {
   const el = document.getElementById('toast');
+  if (msg) el.textContent = msg;
   el.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
@@ -37,27 +40,36 @@ function calcDTE() {
   return Math.max(0, Math.ceil((EXPIRY_DATE.getTime() - today.getTime()) / 86400000));
 }
 
+function calcDTEFromDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const today  = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86400000));
+}
+
 // ── State ────────────────────────────────────────────────────────
-let nextId = 1;
+let nextStrategyId = 1;
 
 const state = {
-  positions: [],
+  strategies: [],  // [{ id, name, enabled, collapsed, positions: [], nextId }]
   simParams: {
     S: 0,
     S_orig: 0,
     r: 40,
     dte: calcDTE(),
     comisiones: 0.5,
-    ivOverrides: {},  // { [strike]: pct } — manual overrides
-    ivOriginals: {},  // { [strike]: pct } — implied from entry prima
+    ivOverrides: {},  // { [strike]: pct }
+    ivOriginals: {},  // { [strike]: pct }
+    opexDate: '2026-08-21',
   },
   config: {
     autoUpdate: true,
     intervalSec: 7,
     connection: 'DMD_Bot',
+    panels: { sim: true, pnl: true }, // true = expanded
   },
   apiData: {
-    prices: {},      // { [strike_num]: lastPrice }
+    prices: {},
     subyPrice: 0,
     lastFetch: null,
   },
@@ -67,21 +79,82 @@ let autoTimer = null;
 let countdownVal = 0;
 let isFetching = false;
 
+// ── Sim panel collapsed summary ───────────────────────────────────
+function strikeTicker(strike) {
+  const digits = String(Math.round(strike));
+  return digits.slice(0, strike >= 10000 ? 3 : 2);
+}
+
+function updateSimSummary() {
+  const s = state.simParams;
+  const elS   = document.getElementById('sim-csum-s');
+  const elR   = document.getElementById('sim-csum-r');
+  const elDte = document.getElementById('sim-csum-dte');
+  const elIV  = document.getElementById('sim-csum-iv');
+  if (!elS) return;
+  elS.textContent   = s.S > 0 ? Math.round(s.S).toLocaleString('es-AR') : '—';
+  elR.textContent   = isFinite(s.r) ? String(s.r) : '—';
+  elDte.textContent = isFinite(s.dte) ? String(s.dte) : '—';
+
+  if (!elIV) return;
+  const optPos = getAllPositions().filter(p => p.type !== 'suby');
+  const seen   = new Set();
+  const parts  = [];
+  for (const p of optPos) {
+    const key = `${p.type}:${p.strike}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const iv  = s.ivOverrides[p.strike] ?? s.ivOriginals[p.strike];
+    const ivStr = iv != null ? Number(iv).toFixed(2).replace('.', ',') : '—';
+    const typeChar = p.type === 'call' ? 'C' : 'P';
+    parts.push(`${typeChar}${strikeTicker(p.strike)}:${ivStr}`);
+  }
+  elIV.textContent = parts.join(' / ');
+}
+
+// ── Helpers ──────────────────────────────────────────────────────
+function getEnabledPositions() {
+  return state.strategies.filter(s => s.enabled).flatMap(s => s.positions);
+}
+
+function getAllPositions() {
+  return state.strategies.flatMap(s => s.positions);
+}
+
+function findPosition(stratId, posId) {
+  const s = state.strategies.find(s => s.id === stratId);
+  return s ? s.positions.find(p => p.id === posId) : null;
+}
+
+function syncIVKeys() {
+  const active = new Set(
+    getAllPositions().filter(p => p.type !== 'suby').map(p => p.strike)
+  );
+  for (const k of Object.keys(state.simParams.ivOverrides).map(Number)) {
+    if (!active.has(k)) delete state.simParams.ivOverrides[k];
+  }
+  for (const k of Object.keys(state.simParams.ivOriginals).map(Number)) {
+    if (!active.has(k)) delete state.simParams.ivOriginals[k];
+  }
+}
+
 // ── API ──────────────────────────────────────────────────────────
 function mapApiResponse(json) {
   const prices = {};
   let subyPrice = 0;
   const rows = json.values || [];
+  // API columns: [TICKER, STRIKE, TYPE, BID, ASK, LAST, CHG, EXPIRY]
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    if (!row || row.length < 5) continue;
-    const strikeRaw = String(row[0]).trim().toUpperCase();
-    const type      = String(row[1]).trim().toUpperCase();
-    const last      = parseNum(row[4]);
-    if (!isFinite(last) || last <= 0) continue;
-    if (type === 'SUBY' && strikeRaw === 'GGAL') {
-      subyPrice = last;
+    if (!row || row.length < 6) continue;
+    const strikeRaw = String(row[1]).trim().toUpperCase();
+    const type      = String(row[2]).trim().toUpperCase();
+    const last      = parseNum(row[5]);
+    if (type === 'SUBY') {
+      const price = isFinite(last) && last > 0 ? last : parseNum(row[4]); // fallback to ASK
+      if (price > 0) subyPrice = price;
     } else if (type === 'CALL' || type === 'PUT') {
+      if (!isFinite(last) || last <= 0) continue;
       const k = parseFloat(strikeRaw.replace(',', '.'));
       if (isFinite(k) && k > 0) prices[type + '_' + k] = last;
     }
@@ -101,7 +174,9 @@ async function fetchPrices() {
     statusEl.className = 'api-status loading';
     const res  = await fetch(url);
     const json = await res.json();
+    // console.log('[fetchPrices] RAW JSON:', JSON.stringify(json));
     const { prices, subyPrice } = mapApiResponse(json);
+    // console.log('[fetchPrices] prices mapeados:', prices, '| subyPrice:', subyPrice);
     state.apiData.prices    = prices;
     state.apiData.lastFetch = new Date();
 
@@ -111,7 +186,8 @@ async function fetchPrices() {
       if (!userEdited) {
         state.simParams.S_orig = subyPrice;
         state.simParams.S      = subyPrice;
-        document.getElementById('sim-S').value = subyPrice.toFixed(2);
+        document.getElementById('sim-S').value = Math.round(subyPrice);
+        updateSimSummary();
       } else if (state.simParams.S_orig === 0) {
         state.simParams.S_orig = subyPrice;
       }
@@ -165,18 +241,19 @@ function startAutoTimer() {
 }
 
 // ── Compute per-leg ──────────────────────────────────────────────
-function computeLeg(pos) {
+function computeLeg(pos, cierrePrice) {
   const S       = state.simParams.S;
   const T       = state.simParams.dte / 365;
   const r       = state.simParams.r / 100;
   const sign100 = pos.lotes * 100;
   const priceKey = pos.type === 'suby' ? null : pos.type.toUpperCase() + '_' + pos.strike;
   const apiP    = priceKey ? (state.apiData.prices[priceKey] ?? 0) : (state.apiData.subyPrice ?? 0);
-  const curP    = pos.priceOverride !== undefined ? pos.priceOverride : apiP;
+  const curP    = cierrePrice !== undefined ? cierrePrice
+                : pos.priceOverride !== undefined ? pos.priceOverride : apiP;
 
   if (pos.type === 'suby') {
-    const pnl = curP > 0 ? (curP - pos.prima) * sign100 : 0;
-    return { currentPrice: curP, sigmaImpl: NaN, sigma: NaN, price: curP * sign100, pnl, delta: sign100, gamma: 0, vega: 0, theta: 0 };
+    const pnl = curP > 0 ? (curP - pos.prima) * pos.lotes : 0;
+    return { currentPrice: curP, sigmaImpl: NaN, sigma: NaN, price: curP * pos.lotes, pnl, delta: pos.lotes, gamma: 0, vega: 0, theta: 0 };
   }
 
   if (S <= 0 || T <= 0) {
@@ -185,8 +262,6 @@ function computeLeg(pos) {
 
   const isCall = pos.type === 'call';
 
-  // Current market IV — derived from live API price, drives the VI Impl. column
-  // and is always what "reset" in the IV panel returns to
   let currentMarketIV = NaN;
   if (curP > 0) {
     const miv = isCall
@@ -194,11 +269,13 @@ function computeLeg(pos) {
       : impliedVolPut(S, pos.strike, T, r, curP);
     if (isFinite(miv) && miv > 0) {
       currentMarketIV = miv;
-      state.simParams.ivOriginals[pos.strike] = miv * 100; // keep in sync on every cycle
+      if (cierrePrice === undefined) {
+        // Solo actualizar IV originales desde precios de mercado, no desde precios de cierre
+        state.simParams.ivOriginals[pos.strike] = miv * 100;
+      }
     }
   }
 
-  // Sigma used for BS pricing: override → current market IV → entry prima IV → cached
   let sigma;
   if (state.simParams.ivOverrides[pos.strike] !== undefined) {
     sigma = state.simParams.ivOverrides[pos.strike] / 100;
@@ -217,7 +294,6 @@ function computeLeg(pos) {
     }
   }
 
-  // sigmaImpl shown in the "VI Impl." column is always the current market IV
   const sigmaImpl = currentMarketIV;
 
   const price = isCall ? bsCall(S, pos.strike, T, r, sigma)   : bsPut(S, pos.strike, T, r, sigma);
@@ -240,8 +316,8 @@ function computeLeg(pos) {
   };
 }
 
-function computeAll() {
-  return state.positions.map(pos => ({ pos, g: computeLeg(pos) }));
+function computeAll(positions, preciosCierre) {
+  return positions.map(pos => ({ pos, g: computeLeg(pos, preciosCierre?.[pos.id]) }));
 }
 
 // ── Summary stats ────────────────────────────────────────────────
@@ -283,6 +359,97 @@ function computeSummary(computed) {
   return { costoArmado, costoDesarmado, resultado, ratioLotes, ratioArmado, ratioActual, spreadPctArmado, spreadPctActual, costoRIRC_arm, costoRIRC_act };
 }
 
+// ── PPP (Precio Ponderado Promedio) ──────────────────────────────
+function computePPPPositions(positions) {
+  const groups = new Map();
+  for (const p of positions) {
+    const key = `${p.type}|${p.strike}`;
+    if (!groups.has(key)) groups.set(key, { type: p.type, strike: p.strike, entries: [] });
+    groups.get(key).entries.push(p);
+  }
+  const result = [];
+  for (const g of groups.values()) {
+    const totalLotes = g.entries.reduce((s, p) => s + p.lotes, 0);
+    const totalCosto = g.entries.reduce((s, p) => s + p.lotes * p.prima, 0);
+    const wavgPrima  = totalCosto / totalLotes;
+    result.push({
+      id:          g.entries[0].id,
+      type:        g.type,
+      strike:      g.strike,
+      lotes:       totalLotes,
+      prima:       +wavgPrima.toFixed(6),
+      cachedSigma: g.entries[0].cachedSigma ?? 0.30,
+    });
+  }
+  return result;
+}
+
+function toggleStrategyPPP(stratId, checked) {
+  const strat = state.strategies.find(s => s.id === stratId);
+  if (!strat) return;
+
+  const panel = document.getElementById(`strategy-${stratId}`);
+
+  if (checked) {
+    strat.pppOrigPositions = strat.positions.map(p => ({ ...p }));
+    strat.ppp = true;
+    strat.positions = computePPPPositions(strat.pppOrigPositions);
+    if (panel) {
+      panel.querySelector('.strat-add-row').disabled = true;
+      panel.querySelector('.strat-import').disabled  = true;
+      panel.querySelector('.strat-clear').disabled   = true;
+      panel.querySelector('.ppp-strat-label').classList.add('ppp-active');
+    }
+  } else {
+    strat.positions = strat.pppOrigPositions ?? strat.positions;
+    strat.pppOrigPositions = null;
+    strat.ppp = false;
+    if (panel) {
+      panel.querySelector('.strat-add-row').disabled = false;
+      panel.querySelector('.strat-import').disabled  = false;
+      panel.querySelector('.strat-clear').disabled   = false;
+      panel.querySelector('.ppp-strat-label').classList.remove('ppp-active');
+    }
+  }
+
+  recompute();
+  saveState();
+}
+
+function toggleStrategyCierre(stratId, checked) {
+  const strat = state.strategies.find(s => s.id === stratId);
+  if (!strat) return;
+
+  const panel = document.getElementById(`strategy-${stratId}`);
+
+  if (checked) {
+    strat.cierre = true;
+    // Pre-populate only positions that don't already have a saved closing price
+    const computed = computeAll(strat.positions);
+    for (const { pos, g } of computed) {
+      if (strat.preciosCierre[pos.id] === undefined) {
+        strat.preciosCierre[pos.id] = g.currentPrice > 0 ? g.currentPrice : pos.prima;
+      }
+    }
+    if (panel) {
+      panel.querySelector('.cierre-strat-label')?.classList.add('ppp-active');
+      const th = panel.querySelector('.strat-th-price');
+      if (th) th.textContent = 'Precio Cierre';
+    }
+  } else {
+    strat.cierre = false;
+    // Preserve preciosCierre so user data is not lost on uncheck
+    if (panel) {
+      panel.querySelector('.cierre-strat-label')?.classList.remove('ppp-active');
+      const th = panel.querySelector('.strat-th-price');
+      if (th) th.textContent = 'Precio Actual';
+    }
+  }
+
+  recompute();
+  saveState();
+}
+
 // ── Available strikes from API ────────────────────────────────────
 function getAvailableStrikes(type) {
   if (type === 'suby') return [];
@@ -295,7 +462,7 @@ function getAvailableStrikes(type) {
 }
 
 // ── Inline cell editing ───────────────────────────────────────────
-function startEdit(td, pos, field) {
+function startEdit(td, stratId, pos, field) {
   if (td.classList.contains('editing')) return;
   td.classList.add('editing');
 
@@ -345,7 +512,7 @@ function startEdit(td, pos, field) {
   el.focus();
   if (el.tagName === 'INPUT' && el.select) el.select();
 
-  const commit = () => { td.classList.remove('editing'); applyEdit(pos, field, el.value); };
+  const commit = () => { td.classList.remove('editing'); applyEdit(stratId, pos, field, el.value); };
   const cancel = () => { td.classList.remove('editing'); recompute(); renderIVTable(); };
 
   el.addEventListener('blur', commit);
@@ -353,11 +520,10 @@ function startEdit(td, pos, field) {
     if (e.key === 'Enter')  { e.preventDefault(); el.blur(); }
     if (e.key === 'Escape') { e.preventDefault(); el.removeEventListener('blur', commit); cancel(); }
   });
-  // selects commit immediately on change
   if (el.tagName === 'SELECT') el.addEventListener('change', () => { el.removeEventListener('blur', commit); commit(); });
 }
 
-function applyEdit(pos, field, rawValue) {
+function applyEdit(stratId, pos, field, rawValue) {
   if (field === 'type') {
     if (['call','put','suby'].includes(rawValue) && rawValue !== pos.type) {
       pos.type = rawValue;
@@ -395,78 +561,292 @@ function applyEdit(pos, field, rawValue) {
   renderIVTable();
 }
 
-// ── Render: positions table ──────────────────────────────────────
+// ── Strategy name inline edit ────────────────────────────────────
+function startStrategyNameEdit(spanEl, stratId) {
+  if (spanEl.dataset.editingName) return;
+  spanEl.dataset.editingName = '1';
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'strategy-name-edit-input';
+  inp.value = spanEl.textContent;
+  spanEl.style.display = 'none';
+  spanEl.parentNode.insertBefore(inp, spanEl.nextSibling);
+  inp.focus();
+  inp.select();
+
+  const commit = () => {
+    const name = inp.value.trim() || spanEl.textContent;
+    spanEl.textContent = name;
+    spanEl.style.display = '';
+    delete spanEl.dataset.editingName;
+    inp.remove();
+    renameStrategy(stratId, name);
+  };
+  const cancel = () => {
+    spanEl.style.display = '';
+    delete spanEl.dataset.editingName;
+    inp.remove();
+  };
+
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); inp.removeEventListener('blur', commit); cancel(); }
+  });
+}
+
+// ── Render: strategy panels ───────────────────────────────────────
 const TYPE_LABEL = { call: 'Call', put: 'Put', suby: 'Acción' };
 
-function renderTable(computed) {
-  const tbody = document.getElementById('positions-tbody');
+function buildStrategyPanelHTML(strat) {
+  const disabledCls  = strat.enabled ? '' : 'strategy-disabled';
+  const collapsedCls = strat.collapsed ? 'strategy-collapsed' : '';
+  const collapseIcon = strat.collapsed ? '▶' : '▼';
+  const bodyStyle    = strat.collapsed ? 'display:none' : '';
+  const safeName     = strat.name.replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
-  // Don't re-render while user is editing a cell
+  return `
+    <div class="strategy-panel ${disabledCls} ${collapsedCls}" id="strategy-${strat.id}" data-strat-id="${strat.id}">
+      <div class="panel positions-panel-inner">
+        <div class="positions-header">
+          <div class="positions-header-left">
+            <input type="checkbox" class="strategy-enabled-cb" ${strat.enabled ? 'checked' : ''}
+                   data-strat-id="${strat.id}" title="Incluir en cálculo total">
+            <span class="strategy-name-display" data-strat-id="${strat.id}" title="Doble clic para editar">${safeName}</span>
+          </div>
+          <div class="strategy-collapsed-summary" id="strat-csum-${strat.id}">
+            <span class="csum-item"><span class="csum-label">Costo Armado</span><span class="csum-value" id="strat-csum-arm-${strat.id}">—</span></span>
+            <span class="csum-sep">/</span>
+            <span class="csum-item"><span class="csum-label">Costo Desarmado</span><span class="csum-value" id="strat-csum-des-${strat.id}">—</span></span>
+            <span class="csum-sep">/</span>
+            <span class="csum-item"><span class="csum-label">Resultado</span><span class="csum-value" id="strat-csum-res-${strat.id}">—</span></span>
+          </div>
+          <div class="positions-header-right">
+            <label class="ppp-strat-label ${strat.ppp ? 'ppp-active' : ''}" title="Precio Ponderado Promedio">
+              <input type="checkbox" class="ppp-strat-cb" data-strat-id="${strat.id}" ${strat.ppp ? 'checked' : ''}>
+              PPP
+            </label>
+            <label class="ppp-strat-label cierre-strat-label ${strat.cierre ? 'ppp-active' : ''}" title="Precio de Cierre">
+              <input type="checkbox" class="cierre-strat-cb" data-strat-id="${strat.id}" ${strat.cierre ? 'checked' : ''}>
+              Cierre
+            </label>
+            <button class="btn-success strat-add-row"       data-strat-id="${strat.id}" ${strat.ppp ? 'disabled' : ''}>+ Agregar</button>
+            <button class="btn-primary strat-import"        data-strat-id="${strat.id}" ${strat.ppp ? 'disabled' : ''}>⬇ Importar</button>
+            <button class="btn-outline-accent strat-export" data-strat-id="${strat.id}">↑ Exportar</button>
+            <button class="btn-outline-danger strat-clear"  data-strat-id="${strat.id}" ${strat.ppp ? 'disabled' : ''}>↺ Limpiar</button>
+            <button class="btn-icon strat-collapse"         data-strat-id="${strat.id}" title="Colapsar/Expandir">${collapseIcon}</button>
+            <button class="btn-icon strat-remove"           data-strat-id="${strat.id}" title="Eliminar estrategia">✕</button>
+          </div>
+        </div>
+        <div class="strategy-body" style="${bodyStyle}">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align:left">Tipo</th>
+                  <th>Lotes</th>
+                  <th>Strike</th>
+                  <th>Prima</th>
+                  <th class="strat-th-price">${strat.cierre ? 'Precio Cierre' : 'Precio Actual'}</th>
+                  <th>Var %</th>
+                  <th>P&amp;L Actual</th>
+                  <th>Vol. Impl.</th>
+                  <th>Delta (Δ)</th>
+                  <th>Gamma (Γ)</th>
+                  <th>Vega (ν)</th>
+                  <th>Theta (θ)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="strat-tbody-${strat.id}">
+                <tr><td colspan="13"><div class="empty-state"><span class="empty-icon">📋</span>Agregá posiciones para comenzar</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="strat-summary-${strat.id}" class="summary-grid"></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderStrategies() {
+  const container = document.getElementById('strategies-container');
+  container.innerHTML = state.strategies.map(s => buildStrategyPanelHTML(s)).join('');
+  wireStrategyEvents();
+}
+
+function wireStrategyEvents() {
+  const container = document.getElementById('strategies-container');
+
+  container.querySelectorAll('.strategy-enabled-cb').forEach(cb => {
+    cb.addEventListener('change', () => toggleStrategy(+cb.dataset.stratId, cb.checked));
+  });
+
+  container.querySelectorAll('.strategy-name-display').forEach(span => {
+    span.addEventListener('dblclick', () => startStrategyNameEdit(span, +span.dataset.stratId));
+  });
+
+  container.querySelectorAll('.ppp-strat-cb').forEach(cb => {
+    cb.addEventListener('change', () => toggleStrategyPPP(+cb.dataset.stratId, cb.checked));
+  });
+
+  container.querySelectorAll('.cierre-strat-cb').forEach(cb => {
+    cb.addEventListener('change', () => toggleStrategyCierre(+cb.dataset.stratId, cb.checked));
+  });
+
+  container.querySelectorAll('.strat-add-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      addPosition(+btn.dataset.stratId, { type: 'call', lotes: 1, strike: 0, prima: 0 });
+      saveState();
+      recompute();
+    });
+  });
+
+  container.querySelectorAll('.strat-import').forEach(btn => {
+    btn.addEventListener('click', () => openImportModal(+btn.dataset.stratId));
+  });
+
+  container.querySelectorAll('.strat-export').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = state.strategies.find(s => s.id === +btn.dataset.stratId);
+      if (!s) return;
+      const positions = s.ppp && s.pppOrigPositions ? s.pppOrigPositions : s.positions;
+      if (!positions.length) return;
+      const lines = positions.map(p => `${p.lotes}\t${fmtExport(p.strike)}\t${fmtExport(p.prima)}`);
+      navigator.clipboard.writeText(lines.join('\n'));
+      showToast('✓ Posiciones copiadas al portapapeles.');
+    });
+  });
+
+  container.querySelectorAll('.strat-clear').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = +btn.dataset.stratId;
+      const s  = state.strategies.find(s => s.id === id);
+      if (!s?.positions.length || confirm('¿Limpiar las posiciones de esta estrategia?')) {
+        clearStrategyPositions(id);
+      }
+    });
+  });
+
+  container.querySelectorAll('.strat-collapse').forEach(btn => {
+    btn.addEventListener('click', () => collapseStrategy(+btn.dataset.stratId));
+  });
+
+  container.querySelectorAll('.strat-remove').forEach(btn => {
+    btn.addEventListener('click', () => removeStrategy(+btn.dataset.stratId));
+  });
+
+  // Inline editing — single delegated listener
+  container.addEventListener('dblclick', e => {
+    const td = e.target.closest('td[data-field]');
+    if (!td) return;
+    const stratId = +td.dataset.stratId;
+    const strat   = state.strategies.find(s => s.id === stratId);
+    if (strat?.ppp) return;
+    const posId   = +td.dataset.posId;
+    const pos     = findPosition(stratId, posId);
+    if (pos) startEdit(td, stratId, pos, td.dataset.field);
+  });
+}
+
+// ── Render: table for one strategy ───────────────────────────────
+function renderStrategyTable(stratId, computed) {
+  const tbody = document.getElementById(`strat-tbody-${stratId}`);
+  if (!tbody) return;
+
   if (tbody.querySelector('td.editing')) return;
+  if (tbody.querySelector('.cierre-price-input:focus')) return;
+
+  const strat = state.strategies.find(s => s.id === stratId);
+  const isCierre = strat?.cierre ?? false;
 
   if (!computed.length) {
-    tbody.innerHTML = `<tr><td colspan="12"><div class="empty-state"><span class="empty-icon">📋</span>Importá posiciones para comenzar</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><span class="empty-icon">📋</span>Agregá posiciones para comenzar</div></td></tr>`;
     return;
   }
 
   tbody.innerHTML = '';
   for (const { pos, g } of computed) {
-    const pnlCls    = g.pnl > 0 ? 'pos' : g.pnl < 0 ? 'neg' : '';
-    const lotesCls  = pos.lotes > 0 ? 'pos' : 'neg';
-    const lotesStr  = (pos.lotes > 0 ? '+' : '') + pos.lotes;
-    const ivStr     = isFinite(g.sigmaImpl) && g.sigmaImpl > 0 ? (g.sigmaImpl * 100).toFixed(2) + '%' : '—';
-    const ivTooltip = isFinite(g.sigmaImpl) && g.sigmaImpl > 0 ? (g.sigmaImpl * 100).toFixed(12) + '%' : '';
-    const curStr    = g.currentPrice > 0 ? fmt3(g.currentPrice) : '—';
-    const pnlStr    = g.pnl !== 0 ? '$' + fmt2(g.pnl) : '—';
-    const isEdited  = pos.priceOverride !== undefined;
-    const priceCls  = 'td-live' + (isEdited ? ' td-live-edited' : '');
-    const resetBtn  = isEdited
-      ? `<button class="price-reset-btn" data-id="${pos.id}" title="Restaurar precio de mercado">↺</button>`
+    const pnlCls   = g.pnl > 0 ? 'pos' : g.pnl < 0 ? 'neg' : '';
+    const lotesCls = pos.lotes > 0 ? 'pos' : 'neg';
+    const lotesStr = (pos.lotes > 0 ? '+' : '') + pos.lotes;
+    const ivStr    = isFinite(g.sigmaImpl) && g.sigmaImpl > 0 ? (g.sigmaImpl * 100).toFixed(2) + '%' : '—';
+    const ivTip    = isFinite(g.sigmaImpl) && g.sigmaImpl > 0 ? (g.sigmaImpl * 100).toFixed(12) + '%' : '';
+    const curStr   = g.currentPrice > 0 ? fmt3(g.currentPrice) : '—';
+    const pnlStr   = g.pnl !== 0 ? '$' + fmt2(g.pnl) : '—';
+    const isEdited = pos.priceOverride !== undefined;
+    const priceCls = 'td-live' + (isEdited && !isCierre ? ' td-live-edited' : '');
+    const resetBtn = isEdited && !isCierre
+      ? `<button class="price-reset-btn" data-strat-id="${stratId}" data-id="${pos.id}" title="Restaurar precio de mercado">↺</button>`
       : '';
 
-    const varPct    = (g.currentPrice > 0 && pos.prima > 0)
-      ? (g.currentPrice - pos.prima) / pos.prima * 100
-      : NaN;
-    const varCls    = !isFinite(varPct) ? 'muted' : varPct > 0 ? 'pos' : varPct < 0 ? 'neg' : 'neu';
-    const varStr    = isFinite(varPct)
-      ? (varPct > 0 ? '+' : '') + varPct.toFixed(2) + '%'
-      : '—';
+    const cierreVal = isCierre ? (strat.preciosCierre?.[pos.id] ?? g.currentPrice) : null;
+    const priceCell = isCierre
+      ? `<input type="number" class="cierre-price-input" data-strat-id="${stratId}" data-pos-id="${pos.id}" value="${cierreVal !== null ? cierreVal.toFixed(3) : ''}" step="0.001" min="0">`
+      : `<span class="td-price-wrap">${curStr}${resetBtn}</span>`;
 
+    const varPct = (g.currentPrice > 0 && pos.prima > 0)
+      ? (g.currentPrice - pos.prima) / pos.prima * 100 : NaN;
+    const varCls = !isFinite(varPct) ? 'muted' : varPct > 0 ? 'pos' : varPct < 0 ? 'neg' : 'neu';
+    const varStr = isFinite(varPct) ? (varPct > 0 ? '+' : '') + varPct.toFixed(2) + '%' : '—';
     const gc = v => !isFinite(v) || Math.abs(v) < 1e-9 ? 'neu' : v > 0 ? 'pos' : 'neg';
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="td-left td-type" data-field="type"         data-pos-id="${pos.id}">${TYPE_LABEL[pos.type] ?? pos.type}</td>
-      <td class="${lotesCls}"     data-field="lotes"        data-pos-id="${pos.id}">${lotesStr}</td>
-      <td                         data-field="strike"       data-pos-id="${pos.id}">${fmt2(pos.strike)}</td>
-      <td                         data-field="prima"        data-pos-id="${pos.id}">${fmt3(pos.prima)}</td>
-      <td class="${priceCls}"     data-field="currentPrice" data-pos-id="${pos.id}">
-        <span class="td-price-wrap">${curStr}${resetBtn}</span>
+      <td class="td-left td-type" data-field="type"         data-strat-id="${stratId}" data-pos-id="${pos.id}">${TYPE_LABEL[pos.type] ?? pos.type}</td>
+      <td class="${lotesCls}"     data-field="lotes"        data-strat-id="${stratId}" data-pos-id="${pos.id}">${lotesStr}</td>
+      <td                         data-field="strike"       data-strat-id="${stratId}" data-pos-id="${pos.id}">${fmt2(pos.strike)}</td>
+      <td                         data-field="prima"        data-strat-id="${stratId}" data-pos-id="${pos.id}">${fmt3(pos.prima)}</td>
+      <td class="${priceCls}"     data-field="currentPrice" data-strat-id="${stratId}" data-pos-id="${pos.id}">
+        ${priceCell}
       </td>
       <td class="${varCls}">${varStr}</td>
       <td class="${pnlCls}">${pnlStr}</td>
-      <td class="muted" title="${ivTooltip}">${ivStr}</td>
+      <td class="muted" title="${ivTip}">${ivStr}</td>
       <td class="${gc(g.delta)}">${fmt4(g.delta)}</td>
       <td class="${gc(g.gamma)}">${fmt6(g.gamma)}</td>
       <td class="${gc(g.vega)}">${fmt4(g.vega)}</td>
       <td class="${gc(g.theta)}">${fmt4(g.theta)}</td>
-      <td><button class="remove-pos-btn" data-id="${pos.id}">×</button></td>
+      <td><button class="remove-pos-btn" data-strat-id="${stratId}" data-id="${pos.id}">×</button></td>
     `;
     tbody.appendChild(tr);
   }
 
   tbody.querySelectorAll('.remove-pos-btn').forEach(btn =>
-    btn.addEventListener('click', () => removePosition(+btn.dataset.id)));
+    btn.addEventListener('click', () => {
+      const stratId = +btn.dataset.stratId;
+      if (state.strategies.find(s => s.id === stratId)?.ppp) return;
+      removePosition(stratId, +btn.dataset.id);
+    }));
 
   tbody.querySelectorAll('.price-reset-btn').forEach(btn =>
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const pos = state.positions.find(p => p.id === +btn.dataset.id);
+      const stratId = +btn.dataset.stratId;
+      if (state.strategies.find(s => s.id === stratId)?.ppp) return;
+      const pos = findPosition(stratId, +btn.dataset.id);
       if (pos) { delete pos.priceOverride; recompute(); }
     }));
+
+  tbody.querySelectorAll('.cierre-price-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const sid  = +input.dataset.stratId;
+      const pid  = +input.dataset.posId;
+      const val  = parseFloat(input.value);
+      const s    = state.strategies.find(s => s.id === sid);
+      if (!s || !s.cierre) return;
+      if (!isFinite(val) || val < 0) return;
+      s.preciosCierre[pid] = val;
+      recompute();
+      saveState();
+    });
+    // Prevent dblclick inline-edit from triggering on this input
+    input.addEventListener('dblclick', e => e.stopPropagation());
+  });
 }
 
-// ── Render: summary stats ────────────────────────────────────────
+// ── Render: summary for one strategy ─────────────────────────────
 function computeGreekTotals(computed) {
   return computed.reduce(
     (a, { g }) => ({
@@ -479,10 +859,41 @@ function computeGreekTotals(computed) {
   );
 }
 
-function renderSummary(summary, greeks, hasPositions) {
-  const el = document.getElementById('summary-grid');
-  if (!summary) { el.innerHTML = ''; return; }
+function renderStrategySummary(stratId, computed) {
+  const el = document.getElementById(`strat-summary-${stratId}`);
+  if (!el) return;
+  const summary = computeSummary(computed);
+  if (!summary) { el.innerHTML = ''; updateCollapsedSummary(stratId, null); return; }
+  const greeks = computeGreekTotals(computed);
+  renderSummaryInto(el, summary, greeks, computed.length > 0);
+  updateCollapsedSummary(stratId, summary);
+}
 
+function updateCollapsedSummary(stratId, summary) {
+  const armEl = document.getElementById(`strat-csum-arm-${stratId}`);
+  const desEl = document.getElementById(`strat-csum-des-${stratId}`);
+  const resEl = document.getElementById(`strat-csum-res-${stratId}`);
+  if (!armEl || !desEl || !resEl) return;
+
+  if (!summary) {
+    armEl.textContent = '—'; armEl.className = 'csum-value';
+    desEl.textContent = '—'; desEl.className = 'csum-value';
+    resEl.textContent = '—'; resEl.className = 'csum-value';
+    return;
+  }
+
+  const mon = v => isFinite(v) ? '$' + fmt2(v) : '—';
+  const cs  = v => !isFinite(v) ? '' : v >= 0 ? ' pos' : ' neg';
+
+  armEl.textContent = mon(summary.costoArmado);
+  armEl.className   = 'csum-value' + cs(summary.costoArmado);
+  desEl.textContent = mon(summary.costoDesarmado);
+  desEl.className   = 'csum-value' + cs(summary.costoDesarmado);
+  resEl.textContent = mon(summary.resultado);
+  resEl.className   = 'csum-value' + cs(summary.resultado);
+}
+
+function renderSummaryInto(el, summary, greeks, hasPositions) {
   const cs  = v => !isFinite(v) ? '' : v >= 0 ? 'pos' : 'neg';
   const pct = v => isFinite(v) ? (v * 100).toFixed(2) + '%' : '—';
   const mon = v => isFinite(v) ? '$' + fmt2(v) : '—';
@@ -527,11 +938,10 @@ function renderSummary(summary, greeks, hasPositions) {
         <span class="sum-label">Theta (θ)</span>
         <span class="sum-value">${gv(g.theta)}</span>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-// ── Render: Greeks panel ─────────────────────────────────────────
+// ── Render: Greeks panel (global totals) ─────────────────────────
 function renderGreeks(computed) {
   const t   = computeGreekTotals(computed);
   const has = computed.length > 0;
@@ -541,21 +951,20 @@ function renderGreeks(computed) {
   document.getElementById('g-theta').textContent = has ? fmt4(t.theta) : '—';
 }
 
-// ── Render: IV table ─────────────────────────────────────────────
+// ── Render: IV table (all positions, enabled or not) ─────────────
 function renderIVTable() {
-  const wrap = document.getElementById('iv-table-wrap');
-  const optPos = state.positions.filter(p => p.type !== 'suby');
+  const wrap   = document.getElementById('iv-table-wrap');
+  const optPos = getAllPositions().filter(p => p.type !== 'suby');
   if (!optPos.length) { wrap.innerHTML = ''; return; }
 
-  // Don't clobber an in-progress IV edit
   if (wrap.contains(document.activeElement) && document.activeElement.classList.contains('iv-input')) return;
 
   const strikes = [...new Set(optPos.map(p => p.strike))].sort((a, b) => a - b);
 
   const rows = strikes.map(k => {
-    const ov = state.simParams.ivOverrides[k];
-    const or = state.simParams.ivOriginals[k];
-    const val = ov !== undefined ? ov.toFixed(12) : or !== undefined ? or.toFixed(12) : '';
+    const ov  = state.simParams.ivOverrides[k];
+    const or_ = state.simParams.ivOriginals[k];
+    const val = ov !== undefined ? ov.toFixed(12) : or_ !== undefined ? or_.toFixed(12) : '';
     const highlighted = ov !== undefined;
     return `
       <div class="iv-row" style="${highlighted ? 'border-color:var(--accent)' : ''}">
@@ -567,7 +976,16 @@ function renderIVTable() {
       </div>`;
   }).join('');
 
-  wrap.innerHTML = `<div class="iv-section-label">Volatilidad Implícita por Base</div><div class="iv-rows">${rows}</div>`;
+  wrap.innerHTML = `
+    <div class="iv-section-label">Volatilidad Implícita por Base</div>
+    <div class="iv-vi-controls">
+      <button class="scen-btn" data-act="vi" data-p="-5">−5 pp</button>
+      <button class="scen-btn" data-act="vi" data-p="-2">−2 pp</button>
+      <button class="scen-btn" data-act="vi" data-p="2">+2 pp</button>
+      <button class="scen-btn" data-act="vi" data-p="5">+5 pp</button>
+      <button class="scen-btn scen-reset-btn" data-act="reset-vi">↺ Reset</button>
+    </div>
+    <div class="iv-rows">${rows}</div>`;
 
   wrap.querySelectorAll('.iv-input').forEach(inp => {
     const k = parseFloat(inp.dataset.strike);
@@ -592,6 +1010,11 @@ function renderIVTable() {
       recompute();
     });
   });
+
+  wrap.querySelectorAll('.scen-btn[data-act="vi"]').forEach(btn =>
+    btn.addEventListener('click', () => applyScenarioVI(+btn.dataset.p)));
+  const resetViBtn = wrap.querySelector('.scen-btn[data-act="reset-vi"]');
+  if (resetViBtn) resetViBtn.addEventListener('click', resetScenarioVI);
 }
 
 // ── P&L chart ────────────────────────────────────────────────────
@@ -610,8 +1033,6 @@ const verticalLinePlugin = {
     const { ctx, chartArea: { top, bottom } } = chart;
 
     ctx.save();
-
-    // Vertical line — subyacente actual
     ctx.strokeStyle = 'rgba(210,210,210,0.55)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([5, 4]);
@@ -619,10 +1040,8 @@ const verticalLinePlugin = {
     ctx.moveTo(x, top);
     ctx.lineTo(x, bottom);
     ctx.stroke();
-
     ctx.setLineDash([]);
 
-    // Dot en P&L Actual (Teórico)
     ctx.beginPath();
     ctx.arc(x, y0, 5, 0, Math.PI * 2);
     ctx.fillStyle = '#58a6ff';
@@ -631,7 +1050,6 @@ const verticalLinePlugin = {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Dot en P&L al Vencimiento
     if (y1 !== undefined) {
       ctx.beginPath();
       ctx.arc(x, y1, 5, 0, Math.PI * 2);
@@ -641,28 +1059,28 @@ const verticalLinePlugin = {
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
-
     ctx.restore();
   },
 };
 
 function buildPnLData() {
-  const S = state.simParams.S || 1;
-  const T = state.simParams.dte / 365;
-  const r = state.simParams.r / 100;
-  const N = 61;
+  const S   = state.simParams.S || 1;
+  const T   = state.simParams.dte / 365;
+  const r   = state.simParams.r / 100;
+  const N   = 61;
   const labels = [], seriesAct = [], seriesExp = [];
+  const allPositions = getEnabledPositions();
 
   for (let i = 0; i < N; i++) {
     const Sn = S * (0.80 + i * 0.40 / (N - 1));
     labels.push(FMT2.format(+Sn.toFixed(0)));
     let pnlAct = 0, pnlExp = 0;
 
-    for (const pos of state.positions) {
+    for (const pos of allPositions) {
       const s100 = pos.lotes * 100;
       if (pos.type === 'suby') {
-        pnlAct += (Sn - pos.prima) * s100;
-        pnlExp += (Sn - pos.prima) * s100;
+        pnlAct += (Sn - pos.prima) * pos.lotes;
+        pnlExp += (Sn - pos.prima) * pos.lotes;
         continue;
       }
       const isCall = pos.type === 'call';
@@ -738,20 +1156,89 @@ function updatePnLChart() {
 
 // ── Master recompute ─────────────────────────────────────────────
 function recompute() {
-  const computed = computeAll();
-  const greeks   = computeGreekTotals(computed);
-  renderTable(computed);
-  renderSummary(computeSummary(computed), greeks, computed.length > 0);
-  renderGreeks(computed);
+  const allComputed = [];
+  for (const strat of state.strategies) {
+    const computed = computeAll(strat.positions, strat.cierre ? strat.preciosCierre : undefined);
+    renderStrategyTable(strat.id, computed);
+    renderStrategySummary(strat.id, computed);
+    if (strat.enabled) allComputed.push(...computed);
+  }
+  renderGreeks(allComputed);
   renderIVTable();
   updatePnLChart();
+  updateSimSummary();
   saveState();
 }
 
-// ── Positions CRUD ───────────────────────────────────────────────
-function addPosition(data) {
-  state.positions.push({
-    id:          nextId++,
+// ── Strategy CRUD ────────────────────────────────────────────────
+function addStrategy(data) {
+  const id = nextStrategyId++;
+  state.strategies.push({
+    id,
+    name:              data?.name ?? `Estrategia ${id}`,
+    enabled:           true,
+    collapsed:         false,
+    positions:         [],
+    nextId:            1,
+    ppp:               false,
+    pppOrigPositions:  null,
+    cierre:            false,
+    preciosCierre:     {},
+  });
+  renderStrategies();
+  recompute();
+  return id;
+}
+
+function removeStrategy(id) {
+  if (!confirm('¿Eliminar esta estrategia y todas sus posiciones?')) return;
+  state.strategies = state.strategies.filter(s => s.id !== id);
+  syncIVKeys();
+  renderStrategies();
+  recompute();
+}
+
+function toggleStrategy(id, enabled) {
+  const s = state.strategies.find(s => s.id === id);
+  if (!s) return;
+  s.enabled = enabled;
+  s.collapsed = !enabled;
+  const panel = document.getElementById(`strategy-${id}`);
+  if (panel) {
+    panel.classList.toggle('strategy-disabled', !enabled);
+    panel.classList.toggle('strategy-collapsed', s.collapsed);
+    const body = panel.querySelector('.strategy-body');
+    const btn  = panel.querySelector('.strat-collapse');
+    if (body) body.style.display = s.collapsed ? 'none' : '';
+    if (btn)  btn.textContent    = s.collapsed ? '▶' : '▼';
+  }
+  recompute();
+}
+
+function collapseStrategy(id) {
+  const s = state.strategies.find(s => s.id === id);
+  if (!s) return;
+  s.collapsed = !s.collapsed;
+  const panel = document.getElementById(`strategy-${id}`);
+  if (!panel) return;
+  const body = panel.querySelector('.strategy-body');
+  const btn  = panel.querySelector('.strat-collapse');
+  if (body) body.style.display = s.collapsed ? 'none' : '';
+  if (btn)  btn.textContent    = s.collapsed ? '▶' : '▼';
+  panel.classList.toggle('strategy-collapsed', s.collapsed);
+  saveState();
+}
+
+function renameStrategy(id, name) {
+  const s = state.strategies.find(s => s.id === id);
+  if (s) { s.name = name; saveState(); }
+}
+
+function addPosition(stratId, data) {
+  const s = state.strategies.find(s => s.id === stratId);
+  if (!s) return;
+  s.positions.push({
+    id:          s.nextId++,
     type:        data.type   ?? 'call',
     lotes:       data.lotes  ?? 1,
     strike:      data.strike ?? 0,
@@ -760,21 +1247,39 @@ function addPosition(data) {
   });
 }
 
-function removePosition(id) {
-  state.positions = state.positions.filter(p => p.id !== id);
-  const active = new Set(state.positions.map(p => p.strike));
-  for (const k of Object.keys(state.simParams.ivOverrides).map(Number)) {
-    if (!active.has(k)) delete state.simParams.ivOverrides[k];
-  }
+function removePosition(stratId, posId) {
+  const s = state.strategies.find(s => s.id === stratId);
+  if (!s) return;
+  s.positions = s.positions.filter(p => p.id !== posId);
+  syncIVKeys();
   renderIVTable();
   recompute();
 }
 
-function clearPositions() {
-  state.positions = [];
-  nextId = 1;
-  state.simParams.ivOverrides = {};
-  state.simParams.ivOriginals = {};
+function clearStrategyPositions(stratId) {
+  const s = state.strategies.find(s => s.id === stratId);
+  if (!s) return;
+  s.positions        = [];
+  s.nextId           = 1;
+  s.ppp              = false;
+  s.pppOrigPositions = null;
+  s.cierre           = false;
+  s.preciosCierre    = {};
+  const panel = document.getElementById(`strategy-${stratId}`);
+  if (panel) {
+    const pppCb = panel.querySelector('.ppp-strat-cb');
+    if (pppCb) pppCb.checked = false;
+    panel.querySelector('.ppp-strat-label')?.classList.remove('ppp-active');
+    panel.querySelector('.strat-add-row').disabled = false;
+    panel.querySelector('.strat-import').disabled  = false;
+    panel.querySelector('.strat-clear').disabled   = false;
+    const ciCb = panel.querySelector('.cierre-strat-cb');
+    if (ciCb) ciCb.checked = false;
+    panel.querySelector('.cierre-strat-label')?.classList.remove('cierre-active');
+    const th = panel.querySelector('.strat-th-price');
+    if (th) th.textContent = 'Precio Actual';
+  }
+  syncIVKeys();
   renderIVTable();
   recompute();
 }
@@ -783,18 +1288,20 @@ function clearPositions() {
 function applyScenarioS(pct) {
   if (state.simParams.S <= 0) return;
   state.simParams.S = +(state.simParams.S * (1 + pct / 100)).toFixed(4);
-  document.getElementById('sim-S').value = state.simParams.S.toFixed(2);
+  document.getElementById('sim-S').value = Math.round(state.simParams.S);
+  updateSimSummary();
   recompute();
 }
 
 function resetScenarioS() {
   state.simParams.S = state.simParams.S_orig;
-  document.getElementById('sim-S').value = state.simParams.S_orig > 0 ? state.simParams.S_orig.toFixed(2) : '';
+  document.getElementById('sim-S').value = state.simParams.S_orig > 0 ? Math.round(state.simParams.S_orig) : '';
+  updateSimSummary();
   recompute();
 }
 
 function applyScenarioVI(pp) {
-  const strikes = [...new Set(state.positions.filter(p => p.type !== 'suby').map(p => p.strike))];
+  const strikes = [...new Set(getEnabledPositions().filter(p => p.type !== 'suby').map(p => p.strike))];
   for (const k of strikes) {
     const cur = state.simParams.ivOverrides[k] ?? state.simParams.ivOriginals[k] ?? 30;
     state.simParams.ivOverrides[k] = Math.max(0.01, +(cur + pp).toFixed(4));
@@ -810,6 +1317,8 @@ function resetScenarioVI() {
 }
 
 // ── Import ───────────────────────────────────────────────────────
+let _pendingImportStratId = null;
+
 function parseImportText(text, type) {
   const result = [];
   for (const line of text.trim().split('\n')) {
@@ -824,8 +1333,11 @@ function parseImportText(text, type) {
   return result;
 }
 
-function openImportModal() {
+function openImportModal(stratId) {
+  _pendingImportStratId = stratId ?? null;
   document.getElementById('import-error').textContent = '';
+  const h3 = document.querySelector('#import-modal h3');
+  if (h3) h3.textContent = stratId ? 'Importar posiciones' : 'Importar como nueva estrategia';
   document.getElementById('import-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('import-textarea').focus(), 50);
 }
@@ -845,9 +1357,19 @@ function confirmImport() {
   }
   closeImportModal();
   document.getElementById('import-textarea').value = '';
-  for (const p of parsed) addPosition(p);
-  recompute();       // populates ivOriginals via computeLeg
-  renderIVTable();   // then render with computed IVs
+
+  let targetStratId = _pendingImportStratId;
+  if (targetStratId === null) {
+    // Global import: create a new strategy
+    const id = nextStrategyId++;
+    state.strategies.push({ id, name: `Estrategia ${id}`, enabled: true, collapsed: false, positions: [], nextId: 1, ppp: false, pppOrigPositions: null, cierre: false, preciosCierre: {} });
+    renderStrategies();
+    targetStratId = id;
+  }
+
+  for (const p of parsed) addPosition(targetStratId, p);
+  recompute();
+  renderIVTable();
 }
 
 // ── Config ───────────────────────────────────────────────────────
@@ -874,8 +1396,9 @@ function applyConfig() {
 }
 
 // ── Persistence ──────────────────────────────────────────────────
-const LS_KEY_STATE  = 'sim_state_v1';
-const LS_KEY_CONFIG = 'sim_config_v1';
+const LS_KEY_STATE    = 'sim_state_v2';
+const LS_KEY_STATE_V1 = 'sim_state_v1';
+const LS_KEY_CONFIG   = 'sim_config_v1';
 
 function saveConfig() {
   localStorage.setItem(LS_KEY_CONFIG, JSON.stringify(state.config));
@@ -890,28 +1413,74 @@ function loadConfig() {
 
 function saveState() {
   localStorage.setItem(LS_KEY_STATE, JSON.stringify({
-    nextId,
-    positions: state.positions.map(({ id, type, lotes, strike, prima }) => ({ id, type, lotes, strike, prima })),
-    simParams: { S: state.simParams.S, S_orig: state.simParams.S_orig, r: state.simParams.r, dte: state.simParams.dte, comisiones: state.simParams.comisiones },
+    nextStrategyId,
+    strategies: state.strategies.map(s => ({
+      id:        s.id,
+      name:      s.name,
+      enabled:   s.enabled,
+      collapsed: s.collapsed,
+      nextId:    s.nextId,
+      positions: (s.ppp && s.pppOrigPositions ? s.pppOrigPositions : s.positions)
+                   .map(({ id, type, lotes, strike, prima }) => ({ id, type, lotes, strike, prima })),
+    })),
+    simParams: {
+      S:          state.simParams.S,
+      S_orig:     state.simParams.S_orig,
+      r:          state.simParams.r,
+      dte:        state.simParams.dte,
+      comisiones: state.simParams.comisiones,
+      opexDate:   state.simParams.opexDate,
+    },
   }));
 }
 
 function loadSavedState() {
   try {
-    const s = JSON.parse(localStorage.getItem(LS_KEY_STATE) ?? 'null');
+    let s = JSON.parse(localStorage.getItem(LS_KEY_STATE) ?? 'null');
+
+    if (!s) {
+      // Migrate from v1
+      const v1 = JSON.parse(localStorage.getItem(LS_KEY_STATE_V1) ?? 'null');
+      if (v1?.positions?.length) {
+        s = {
+          nextStrategyId: 2,
+          strategies: [{
+            id: 1, name: 'Estrategia 1', enabled: true, collapsed: false,
+            nextId: v1.nextId ?? v1.positions.length + 1,
+            positions: v1.positions,
+            ppp: false, pppOrigPositions: null,
+          }],
+          simParams: v1.simParams,
+        };
+      }
+    }
+
     if (!s) return false;
-    nextId = s.nextId ?? 1;
+
+    nextStrategyId = s.nextStrategyId ?? 1;
     if (s.simParams) {
-      state.simParams.S      = s.simParams.S      ?? 0;
-      state.simParams.S_orig = s.simParams.S_orig  ?? 0;
+      state.simParams.S          = s.simParams.S          ?? 0;
+      state.simParams.S_orig     = s.simParams.S_orig     ?? 0;
       state.simParams.r          = s.simParams.r          ?? 40;
-      state.simParams.dte        = s.simParams.dte         ?? calcDTE();
-      state.simParams.comisiones = s.simParams.comisiones  ?? 0.5;
+      state.simParams.dte        = s.simParams.dte        ?? calcDTE();
+      state.simParams.comisiones = s.simParams.comisiones ?? 0.5;
+      state.simParams.opexDate   = s.simParams.opexDate   ?? '2026-08-21';
     }
-    for (const p of (s.positions ?? [])) {
-      state.positions.push({ ...p, cachedSigma: 0.30 });
+    for (const strat of (s.strategies ?? [])) {
+      state.strategies.push({
+        id:               strat.id,
+        name:             strat.name      ?? `Estrategia ${strat.id}`,
+        enabled:          strat.enabled   ?? true,
+        collapsed:        strat.collapsed ?? false,
+        nextId:           strat.nextId    ?? 1,
+        positions:        (strat.positions ?? []).map(p => ({ ...p, cachedSigma: 0.30 })),
+        ppp:              false,
+        pppOrigPositions: null,
+        cierre:           false,
+        preciosCierre:    {},
+      });
     }
-    return (s.positions?.length ?? 0) > 0;
+    return state.strategies.some(s => s.positions.length > 0);
   } catch { return false; }
 }
 
@@ -920,67 +1489,84 @@ document.addEventListener('DOMContentLoaded', () => {
   loadConfig();
   const hasPositions = loadSavedState();
 
-  document.getElementById('sim-S').value          = state.simParams.S > 0 ? state.simParams.S.toFixed(2) : '';
-  document.getElementById('sim-r').value          = state.simParams.r;
-  document.getElementById('sim-dte').value        = state.simParams.dte || calcDTE();
-  document.getElementById('sim-comisiones').value = state.simParams.comisiones.toFixed(3);
+  // Default: one empty strategy if none loaded
+  if (!state.strategies.length) {
+    state.strategies.push({ id: nextStrategyId++, name: 'Estrategia 1', enabled: true, collapsed: false, positions: [], nextId: 1, ppp: false, pppOrigPositions: null, cierre: false, preciosCierre: {} });
+  }
 
-  // Sim param inputs
+  document.getElementById('sim-S').value          = state.simParams.S > 0 ? Math.round(state.simParams.S) : '';
+  document.getElementById('sim-r').value          = state.simParams.r;
+  document.getElementById('sim-opex-date').value  = state.simParams.opexDate;
+  document.getElementById('sim-dte').value        = state.simParams.dte || calcDTEFromDate(state.simParams.opexDate);
+  document.getElementById('sim-comisiones').value = state.simParams.comisiones.toFixed(3);
+  updateSimSummary();
+
   ['input', 'change'].forEach(ev => {
     document.getElementById('sim-S').addEventListener(ev, () => {
       const v = parseFloat(document.getElementById('sim-S').value);
-      if (isFinite(v) && v > 0) { state.simParams.S = v; recompute(); }
+      if (isFinite(v) && v > 0) { state.simParams.S = v; updateSimSummary(); recompute(); }
     });
     document.getElementById('sim-r').addEventListener(ev, () => {
       const v = parseFloat(document.getElementById('sim-r').value);
-      if (isFinite(v)) { state.simParams.r = v; recompute(); }
+      if (isFinite(v)) { state.simParams.r = v; updateSimSummary(); recompute(); }
     });
     document.getElementById('sim-dte').addEventListener(ev, () => {
       const v = parseInt(document.getElementById('sim-dte').value);
-      if (isFinite(v) && v >= 0) { state.simParams.dte = v; recompute(); }
+      if (isFinite(v) && v >= 0) { state.simParams.dte = v; updateSimSummary(); recompute(); }
     });
     document.getElementById('sim-comisiones').addEventListener(ev, () => {
       const v = parseFloat(document.getElementById('sim-comisiones').value);
       if (isFinite(v) && v >= 0) { state.simParams.comisiones = v; recompute(); }
     });
+    document.getElementById('sim-opex-date').addEventListener(ev, () => {
+      const dateStr = document.getElementById('sim-opex-date').value;
+      if (!dateStr) return;
+      state.simParams.opexDate = dateStr;
+      const dte = calcDTEFromDate(dateStr);
+      state.simParams.dte = dte;
+      document.getElementById('sim-dte').value = dte;
+      updateSimSummary();
+      recompute();
+    });
+  });
+
+  document.getElementById('sim-dte-reset').addEventListener('click', () => {
+    const dte = calcDTEFromDate(state.simParams.opexDate);
+    state.simParams.dte = dte;
+    document.getElementById('sim-dte').value = dte;
+    updateSimSummary();
+    recompute();
   });
 
   // Scenario buttons
   document.querySelectorAll('.scen-btn[data-act="s"]').forEach(btn =>
     btn.addEventListener('click', () => applyScenarioS(+btn.dataset.p)));
-  document.querySelectorAll('.scen-btn[data-act="vi"]').forEach(btn =>
-    btn.addEventListener('click', () => applyScenarioVI(+btn.dataset.p)));
   document.querySelector('.scen-btn[data-act="reset-s"]').addEventListener('click', resetScenarioS);
-  document.querySelector('.scen-btn[data-act="reset-vi"]').addEventListener('click', resetScenarioVI);
 
-  // Inline editing (delegation — survives tbody re-renders)
-  document.getElementById('positions-tbody').addEventListener('dblclick', e => {
-    const td = e.target.closest('td[data-field]');
-    if (!td) return;
-    const pos = state.positions.find(p => p.id === +td.dataset.posId);
-    if (pos) startEdit(td, pos, td.dataset.field);
-  });
-
-  // Export positions to clipboard
-  document.getElementById('export-btn').addEventListener('click', () => {
-    if (!state.positions.length) return;
-    const lines = state.positions.map(p => `${p.lotes}\t${p.strike}\t${p.prima}`);
+  // Global strategy bar
+  document.getElementById('add-strategy-btn').addEventListener('click', () => addStrategy());
+  document.getElementById('import-strategy-btn').addEventListener('click', () => openImportModal(null));
+  document.getElementById('export-strategy-btn').addEventListener('click', () => {
+    const lines = state.strategies.flatMap(s => s.positions.map(p => `${p.lotes}\t${fmtExport(p.strike)}\t${fmtExport(p.prima)}`));
+    if (!lines.length) return;
     navigator.clipboard.writeText(lines.join('\n'));
-    showToast();
+    showToast('✓ Todas las posiciones copiadas al portapapeles.');
   });
-
-  // Add empty row
-  document.getElementById('add-row-btn').addEventListener('click', () => {
-    state.positions.push({ id: nextId++, type: 'call', lotes: 1, strike: 0, prima: 0, cachedSigma: 0.30 });
-    saveState();
-    recompute();
+  document.getElementById('clear-strategy-btn').addEventListener('click', () => {
+    const hasAny = state.strategies.some(s => s.positions.length > 0);
+    if (!hasAny || confirm('¿Limpiar todas las estrategias?')) {
+      state.strategies.forEach(s => { s.positions = []; s.nextId = 1; });
+      state.simParams.ivOverrides = {};
+      state.simParams.ivOriginals = {};
+      renderStrategies();
+      recompute();
+    }
   });
 
   // Import modal
-  document.getElementById('import-btn').addEventListener('click',    openImportModal);
-  document.getElementById('import-cancel').addEventListener('click', closeImportModal);
+  document.getElementById('import-cancel').addEventListener('click',  closeImportModal);
   document.getElementById('import-confirm').addEventListener('click', confirmImport);
-  document.getElementById('import-modal').addEventListener('click',  e => { if (e.target === e.currentTarget) closeImportModal(); });
+  document.getElementById('import-modal').addEventListener('click',   e => { if (e.target === e.currentTarget) closeImportModal(); });
 
   // Manual refresh
   document.getElementById('manual-refresh-btn').addEventListener('click', fetchPrices);
@@ -992,26 +1578,43 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('config-reload').addEventListener('click', () => { applyConfig(); closeConfigModal(); fetchPrices(); });
   document.getElementById('config-modal').addEventListener('click',  e => { if (e.target === e.currentTarget) closeConfigModal(); });
 
-  // Clear
-  document.getElementById('clear-btn').addEventListener('click', () => {
-    if (!state.positions.length || confirm('¿Limpiar toda la posición?')) clearPositions();
-  });
-
   // ESC
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeImportModal(); closeConfigModal(); }
   });
 
+  // Panel collapse buttons
+  function applyPanelState(key, expanded) {
+    const body = document.getElementById(`${key}-panel-body`);
+    const btn  = document.getElementById(`${key}-panel-toggle`);
+    if (!body || !btn) return;
+    body.style.display = expanded ? '' : 'none';
+    btn.textContent    = expanded ? '▼' : '▶';
+    if (key === 'sim') document.getElementById('sim-panel').classList.toggle('sim-collapsed', !expanded);
+    if (key === 'pnl' && expanded && pnlChart) pnlChart.resize();
+  }
+
+  // Apply saved state
+  applyPanelState('sim', state.config.panels.sim !== false);
+  applyPanelState('pnl', state.config.panels.pnl !== false);
+
+  ['sim', 'pnl'].forEach(key => {
+    document.getElementById(`${key}-panel-toggle`).addEventListener('click', () => {
+      state.config.panels[key] = !state.config.panels[key];
+      applyPanelState(key, state.config.panels[key]);
+      saveConfig();
+    });
+  });
+
+  // Render strategy panels
+  renderStrategies();
   initPnLChart();
 
   if (hasPositions) {
-    recompute();       // populates ivOriginals
-    renderIVTable();   // render with computed IVs
+    recompute();
+    renderIVTable();
   } else {
-    renderTable([]);
-    renderSummary(null);
     renderGreeks([]);
-
   }
 
   fetchPrices();

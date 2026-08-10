@@ -241,16 +241,61 @@
 
     /* ── Simulation parameters ── */
     .sim-top {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 2rem;
-      align-items: start;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem 2rem;
+      align-items: flex-end;
       margin-bottom: 1.25rem;
     }
     .sim-inputs {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      display: flex;
+      flex-wrap: wrap;
       gap: 1rem 1.25rem;
+      align-items: flex-end;
+    }
+    .sim-inputs .input-group input[type="number"],
+    .sim-inputs .input-group input[type="date"] {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.85rem;
+      padding: 0.42rem 0.6rem;
+      transition: border-color 0.15s;
+    }
+    .sim-inputs .input-group input[type="number"]:focus,
+    .sim-inputs .input-group input[type="date"]:focus {
+      outline: none; border-color: var(--accent);
+    }
+    #sim-S          { width: 90px; }
+    #sim-r          { width: 72px; }
+    #sim-opex-date  { width: 138px; }
+    #sim-dte        { width: 64px; }
+    #sim-comisiones { width: 78px; }
+
+    .sim-dte-row {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .btn-icon-sm {
+      padding: 0.35rem 0.45rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 0.82rem;
+      cursor: pointer;
+      line-height: 1;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-icon-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+    .iv-vi-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 0.6rem;
     }
 
     .scenario-group {
@@ -476,6 +521,279 @@
     #greeks-panel .greek-card { border-color: rgba(63, 185, 80, 0.25); }
     #greeks-panel .greek-value { color: #3fb950; }
 
+    /* ── Strategy bar label ── */
+    .strategy-bar-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-right: 0.25rem;
+      align-self: center;
+    }
+
+    /* ── Strategy panels ── */
+    .strategy-panel {
+      margin-bottom: 1.25rem;
+      transition: opacity 0.2s, filter 0.2s;
+    }
+    .positions-panel-inner {
+      padding: 1rem 1.25rem 1.25rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+    }
+    .positions-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .positions-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .positions-header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .strategy-name-display {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-bright);
+      cursor: default;
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .strategy-name-display:hover {
+      background: rgba(88,166,255,0.08);
+      cursor: pointer;
+    }
+    .strategy-name-edit-input {
+      background: var(--bg, #0d1117);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      color: var(--text-bright);
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      padding: 0.1rem 0.3rem;
+      width: 180px;
+    }
+    .strategy-name-edit-input:focus { outline: none; }
+
+    /* ── Smaller buttons inside each strategy panel ── */
+    .positions-header-right .btn-success,
+    .positions-header-right .btn-primary,
+    .positions-header-right .btn-outline-accent,
+    .positions-header-right .btn-outline-danger {
+      padding: 0.28rem 0.65rem;
+      font-size: 0.78rem;
+    }
+
+    /* ── Collapsed strategy summary ── */
+    .strategy-collapsed-summary {
+      display: none;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .strategy-collapsed .positions-header {
+      position: relative;
+      margin-bottom: 0;
+    }
+    .strategy-collapsed .strategy-collapsed-summary {
+      display: flex;
+      position: absolute;
+      left: 0;
+      right: 0;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .strategy-collapsed .positions-panel-inner { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+
+    /* Ocultar botones de acción en estado colapsado */
+    .strategy-collapsed .strat-add-row,
+    .strategy-collapsed .ppp-strat-label,
+    .strategy-collapsed .cierre-strat-label,
+    .strategy-collapsed .strat-import,
+    .strategy-collapsed .strat-export,
+    .strategy-collapsed .strat-clear {
+      display: none;
+    }
+
+    .csum-item {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .csum-label {
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      white-space: nowrap;
+    }
+    .csum-value {
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      color: var(--text-bright);
+    }
+    .csum-value.pos { color: var(--positive); }
+    .csum-value.neg { color: var(--negative); }
+    .csum-sep {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      opacity: 0.5;
+    }
+    .strategy-enabled-cb {
+      width: 1rem;
+      height: 1rem;
+      cursor: pointer;
+      accent-color: var(--positive);
+      flex-shrink: 0;
+    }
+    .btn-icon {
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      color: #8b949e;
+      width: 28px;
+      height: 28px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      line-height: 1;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .strat-collapse:hover  { border-color: var(--accent); color: var(--accent); }
+    .strat-remove:hover    { background: #f85149; border-color: #f85149; color: #fff; }
+    .panel-collapse-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Collapsible panel header ── */
+    .panel-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+    .panel-header-row h2 { margin: 0; }
+
+    /* ── Sim panel collapsed state ── */
+    #sim-panel.sim-collapsed { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+    #sim-panel.sim-collapsed .panel-header-row { margin-bottom: 0; }
+
+    .sim-collapsed-summary {
+      display: none;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      flex: 1;
+      margin: 0 1rem;
+      flex-wrap: wrap;
+    }
+    .sim-csum-item { display: flex; align-items: baseline; gap: 0.3rem; }
+    .sim-csum-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .sim-csum-value {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    #sim-panel.sim-collapsed .sim-collapsed-summary { display: flex; }
+
+    .sim-csum-iv {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+      margin-left: 0.5rem;
+    }
+
+    /* ── Cierre price input ── */
+    .cierre-price-input {
+      width: 88px;
+      background: var(--input-bg, #161b22);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      color: var(--text-bright);
+      padding: 0.22rem 0.4rem;
+      font-size: 0.81rem;
+      font-variant-numeric: tabular-nums;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .cierre-price-input:focus { outline: none; border-color: #ffa657; }
+    .cierre-price-input::-webkit-inner-spin-button,
+    .cierre-price-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .cierre-price-input { -moz-appearance: textfield; }
+
+    /* ── PPP checkbox (per strategy panel) ── */
+    .ppp-strat-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: #8b949e;
+      font-size: 0.78rem;
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      padding: 0.28rem 0.65rem;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .ppp-strat-label:hover { border-color: var(--accent); color: var(--accent); }
+    .ppp-strat-label.ppp-active { border-color: var(--accent); color: var(--accent); }
+    .ppp-strat-label input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 12px;
+      height: 12px;
+      cursor: pointer;
+    }
+    .strat-add-row:disabled,
+    .strat-import:disabled,
+    .strat-clear:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    /* ── Disabled strategy ── */
+    .strategy-disabled .positions-panel-inner {
+      border-left: 3px solid var(--negative, #f85149);
+    }
+    .strategy-disabled .positions-header-left,
+    .strategy-disabled .positions-header-right,
+    .strategy-disabled .strategy-body {
+      opacity: 0.45;
+      filter: grayscale(0.55);
+    }
+    .strategy-disabled .strategy-name-input {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
     /* ── Empty state ── */
     .empty-state {
       text-align: center;
@@ -530,100 +848,91 @@
     <a href="simulator.html" class="active">Simulador</a>
   </nav>
 
-  <!-- Action bar -->
-  <div class="panel action-bar">
-    <button id="add-row-btn" class="btn-success">+ Agregar</button>
-    <button id="import-btn" class="btn-primary">↓ Importar</button>
-    <button id="export-btn" class="btn-outline-accent">↑ Exportar</button>
-    <button id="clear-btn" class="btn-outline-danger">↺ Limpiar</button>
+  <!-- Estrategia bar -->
+  <div class="panel action-bar" id="strategy-bar">
+    <span class="strategy-bar-label">Estrategia</span>
+    <button id="add-strategy-btn"    class="btn-success">+ Agregar</button>
+    <button id="import-strategy-btn" class="btn-primary">⬇ Importar</button>
+    <button id="export-strategy-btn" class="btn-outline-accent">↑ Exportar</button>
+    <button id="clear-strategy-btn"  class="btn-outline-danger">↺ Limpiar</button>
   </div>
 
-  <!-- Positions panel -->
-  <section class="panel" id="positions-panel">
-    <h2>Posición</h2>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th style="text-align:left">Tipo</th>
-            <th>Lotes</th>
-            <th>Strike</th>
-            <th>Prima</th>
-            <th>Precio Actual</th>
-            <th>Var %</th>
-            <th>P&amp;L Actual</th>
-            <th>Vol. Impl.</th>
-            <th>Delta (Δ)</th>
-            <th>Gamma (Γ)</th>
-            <th>Vega (ν)</th>
-            <th>Theta (θ)</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="positions-tbody">
-          <tr id="empty-row">
-            <td colspan="13">
-              <div class="empty-state">
-                <span class="empty-icon">📋</span>
-                Importá posiciones para comenzar
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div id="summary-grid" class="summary-grid"></div>
-  </section>
+  <!-- Strategies container (rendered by JS) -->
+  <div id="strategies-container"></div>
 
   <!-- Simulation parameters -->
   <section class="panel" id="sim-panel">
-    <h2>Parámetros de Simulación</h2>
-    <div class="sim-top">
-      <div class="sim-inputs">
-        <div class="input-group">
-          <label for="sim-S">Subyacente (S)</label>
-          <input type="number" id="sim-S" step="0.01" min="0" placeholder="—">
-        </div>
-        <div class="input-group">
-          <label for="sim-r">Tasa libre de riesgo (%)</label>
-          <input type="number" id="sim-r" value="40" step="0.1" min="0">
-        </div>
-        <div class="input-group">
-          <label for="sim-dte">Días al vencimiento</label>
-          <input type="number" id="sim-dte" step="1" min="0" placeholder="—">
-        </div>
-        <div class="input-group">
-          <label for="sim-comisiones">Comisiones (%)</label>
-          <input type="number" id="sim-comisiones" step="0.001" min="0" value="0.500">
-        </div>
+    <div class="panel-header-row">
+      <h2>Parámetros de Simulación</h2>
+      <div class="sim-collapsed-summary" id="sim-collapsed-summary">
+        <span class="sim-csum-item">
+          <span class="sim-csum-label">S</span>
+          <span class="sim-csum-value" id="sim-csum-s">—</span>
+        </span>
+        <span class="sim-csum-item">
+          <span class="sim-csum-label">Tasa</span>
+          <span class="sim-csum-value" id="sim-csum-r">—</span><span class="sim-csum-label">%</span>
+        </span>
+        <span class="sim-csum-item">
+          <span class="sim-csum-label">DTE</span>
+          <span class="sim-csum-value" id="sim-csum-dte">—</span>
+        </span>
+        <span class="sim-csum-iv" id="sim-csum-iv"></span>
       </div>
-      <div class="scenario-group">
-        <div class="scenario-label">Subyacente</div>
-        <div class="scenarios-btns">
-          <button class="scen-btn" data-act="s" data-p="-5">−5%</button>
-          <button class="scen-btn" data-act="s" data-p="-2">−2%</button>
-          <button class="scen-btn" data-act="s" data-p="2">+2%</button>
-          <button class="scen-btn" data-act="s" data-p="5">+5%</button>
-          <button class="scen-btn scen-reset-btn" data-act="reset-s">↺ Reset</button>
-        </div>
-        <div class="scenario-label">Volatilidad Implícita</div>
-        <div class="scenarios-btns">
-          <button class="scen-btn" data-act="vi" data-p="-5">−5 pp</button>
-          <button class="scen-btn" data-act="vi" data-p="-2">−2 pp</button>
-          <button class="scen-btn" data-act="vi" data-p="2">+2 pp</button>
-          <button class="scen-btn" data-act="vi" data-p="5">+5 pp</button>
-          <button class="scen-btn scen-reset-btn" data-act="reset-vi">↺ Reset</button>
-        </div>
-      </div>
+      <button class="btn-icon panel-collapse-btn" id="sim-panel-toggle" title="Colapsar/Expandir">▼</button>
     </div>
-    <div id="iv-table-wrap"></div>
+    <div id="sim-panel-body">
+      <div class="sim-top">
+        <div class="sim-inputs">
+          <div class="input-group">
+            <label for="sim-S">Subyacente (S)</label>
+            <input type="number" id="sim-S" step="5" min="0" placeholder="—">
+          </div>
+          <div class="input-group">
+            <label for="sim-r">Tasa libre de riesgo (%)</label>
+            <input type="number" id="sim-r" value="40" step="0.1" min="0">
+          </div>
+          <div class="input-group">
+            <label for="sim-opex-date">Fecha OPEX</label>
+            <input type="date" id="sim-opex-date" value="2026-08-21">
+          </div>
+          <div class="input-group">
+            <label for="sim-dte">Días al vencimiento</label>
+            <div class="sim-dte-row">
+              <input type="number" id="sim-dte" step="1" min="0" placeholder="—">
+              <button class="btn-icon-sm" id="sim-dte-reset" title="Restablecer a Fecha OPEX">↺</button>
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="sim-comisiones">Comisiones (%)</label>
+            <input type="number" id="sim-comisiones" step="0.001" min="0" value="0.500">
+          </div>
+        </div>
+        <div class="scenario-group">
+          <div class="scenario-label">Subyacente</div>
+          <div class="scenarios-btns">
+            <button class="scen-btn" data-act="s" data-p="-5">−5%</button>
+            <button class="scen-btn" data-act="s" data-p="-2">−2%</button>
+            <button class="scen-btn" data-act="s" data-p="2">+2%</button>
+            <button class="scen-btn" data-act="s" data-p="5">+5%</button>
+            <button class="scen-btn scen-reset-btn" data-act="reset-s">↺ Reset</button>
+          </div>
+        </div>
+      </div>
+      <div id="iv-table-wrap"></div>
+    </div>
   </section>
 
   <!-- P&L chart -->
   <section class="panel" id="pnl-panel">
-    <h2>P&amp;L de la Posición</h2>
-    <div class="chart-box" style="height:420px">
-      <canvas id="pnlChart"></canvas>
+    <div class="panel-header-row">
+      <h2>P&amp;L de la Posición</h2>
+      <button class="btn-icon panel-collapse-btn" id="pnl-panel-toggle" title="Colapsar/Expandir">▼</button>
+    </div>
+    <div id="pnl-panel-body">
+      <div class="chart-box" style="height:420px">
+        <canvas id="pnlChart"></canvas>
+      </div>
     </div>
   </section>
 
