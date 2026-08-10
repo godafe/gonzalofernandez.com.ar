@@ -150,7 +150,7 @@ function mapApiResponse(json) {
     const strikeRaw = String(row[1]).trim().toUpperCase();
     const type      = String(row[2]).trim().toUpperCase();
     const last      = parseNum(row[5]);
-    if (type === 'SUBY') {
+    if (type === 'SUBY' && String(row[0]).trim().toUpperCase() === 'GGAL') {
       const price = isFinite(last) && last > 0 ? last : parseNum(row[4]); // fallback to ASK
       if (price > 0) subyPrice = price;
     } else if (type === 'CALL' || type === 'PUT') {
