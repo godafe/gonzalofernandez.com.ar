@@ -31,7 +31,7 @@ function showToast(msg) {
 }
 
 // ── Constants ───────────────────────────────────────────────────
-const API_BASE = 'https://script.google.com/macros/s/AKfycbwfAvKUf3j_LE1RRngHYm93okLd5en9URHnN51ANkV5PZgWv1gb7WVxr1b6_ckSWE74/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbx3U-DXD4soaIA1UjDnkCBu5c7DHxW8eptZiaHYMdH-HMyhAcDy_TT4mT-R9YLZfrxU/exec';
 // Returns 3rd Friday of the current month, or next month if already past it (BYMA opex cycle)
 function getDefaultOpexDate() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
