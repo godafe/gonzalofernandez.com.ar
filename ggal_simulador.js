@@ -1331,23 +1331,6 @@ function simSliderHTML(id, label, min, max, val, step, display) {
   </div>`;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-   IMPORT FROM CONTROL
-â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-function simRefreshImportSel() {
-  const sel = document.getElementById('sim-import-sel');
-  if (!sel) return;
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">-- Importar de Control --</option>';
-  (typeof ctrlStrategies !== 'undefined' ? ctrlStrategies : []).forEach((s, i) => {
-    const o = document.createElement('option');
-    o.value = i;
-    o.textContent = s.name || `Estrategia ${i + 1}`;
-    if (String(i) === cur) o.selected = true;
-    sel.appendChild(o);
-  });
-}
-
 function simBuildControlRowsFromLegs() {
   return SIM.legs
     .filter(leg => leg && leg.type !== 'stock')

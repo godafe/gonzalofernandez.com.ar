@@ -210,11 +210,11 @@
     return _prevPut(S, K, T, r, price, tol, maxIter);
   };
 
-  // Patch setIvMethod to accept 'bs-hp'
+  // Patch setIvMethod to accept 'bs-hp', chaining into the prior handler
   var _prevSetMethod = window.setIvMethod;
   window.setIvMethod = function (method) {
-    window.APP_IV_METHOD = method;
-    localStorage.setItem('iv_method', method);
+    if (typeof _prevSetMethod === 'function') _prevSetMethod(method);
+    else { window.APP_IV_METHOD = method; localStorage.setItem('iv_method', method); }
     document.querySelectorAll('.cfg-iv-method').forEach(function (el) { el.value = method; });
   };
 

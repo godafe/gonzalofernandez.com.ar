@@ -219,15 +219,15 @@ function wireBaseCard(div, base) {
   const sigmaReset  = div.querySelector('.sigma-reset-btn');
   const removeBtn   = div.querySelector('.remove-base-btn');
 
-  const onLotes = () => { base.lotes = parseInt(lotesInput.value) || base.lotes; update(); };
+  const onLotes  = () => { const v = parseInt(lotesInput.value);  if (!isNaN(v)) base.lotes  = v; update(); };
   lotesInput.addEventListener('input',  onLotes);
   lotesInput.addEventListener('change', onLotes);
 
-  const onK = () => { base.K = parseFloat(kInput.value) || base.K; update(); };
+  const onK      = () => { const v = parseFloat(kInput.value);     if (!isNaN(v)) base.K      = v; update(); };
   kInput.addEventListener('input',  onK);
   kInput.addEventListener('change', onK);
 
-  const onPrecio = () => { base.precio = parseFloat(precioInput.value) || base.precio; update(); };
+  const onPrecio = () => { const v = parseFloat(precioInput.value); if (!isNaN(v)) base.precio = v; update(); };
   precioInput.addEventListener('input',  onPrecio);
   precioInput.addEventListener('change', onPrecio);
 
@@ -238,11 +238,11 @@ function wireBaseCard(div, base) {
   });
   const onSigmaInput = () => {
     if (sigmaInput.value !== '') sigmaSlider.value = sigmaInput.value;
-    base.sigmaNueva = parseFloat(sigmaInput.value) || base.sigmaNueva;
+    const v = parseFloat(sigmaInput.value);
+    if (!isNaN(v)) base.sigmaNueva = v;
     update();
   };
-  sigmaInput.addEventListener('input',  onSigmaInput);
-  sigmaInput.addEventListener('change', onSigmaInput);
+  sigmaInput.addEventListener('input', onSigmaInput);
 
   sigmaReset.addEventListener('click', () => {
     const iv = base.cachedSigma * 100;
@@ -535,10 +535,12 @@ function parseImportText(text) {
 
     if (!isFinite(lotes) || lotes === 0 || !isFinite(K) || !isFinite(precio)) continue;
 
+    const tipoRaw = (cols[3] ?? '').trim().toLowerCase();
+    const tipo = tipoRaw === 'put' || tipoRaw === 'p' ? 'put' : 'call';
     const iv = impliedVol(state.S, K, T, r, precio);
     const sigmaNueva = isFinite(iv) ? +(iv * 100).toFixed(2) : BASE_DEFAULTS.sigmaNueva;
 
-    bases.push({ lotes, tipo: 'call', K, precio, sigmaNueva });
+    bases.push({ lotes, tipo, K, precio, sigmaNueva });
   }
   return bases;
 }

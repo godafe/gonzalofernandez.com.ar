@@ -31,13 +31,22 @@ function showToast(msg) {
 }
 
 // ── Constants ───────────────────────────────────────────────────
-const API_BASE = 'https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec';
-const EXPIRY_DATE = new Date(2026, 7, 21); // 21 Aug 2026, hora local
+const API_BASE = 'https://script.google.com/macros/s/AKfycbwfAvKUf3j_LE1RRngHYm93okLd5en9URHnN51ANkV5PZgWv1gb7WVxr1b6_ckSWE74/exec';
+// Returns 3rd Friday of the current month, or next month if already past it (BYMA opex cycle)
+function getDefaultOpexDate() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  function thirdFriday(year, month) {
+    const d = new Date(year, month, 1);
+    d.setDate(1 + (5 - d.getDay() + 7) % 7 + 14); // first Friday + 2 weeks
+    return d;
+  }
+  let c = thirdFriday(today.getFullYear(), today.getMonth());
+  if (c < today) c = thirdFriday(today.getFullYear(), today.getMonth() + 1);
+  return `${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,'0')}-${String(c.getDate()).padStart(2,'0')}`;
+}
 
 function calcDTE() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.max(0, Math.ceil((EXPIRY_DATE.getTime() - today.getTime()) / 86400000));
+  return calcDTEFromDate(getDefaultOpexDate());
 }
 
 function calcDTEFromDate(dateStr) {
@@ -60,7 +69,7 @@ const state = {
     comisiones: 0.5,
     ivOverrides: {},  // { [strike]: pct }
     ivOriginals: {},  // { [strike]: pct }
-    opexDate: '2026-08-21',
+    opexDate: getDefaultOpexDate(),
   },
   config: {
     autoUpdate: true,
@@ -697,7 +706,8 @@ function wireStrategyEvents() {
 
   container.querySelectorAll('.strat-add-row').forEach(btn => {
     btn.addEventListener('click', () => {
-      addPosition(+btn.dataset.stratId, { type: 'call', lotes: 1, strike: 0, prima: 0 });
+      const _defStrike = getAvailableStrikes('call')[0] ?? 0;
+      addPosition(+btn.dataset.stratId, { type: 'call', lotes: 1, strike: _defStrike, prima: 0 });
       saveState();
       recompute();
     });
@@ -1275,7 +1285,7 @@ function clearStrategyPositions(stratId) {
     panel.querySelector('.strat-clear').disabled   = false;
     const ciCb = panel.querySelector('.cierre-strat-cb');
     if (ciCb) ciCb.checked = false;
-    panel.querySelector('.cierre-strat-label')?.classList.remove('cierre-active');
+    panel.querySelector('.cierre-strat-label')?.classList.remove('ppp-active');
     const th = panel.querySelector('.strat-th-price');
     if (th) th.textContent = 'Precio Actual';
   }
@@ -1301,7 +1311,7 @@ function resetScenarioS() {
 }
 
 function applyScenarioVI(pp) {
-  const strikes = [...new Set(getEnabledPositions().filter(p => p.type !== 'suby').map(p => p.strike))];
+  const strikes = [...new Set(getAllPositions().filter(p => p.type !== 'suby').map(p => p.strike))];
   for (const k of strikes) {
     const cur = state.simParams.ivOverrides[k] ?? state.simParams.ivOriginals[k] ?? 30;
     state.simParams.ivOverrides[k] = Math.max(0.01, +(cur + pp).toFixed(4));
@@ -1344,6 +1354,8 @@ function openImportModal(stratId) {
 
 function closeImportModal() {
   document.getElementById('import-modal').style.display = 'none';
+  document.getElementById('import-textarea').value = '';
+  document.getElementById('import-error').textContent = '';
 }
 
 function confirmImport() {
@@ -1356,15 +1368,9 @@ function confirmImport() {
     return;
   }
   closeImportModal();
-  document.getElementById('import-textarea').value = '';
-
   let targetStratId = _pendingImportStratId;
   if (targetStratId === null) {
-    // Global import: create a new strategy
-    const id = nextStrategyId++;
-    state.strategies.push({ id, name: `Estrategia ${id}`, enabled: true, collapsed: false, positions: [], nextId: 1, ppp: false, pppOrigPositions: null, cierre: false, preciosCierre: {} });
-    renderStrategies();
-    targetStratId = id;
+    targetStratId = addStrategy();
   }
 
   for (const p of parsed) addPosition(targetStratId, p);
@@ -1464,7 +1470,7 @@ function loadSavedState() {
       state.simParams.r          = s.simParams.r          ?? 40;
       state.simParams.dte        = s.simParams.dte        ?? calcDTE();
       state.simParams.comisiones = s.simParams.comisiones ?? 0.5;
-      state.simParams.opexDate   = s.simParams.opexDate   ?? '2026-08-21';
+      state.simParams.opexDate   = s.simParams.opexDate   ?? getDefaultOpexDate();
     }
     for (const strat of (s.strategies ?? [])) {
       state.strategies.push({
@@ -1555,7 +1561,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('clear-strategy-btn').addEventListener('click', () => {
     const hasAny = state.strategies.some(s => s.positions.length > 0);
     if (!hasAny || confirm('¿Limpiar todas las estrategias?')) {
-      state.strategies.forEach(s => { s.positions = []; s.nextId = 1; });
+      state.strategies.forEach(s => {
+        s.positions = []; s.nextId = 1;
+        s.ppp = false; s.pppOrigPositions = null;
+        s.cierre = false; s.preciosCierre = {};
+      });
       state.simParams.ivOverrides = {};
       state.simParams.ivOriginals = {};
       renderStrategies();

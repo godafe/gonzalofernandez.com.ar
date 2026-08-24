@@ -101,11 +101,13 @@ function ctrlGetLast(strike,type){
 
 function ctrlFormula_armado(lotes,precio,comPct,iva){
   const sign=lotes>0?1:lotes<0?-1:0;
+  // 0.002 = derechos de mercado (0.2%), fijo por normativa bursátil argentina
   return -100*lotes*precio*(1+sign*(comPct/100+0.002)*iva);
 }
 
 function ctrlFormula_desarmado(lotes,precioLast,comPct,iva){
   const sign=lotes>0?1:lotes<0?-1:0;
+  // 0.002 = derechos de mercado (0.2%), fijo por normativa bursátil argentina
   return 100*lotes*precioLast*(1-sign*(comPct/100+0.002)*iva);
 }
 

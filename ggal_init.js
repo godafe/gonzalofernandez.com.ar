@@ -345,10 +345,6 @@ function initLog(event, details={}){
 
     }
 
-    await initPerfStep('Warm-up de módulos',async()=>{
-      await initPerfWarmupTabs();
-    },{message:'Midiendo tiempo de carga por módulo...',group:'warmup'});
-
     INIT_PERF.final=true;
     initPerfSetMessage('Page Init Complete','Todos los módulos medidos');
     initPerfRender();

@@ -10,6 +10,7 @@ function calcPromedio(){
   const raw=document.getElementById('prom-input')?.value||'';
   const com=siteComision();
   const iva=siteIva();
+  // 0.002 = derechos de mercado (0.2%), fijo por normativa bursátil argentina
   const comFactor=(com/100+0.002)*iva;
 
   const rows=[];

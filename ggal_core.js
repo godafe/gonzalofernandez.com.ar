@@ -697,7 +697,7 @@ function siteConfigChanged(){
 
 /* ===== CONFIG PERSISTENCE ===== */
 const CFG_KEY='ggal_config_v1';
-const DEFAULT_WEBAPP_URL='https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec';
+const DEFAULT_WEBAPP_URL='https://script.google.com/macros/s/AKfycbwfAvKUf3j_LE1RRngHYm93okLd5en9URHnN51ANkV5PZgWv1gb7WVxr1b6_ckSWE74/exec';
 const LEGACY_WEBAPP_URLS=[
   'https://script.google.com/macros/s/AKfycbybyPULrUWjgu7XFMU2vkjnv8-AngRXKvDoH__MfcGE0e-LP1p9AhSA5enEDQyHkH1s/exec',
   'https://script.google.com/macros/s/AKfycbzK14QSqJxUp4p5KGWuBH3uzE-qlQhwcrap9SGNfZPITYoQGZiUWgHjDB0jwLbSvJXI/exec',

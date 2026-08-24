@@ -21,7 +21,7 @@ function ratRecentStats(k1,k2,type,currentRatio){
     return(p1>0&&p2>0)?p1/p2:null;
   }).filter(v=>v!=null);
   if(!vals.length)return{percentileRecent:null,mean20:null,median20:null,dev20:null,sampleSize:0};
-  const recent=vals;
+  const recent=vals.slice(-20);
   const mean20=recent.reduce((a,b)=>a+b,0)/recent.length;
   const sorted=[...recent].sort((a,b)=>a-b);
   const mid=Math.floor(sorted.length/2);

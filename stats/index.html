@@ -58,10 +58,21 @@
             <button id="chartModeButton" type="button" class="mode-button" data-mode="chart">Grafico</button>
             <button id="multipleModeButton" type="button" class="mode-button" data-mode="multiple">Multiple</button>
             <button id="chainModeButton" type="button" class="mode-button" data-mode="chain">Spread</button>
+            <button id="ratioModeButton" type="button" class="mode-button" data-mode="ratio">Ratio</button>
           </div>
         </div>
 
         <div class="controls-grid">
+          <label class="field">
+            <span>Vencimiento</span>
+            <select id="vencimientoSelect"></select>
+          </label>
+
+          <label class="field">
+            <span>Fecha desde</span>
+            <select id="fechaDesdeSelect"></select>
+          </label>
+
           <label class="field">
             <span>Base 1</span>
             <div class="field-inline">
@@ -191,7 +202,7 @@
                 <th>Ratio</th>
                 <th id="costoPrimaryHeader">Costo Bull</th>
                 <th id="spreadHeader">Spread</th>
-                <th id="costoRiHeader">Costo RI</th>
+                <th id="costoRiHeader">Costo RC/RI</th>
                 <th id="costoStraddleHeader" hidden>Costo Straddle</th>
               </tr>
             </thead>
@@ -292,7 +303,7 @@
         <div class="chart-head panel-header">
           <div class="panel-title">
             <p class="chart-kicker">Serie</p>
-            <h2 id="costoRiChartTitle">Costo RI</h2>
+            <h2 id="costoRiChartTitle">Costo RC/RI</h2>
           </div>
           <button id="costoRiChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="costoRiChartPanelBody" aria-label="Colapsar grafico de costo RI">
             <span class="caret-icon">&#9662;</span>
@@ -346,7 +357,7 @@
                   <th>Ratio</th>
                   <th id="multipleCostoPrimaryHeader">Costo Bull</th>
                   <th id="multipleSpreadHeader">Spread</th>
-                  <th id="multipleCostoRiHeader">Costo RI</th>
+                  <th id="multipleCostoRiHeader">Costo RC/RI</th>
                   <th id="multipleCostoStraddleHeader" hidden>Costo Straddle</th>
                 </tr>
               </thead>
@@ -412,7 +423,7 @@
           <div class="chart-head panel-header">
             <div class="panel-title">
               <p class="chart-kicker">Serie</p>
-              <h2 id="multipleCostoRiChartTitle">Costo RI</h2>
+              <h2 id="multipleCostoRiChartTitle">Costo RC/RI</h2>
             </div>
             <button id="multipleCostoRiChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="multipleCostoRiChartPanelBody" aria-label="Colapsar grafico multiple de costo RI">
               <span class="caret-icon">&#9662;</span>
@@ -442,6 +453,25 @@
             </tr>
           </thead>
           <tbody id="chainTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="ratioSection" class="chain-section" hidden>
+      <div class="chain-table-wrap">
+        <table class="chain-table">
+          <thead>
+            <tr>
+              <th class="chain-th-price">PRECIO CALL</th>
+              <th class="chain-th-badges">RATIO</th>
+              <th class="chain-th-dist">DIST% CALL</th>
+              <th class="chain-th-strike">STRIKE</th>
+              <th class="chain-th-dist">DIST% PUT</th>
+              <th class="chain-th-badges">RATIO</th>
+              <th class="chain-th-price">PRECIO PUT</th>
+            </tr>
+          </thead>
+          <tbody id="ratioTableBody"></tbody>
         </table>
       </div>
     </section>

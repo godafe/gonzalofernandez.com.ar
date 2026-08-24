@@ -39,14 +39,16 @@ function saveParams(p) {
 // Read current inputs from DOM
 // ============================================================
 
+function _pf(id, def) { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? def : v; }
+
 function getParams() {
   return {
-    S:          parseFloat(document.getElementById('S').value)          || DEFAULTS.S,
-    K:          parseFloat(document.getElementById('K').value)          || DEFAULTS.K,
-    dias:       parseFloat(document.getElementById('dias').value)       || DEFAULTS.dias,
-    r:          parseFloat(document.getElementById('r').value)          || DEFAULTS.r,
-    sigmaNueva: parseFloat(document.getElementById('sigmaNueva').value) || DEFAULTS.sigmaNueva,
-    precio:     parseFloat(document.getElementById('precio').value)     || DEFAULTS.precio,
+    S:          _pf('S',          DEFAULTS.S),
+    K:          _pf('K',          DEFAULTS.K),
+    dias:       _pf('dias',       DEFAULTS.dias),
+    r:          _pf('r',          DEFAULTS.r),
+    sigmaNueva: _pf('sigmaNueva', DEFAULTS.sigmaNueva),
+    precio:     _pf('precio',     DEFAULTS.precio),
   };
 }
 
@@ -435,10 +437,10 @@ function update() {
 
   const sigmaImpl = impliedVol(p.S, p.K, T, r, p.precio);
   if (isFinite(sigmaImpl)) cachedSigma = sigmaImpl;
-  const sigma = cachedSigma;
+  const sigma = isFinite(sigmaImpl) ? sigmaImpl : sigmaNueva;
 
   const display = document.getElementById('sigma-display');
-  if (display) display.textContent = isFinite(sigmaImpl) ? (sigmaImpl * 100).toFixed(2) + '%' : '—';
+  if (display) display.textContent = isFinite(sigmaImpl) ? (sigmaImpl * 100).toFixed(4) + '%' : '—';
 
   updateSummary(p.S, p.K, T, r, sigma);
   updateTable(p.S, p.K, T, r, sigma, sigmaNueva, p.precio);
@@ -459,10 +461,6 @@ function syncPair(sliderId, inputId) {
     update();
   });
   input.addEventListener('input', () => {
-    if (input.value !== '') slider.value = input.value;
-    update();
-  });
-  input.addEventListener('change', () => {
     if (input.value !== '') slider.value = input.value;
     update();
   });

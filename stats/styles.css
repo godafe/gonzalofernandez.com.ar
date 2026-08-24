@@ -228,7 +228,7 @@ body {
 
 .controls-grid {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) 44px minmax(190px, 1fr) 150px 150px 150px 150px;
+  grid-template-columns: 195px 120px minmax(120px, 1fr) 44px minmax(120px, 1fr) 90px 100px 90px 90px;
   gap: 10px 12px;
   align-items: end;
 }

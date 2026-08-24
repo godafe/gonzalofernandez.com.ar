@@ -1,6 +1,60 @@
+const VENCIMIENTO_MAP = {
+  'FE': 'FE', 'AB': 'AB', 'JU': 'JU', 'AG': 'AG', 'OC': 'OC', 'DI': 'DI',
+  'F':  'FE', 'A':  'AB', 'J':  'JU', 'G':  'AG', 'O':  'OC', 'D':  'DI'
+};
+const VENCIMIENTO_LABELS = {
+  'FE': 'Febrero', 'AB': 'Abril', 'JU': 'Junio',
+  'AG': 'Agosto',  'OC': 'Octubre', 'DI': 'Diciembre'
+};
+const VENCIMIENTO_MONTHS = {
+  'FE': 1, 'AB': 3, 'JU': 5, 'AG': 7, 'OC': 9, 'DI': 11
+};
+
+function getVencimientoFromTicker(especie) {
+  const suffix = especie.replace(/^[A-Z]+\d+/, '');
+  return VENCIMIENTO_MAP[suffix] ?? null;
+}
+
+function calcOpexDateKeyForVencimiento(canonical) {
+  const month = VENCIMIENTO_MONTHS[canonical];
+
+  if (month === undefined) {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  function thirdFriday(year, m) {
+    const d = new Date(year, m, 1);
+    d.setDate(1 + (5 - d.getDay() + 7) % 7 + 14);
+    return d;
+  }
+
+  let d = thirdFriday(today.getFullYear(), month);
+
+  if (d < today) {
+    d = thirdFriday(today.getFullYear() + 1, month);
+  }
+
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function _calcOpexDate() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  function thirdFriday(year, month) {
+    const d = new Date(year, month, 1);
+    d.setDate(1 + (5 - d.getDay() + 7) % 7 + 14);
+    return d;
+  }
+  let c = thirdFriday(today.getFullYear(), today.getMonth());
+  if (c < today) c = thirdFriday(today.getFullYear(), today.getMonth() + 1);
+  return `${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,'0')}-${String(c.getDate()).padStart(2,'0')}`;
+}
+
 const CONFIG = {
-  dataUrl: "https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec?endpoint=history&sheet=HMD",
-  liveUrlBase: "https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVVf5h_u2kb3WB2xY5WpBBiD_N0bBGvX/exec?endpoint=Live",
+  dataUrl: "https://script.google.com/macros/s/AKfycbwfAvKUf3j_LE1RRngHYm93okLd5en9URHnN51ANkV5PZgWv1gb7WVxr1b6_ckSWE74/exec?endpoint=history&sheet=HMD",
+  liveUrlBase: "https://script.google.com/macros/s/AKfycbwfAvKUf3j_LE1RRngHYm93okLd5en9URHnN51ANkV5PZgWv1gb7WVxr1b6_ckSWE74/exec?endpoint=Live",
   storageKey: "panel-ggal-settings",
   dbName: "panel-ggal-cache",
   dbVersion: 1,
@@ -11,7 +65,7 @@ const CONFIG = {
   defaultRateDays: 365,
   defaultLiveConnection: "DMD_Bot",
   allowedLiveConnections: ["DMD_Bot", "DMD_Sabro"],
-  currentOpexDate: "2026-08-21",
+  currentOpexDate: _calcOpexDate(),
   defaultAutoRefreshEnabled: false,
   defaultAutoRefreshSeconds: 7,
   defaultCrossCount: 4
@@ -32,6 +86,7 @@ const state = {
   nextRefreshAt: null,
   lastUpdatedAt: null,
   liveStatus: "Actualizando",
+  isLoadingLive: false,
   chartVisibility: {},
   panels: {
     configCollapsed: false,
@@ -56,7 +111,11 @@ const state = {
     base2: "call"
   },
   multiSeries: [],
-  multiSeriesExpanded: {}
+  multiSeriesExpanded: {},
+  selectedVencimiento: null,
+  availableVencimientos: [],
+  rawPayload: null,
+  selectedFechaDesde: null
 };
 
 const elements = {
@@ -170,13 +229,19 @@ const elements = {
   multipleCostoRiChart: document.getElementById("multipleCostoRiChart"),
   chainModeButton: document.getElementById("chainModeButton"),
   chainSection: document.getElementById("chainSection"),
-  chainTableBody: document.getElementById("chainTableBody")
+  chainTableBody: document.getElementById("chainTableBody"),
+  ratioModeButton: document.getElementById("ratioModeButton"),
+  ratioSection: document.getElementById("ratioSection"),
+  ratioTableBody: document.getElementById("ratioTableBody"),
+  vencimientoSelect: document.getElementById("vencimientoSelect"),
+  fechaDesdeSelect: document.getElementById("fechaDesdeSelect")
 };
 
 elements.tableModeButton.addEventListener("click", () => setViewMode("table"));
 elements.chartModeButton.addEventListener("click", () => setViewMode("chart"));
 elements.multipleModeButton.addEventListener("click", () => setViewMode("multiple"));
 elements.chainModeButton.addEventListener("click", () => setViewMode("chain"));
+elements.ratioModeButton.addEventListener("click", () => setViewMode("ratio"));
 elements.configCollapseButton.addEventListener("click", () => togglePanel("configCollapsed"));
 elements.statusCollapseButton.addEventListener("click", () => togglePanel("statusCollapsed"));
 elements.legendCollapseButton.addEventListener("click", () => togglePanel("legendCollapsed"));
@@ -208,6 +273,8 @@ elements.rateDaysInput.addEventListener("input", renderTable);
 elements.crossCountInput.addEventListener("input", renderTable);
 elements.reloadButton.addEventListener("click", reloadSheetData);
 elements.multipleTableBody.addEventListener("click", handleMultipleTableClick);
+elements.vencimientoSelect.addEventListener("change", handleVencimientoChange);
+elements.fechaDesdeSelect.addEventListener("change", handleFechaDesdeChange);
 
 applyStoredPanelStates();
 loadSheetData();
@@ -280,7 +347,20 @@ async function fetchAndStoreRemoteData() {
 }
 
 function hydrateFromPayload(payload, sourceLabel) {
-  const parsed = parseHistoryPayload(payload);
+  state.rawPayload = payload;
+
+  // Primer pase: descubrir vencimientos disponibles sin filtro
+  const discovery = parseHistoryPayload(payload, null);
+  state.availableVencimientos = discovery.availableVencimientos;
+
+  // Auto-seleccionar el primer vencimiento (cronológico) si ninguno es válido
+  const sortedVenc = getSortedVencimientos(state.availableVencimientos);
+  if (!state.selectedVencimiento || !sortedVenc.includes(state.selectedVencimiento)) {
+    state.selectedVencimiento = sortedVenc[0] ?? null;
+  }
+
+  // Segundo pase: parsear con el filtro definido
+  const parsed = parseHistoryPayload(payload, state.selectedVencimiento);
 
   if (!parsed.historyByDate.length) {
     throw new Error("La fuente no devolvio filas utiles.");
@@ -293,10 +373,14 @@ function hydrateFromPayload(payload, sourceLabel) {
   state.sourceStats = parsed.sourceStats;
   applyStoredSettings();
   populateBaseSelectors();
+  populateVencimientoSelector();
+  populateFechaDesdeSelector();
   renderTable();
 }
 
 async function loadLiveData() {
+  if (state.isLoadingLive) return;
+  state.isLoadingLive = true;
   try {
     state.liveStatus = "Actualizando";
     syncStatus();
@@ -339,9 +423,10 @@ async function loadLiveData() {
     renderTable();
   } catch (error) {
     console.warn("No se pudo cargar la fila live", error);
-    state.liveEntry = null;
     state.liveStatus = "Error";
     renderTable();
+  } finally {
+    state.isLoadingLive = false;
   }
 }
 
@@ -358,6 +443,78 @@ function populateBaseSelectors() {
 
   setSelectValue(elements.base1Select, storedSettings.base1, fallbackDefaults.base1);
   setSelectValue(elements.base2Select, storedSettings.base2, fallbackDefaults.base2);
+}
+
+function getSortedVencimientos(vencimientos) {
+  return vencimientos.slice().sort((a, b) => {
+    const da = calcOpexDateKeyForVencimiento(a) ?? "";
+    const db = calcOpexDateKeyForVencimiento(b) ?? "";
+    return da.localeCompare(db);
+  });
+}
+
+function formatOpexShort(dateKey) {
+  const [year, month, day] = dateKey.split("-");
+  return `${day}/${month}/${year.slice(2)}`;
+}
+
+function populateVencimientoSelector() {
+  const sorted = getSortedVencimientos(state.availableVencimientos);
+
+  if (!sorted.length) {
+    elements.vencimientoSelect.innerHTML = '<option value="">Sin datos</option>';
+    return;
+  }
+
+  const options = sorted.map((v) => {
+    const label = VENCIMIENTO_LABELS[v] ?? v;
+    const opexKey = calcOpexDateKeyForVencimiento(v);
+    const fullLabel = opexKey ? `${label} (${formatOpexShort(opexKey)})` : label;
+    const selected = state.selectedVencimiento === v ? " selected" : "";
+    return `<option value="${v}"${selected}>${fullLabel}</option>`;
+  }).join("");
+
+  elements.vencimientoSelect.innerHTML = options;
+}
+
+function handleVencimientoChange() {
+  state.selectedVencimiento = elements.vencimientoSelect.value || null;
+  state.selectedFechaDesde = null;
+
+  if (state.rawPayload) {
+    hydrateFromPayload(state.rawPayload, state.sourceStats?.source ?? "local");
+  }
+}
+
+function populateFechaDesdeSelector() {
+  const prevValue = state.selectedFechaDesde;
+  const dates = state.historyByDate
+    .map((entry) => entry.fechaRaw)
+    .filter(Boolean)
+    .sort();
+
+  const options = [
+    '<option value="">Todas</option>',
+    ...dates.map((raw) => {
+      const label = formatDate(raw);
+      const selected = prevValue === raw ? " selected" : "";
+      return `<option value="${raw}"${selected}>${label}</option>`;
+    })
+  ].join("");
+
+  elements.fechaDesdeSelect.innerHTML = options;
+
+  if (prevValue && dates.includes(prevValue)) {
+    elements.fechaDesdeSelect.value = prevValue;
+    state.selectedFechaDesde = prevValue;
+  } else {
+    state.selectedFechaDesde = null;
+  }
+}
+
+function handleFechaDesdeChange() {
+  state.selectedFechaDesde = elements.fechaDesdeSelect.value || null;
+  renderTable();
 }
 
 function setSelectValue(select, preferredValue, fallbackValue) {
@@ -409,6 +566,7 @@ function renderTable() {
   renderCharts(enrichedRows, combinationMode);
   renderMultipleView(base1Strike, base2Strike, lotes, relation, rateDays, crossCount, combinationMode);
   renderSpreadChain();
+  renderRatioChain();
   syncMetricVisibility(combinationMode);
   syncViewModeUi();
   syncStatus();
@@ -500,7 +658,11 @@ function buildRowsByDate(historyByDate, base1Strike, base2Strike) {
       strikeBase2: base2Strike,
       lastBase2: entry[base2TypeKey]?.[base2Key]
     }))
-    .filter(isValidRow)
+    .filter((row) => {
+      if (!isValidRow(row)) return false;
+      if (state.selectedFechaDesde && row.fechaRaw < state.selectedFechaDesde) return false;
+      return true;
+    })
     .sort((left, right) => left.fechaRaw.localeCompare(right.fechaRaw));
 
   if (state.liveEntry && !rows.some((row) => row.fechaRaw === state.liveEntry.fechaRaw)) {
@@ -687,7 +849,7 @@ function getMetricExtreme(value, stats) {
 
 function applyStoredSettings() {
   const storedSettings = readStoredSettings();
-  state.viewMode = ["chart", "multiple", "chain"].includes(storedSettings.viewMode)
+  state.viewMode = ["chart", "multiple", "chain", "ratio"].includes(storedSettings.viewMode)
     ? storedSettings.viewMode
     : "table";
   state.autoRefreshEnabled = typeof storedSettings.autoRefreshEnabled === "boolean"
@@ -875,7 +1037,7 @@ function persistSettings(settings) {
 }
 
 function setViewMode(mode) {
-  state.viewMode = ["chart", "multiple", "chain"].includes(mode) ? mode : "table";
+  state.viewMode = ["chart", "multiple", "chain", "ratio"].includes(mode) ? mode : "table";
   syncViewModeUi();
   persistSettings({
     base1: Number(elements.base1Select.value),
@@ -1031,7 +1193,7 @@ function syncSinglePanel(button, body, collapsed) {
 
 function renderCollapsedTablePreview(rows, seriesStats, combinationMode) {
   const liveRows = rows.filter((row) => row.isLive);
-  const latestLiveRow = liveRows.at(-1);
+  const latestLiveRow = liveRows.at(-1) ?? rows.at(-1);
 
   if (!latestLiveRow) {
     elements.tableCollapsedPreview.innerHTML = `
@@ -1058,7 +1220,7 @@ function renderCollapsedTablePreview(rows, seriesStats, combinationMode) {
               : `
                 <th>${escapeHtml(elements.costoPrimaryHeader.textContent || "Costo Bull")}</th>
                 <th>${escapeHtml(elements.spreadHeader.textContent || "Spread")}</th>
-                <th>${escapeHtml(elements.costoRiHeader.textContent || "Costo RI")}</th>
+                <th>${escapeHtml(elements.costoRiHeader.textContent || "Costo RC/RI")}</th>
               `}
           </tr>
         </thead>
@@ -1072,7 +1234,7 @@ function renderCollapsedTablePreview(rows, seriesStats, combinationMode) {
 
 function scheduleAutoRefresh() {
   if (state.autoRefreshTimerId) {
-    window.clearInterval(state.autoRefreshTimerId);
+    window.clearTimeout(state.autoRefreshTimerId);
     state.autoRefreshTimerId = null;
   }
 
@@ -1087,17 +1249,21 @@ function scheduleAutoRefresh() {
     return;
   }
 
-  state.nextRefreshAt = new Date(Date.now() + (state.autoRefreshSeconds * 1000));
-  state.autoRefreshTimerId = window.setInterval(() => {
+  function scheduleNext() {
+    if (!state.autoRefreshEnabled) return;
     state.nextRefreshAt = new Date(Date.now() + (state.autoRefreshSeconds * 1000));
-    void loadLiveData();
-  }, state.autoRefreshSeconds * 1000);
+    syncStatus();
+    state.autoRefreshTimerId = window.setTimeout(async () => {
+      await loadLiveData();
+      scheduleNext();
+    }, state.autoRefreshSeconds * 1000);
+  }
+
+  scheduleNext();
 
   state.countdownTimerId = window.setInterval(() => {
     syncStatus();
   }, 1000);
-
-  syncStatus();
 }
 
 function syncViewModeUi() {
@@ -1105,22 +1271,27 @@ function syncViewModeUi() {
   const isChart = state.viewMode === "chart";
   const isMultiple = state.viewMode === "multiple";
   const isChain = state.viewMode === "chain";
+  const isRatio = state.viewMode === "ratio";
   elements.tableModeButton.classList.toggle("is-active", isTable);
   elements.chartModeButton.classList.toggle("is-active", isChart);
   elements.multipleModeButton.classList.toggle("is-active", isMultiple);
   elements.chainModeButton.classList.toggle("is-active", isChain);
+  elements.ratioModeButton.classList.toggle("is-active", isRatio);
   elements.tableModeButton.setAttribute("aria-selected", String(isTable));
   elements.chartModeButton.setAttribute("aria-selected", String(isChart));
   elements.multipleModeButton.setAttribute("aria-selected", String(isMultiple));
   elements.chainModeButton.setAttribute("aria-selected", String(isChain));
+  elements.ratioModeButton.setAttribute("aria-selected", String(isRatio));
   elements.tableSection.hidden = !isTable;
   elements.chartsSection.hidden = !isChart;
   elements.multipleSection.hidden = !isMultiple;
   elements.chainSection.hidden = !isChain;
+  elements.ratioSection.hidden = !isRatio;
   elements.tableSection.classList.toggle("is-hidden-view", !isTable);
   elements.chartsSection.classList.toggle("is-hidden-view", !isChart);
   elements.multipleSection.classList.toggle("is-hidden-view", !isMultiple);
   elements.chainSection.classList.toggle("is-hidden-view", !isChain);
+  elements.ratioSection.classList.toggle("is-hidden-view", !isRatio);
   elements.crossCountField.hidden = !isMultiple;
 }
 
@@ -1137,7 +1308,7 @@ function updateChartTitles(base1Strike, base2Strike, lotes, relation, combinatio
   elements.ratioChartTitle.textContent = `Ratio ${base1Label}/${base2Label}`;
   elements.costoBullChartTitle.textContent = `${primaryCostLabel} ${base1Label}/${base2Label}`;
   elements.spreadChartTitle.textContent = `Spread % ${base1Label}/${base2Label}`;
-  elements.costoRiChartTitle.textContent = `Costo RI ${base1Label}/${base2Label} (-${lotesLabel}*${relationLabel})`;
+  elements.costoRiChartTitle.textContent = `Costo RC/RI ${base1Label}/${base2Label} (-${lotesLabel}*${relationLabel})`;
   elements.costoStraddleChartTitle.textContent = `Costo Straddle ${base1Label}/${base2Label}`;
 }
 
@@ -1157,7 +1328,7 @@ function updateMultipleTitles(base1Strike, base2Strike, lotes, relation, combina
   elements.multipleRatioChartTitle.textContent = `Ratio multiples ${pairLabel}`;
   elements.multipleCostoChartTitle.textContent = `${primaryCostLabel} multiples ${pairLabel}`;
   elements.multipleSpreadChartTitle.textContent = `Spread % multiples ${pairLabel}`;
-  elements.multipleCostoRiChartTitle.textContent = `Costo RI multiples ${pairLabel} (-${lotesLabel}*${relationLabel})`;
+  elements.multipleCostoRiChartTitle.textContent = `Costo RC/RI multiples ${pairLabel} (-${lotesLabel}*${relationLabel})`;
 }
 
 function renderMultipleView(base1Strike, base2Strike, lotes, relation, rateDays, crossCount, combinationMode) {
@@ -2065,7 +2236,7 @@ function isClose(left, right) {
 function collectSeriesLabels(seriesList) {
   return Array.from(new Set(
     seriesList.flatMap((seriesEntry) => seriesEntry.rows.map((row) => formatChartDate(row.fecha)))
-  ));
+  )).sort();
 }
 
 function getLastFiniteIndex(values, liveIndex) {
@@ -2453,6 +2624,10 @@ function formatCountdown() {
     return "-";
   }
 
+  if (state.isLoadingLive) {
+    return "...";
+  }
+
   const remainingMs = state.nextRefreshAt.getTime() - Date.now();
 
   if (remainingMs <= 0) {
@@ -2462,16 +2637,18 @@ function formatCountdown() {
   return `${Math.ceil(remainingMs / 1000)}s`;
 }
 
-function parseHistoryPayload(payload) {
+function parseHistoryPayload(payload, vencimientoFilter = null) {
   if (!payload || !Array.isArray(payload.values) || payload.values.length < 2) {
     return {
       historyByDate: [],
       availableStrikes: [],
+      availableVencimientos: [],
       sourceStats: { totalRows: 0, totalDates: 0 }
     };
   }
 
   const strikes = new Set();
+  const vencimientos = new Set();
   const byDate = new Map();
   let totalRows = 0;
 
@@ -2480,6 +2657,14 @@ function parseHistoryPayload(payload) {
 
     if (!row) {
       return;
+    }
+
+    if ((row.isCall || row.isPut) && row.vencimiento) {
+      vencimientos.add(row.vencimiento);
+
+      if (vencimientoFilter && row.vencimiento !== vencimientoFilter) {
+        return;
+      }
     }
 
     totalRows += 1;
@@ -2516,6 +2701,7 @@ function parseHistoryPayload(payload) {
   return {
     historyByDate: Array.from(byDate.values()),
     availableStrikes: Array.from(strikes).sort((left, right) => left - right),
+    availableVencimientos: Array.from(vencimientos).sort(),
     sourceStats: {
       totalRows,
       totalDates: byDate.size,
@@ -2535,6 +2721,9 @@ function normalizeSourceRow(rawRow) {
     return null;
   }
 
+  const isCall = type === "call";
+  const isPut = type === "put";
+
   return {
     fechaRaw,
     especie,
@@ -2542,8 +2731,9 @@ function normalizeSourceRow(rawRow) {
     strike,
     last,
     isUnderlying: especie === "GGAL" || type === "subyacente",
-    isCall: type === "call",
-    isPut: type === "put"
+    isCall,
+    isPut,
+    vencimiento: (isCall || isPut) ? getVencimientoFromTicker(especie) : null
   };
 }
 
@@ -2765,9 +2955,17 @@ function parseDateKeyAsUtc(value) {
   return Date.UTC(year, month - 1, day);
 }
 
+function getActiveOpexDateKey() {
+  if (state.selectedVencimiento) {
+    return calcOpexDateKeyForVencimiento(state.selectedVencimiento) ?? CONFIG.currentOpexDate;
+  }
+
+  return CONFIG.currentOpexDate;
+}
+
 function getDaysToOpex(dateKey) {
   const currentDateUtc = parseDateKeyAsUtc(dateKey);
-  const opexDateUtc = parseDateKeyAsUtc(CONFIG.currentOpexDate);
+  const opexDateUtc = parseDateKeyAsUtc(getActiveOpexDateKey());
 
   if (!Number.isFinite(currentDateUtc) || !Number.isFinite(opexDateUtc)) {
     return NaN;
@@ -2907,7 +3105,7 @@ function clampInteger(value, min, max, fallback) {
 }
 
 function clampDecimal(value, min, max, fallback) {
-  const parsed = Number(String(value).replace(",", "."));
+  const parsed = Number(String(value).replace(/,/g, "."));
 
   if (!Number.isFinite(parsed)) {
     return fallback;
@@ -2940,7 +3138,7 @@ function syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, 
   const crossCountText = Number.isFinite(crossCount) ? String(crossCount) : "-";
   const base1TypeText = state.optionTypes.base1 === "put" ? "Put" : "Call";
   const base2TypeText = state.optionTypes.base2 === "put" ? "Put" : "Call";
-  const modeText = state.viewMode === "chart" ? "Grafico" : state.viewMode === "multiple" ? "Multiple" : "Tabla";
+  const modeText = state.viewMode === "chart" ? "Grafico" : state.viewMode === "multiple" ? "Multiple" : state.viewMode === "chain" ? "Spread" : "Tabla";
 
   elements.configCollapsedSummary.textContent =
     `Modo: ${modeText} | Base 1: ${base1TypeText} ${base1Text} | Base 2: ${base2TypeText} ${base2Text} | Lotes: ${lotesText} | Relacion: ${relationText} | Dias tasa: ${rateDaysText} | Cruces: ${crossCountText} | Conexion: ${state.liveConnection}`;
@@ -3176,9 +3374,9 @@ function buildGgalRow(ggal) {
   const cells = [
     { cls: "chain-price chain-price-call", text: ggalText },  // 0: PRECIO CALL
     { cls: "", text: "" },                                      // 1: SPREAD (call)
-    { cls: "chain-dist chain-dist-ggal", text: "0,00%" },      // 2: DIST% CALL
-    { cls: "chain-strike chain-strike-ggal", text: ggalText }, // 3: STRIKE
-    { cls: "chain-dist chain-dist-ggal", text: "0,00%" },      // 4: DIST% PUT
+    { cls: "chain-dist chain-dist-ggal", text: formatPercent(0) },  // 2: DIST% CALL
+    { cls: "chain-strike chain-strike-ggal", text: ggalText },      // 3: STRIKE
+    { cls: "chain-dist chain-dist-ggal", text: formatPercent(0) },  // 4: DIST% PUT
     { cls: "", text: "" },                                      // 5: SPREAD (put)
     { cls: "chain-price chain-price-put", text: ggalText }     // 6: PRECIO PUT
   ];
@@ -3242,4 +3440,147 @@ function createEmptyChainBadge() {
   span.className = "chain-badge chain-badge-empty";
   span.textContent = "--";
   return span;
+}
+
+function renderRatioChain() {
+  const entry = state.liveEntry;
+  const allStrikes = state.availableStrikes;
+  const tbody = elements.ratioTableBody;
+  tbody.innerHTML = "";
+
+  if (!entry) {
+    tbody.innerHTML = `<tr><td colspan="7" class="placeholder">Sin datos live disponibles.</td></tr>`;
+    return;
+  }
+
+  const ggal = entry.ggal;
+
+  const visibleStrikes = Number.isFinite(ggal)
+    ? allStrikes.filter((s) => s >= ggal * 0.75 && s <= ggal * 1.25)
+    : allStrikes;
+
+  let atmLow = null;
+  let atmHigh = null;
+  if (Number.isFinite(ggal)) {
+    for (const s of visibleStrikes) {
+      if (s <= ggal) atmLow = s;
+      else if (atmHigh === null) atmHigh = s;
+    }
+  }
+
+  visibleStrikes.forEach((strike) => {
+    const i = allStrikes.indexOf(strike);
+    const callPrice = entry.calls[strikeKey(strike)];
+    const putPrice = entry.puts[strikeKey(strike)];
+    const isAtm = strike === atmLow || strike === atmHigh;
+    const dist = Number.isFinite(ggal) && ggal !== 0 ? (strike - ggal) / ggal * 100 : NaN;
+    const distText = Number.isFinite(dist) ? `${dist >= 0 ? "+" : ""}${formatNumber(dist, 2)}%` : "--";
+    const distCallClass = `chain-dist ${dist < 0 ? "chain-dist-call-neg" : "chain-dist-call-pos"}`;
+    const distPutClass = `chain-dist ${dist < 0 ? "chain-dist-below" : "chain-dist-above"}`;
+
+    const tr = document.createElement("tr");
+    if (isAtm) tr.classList.add("chain-row-atm");
+
+    const callPriceTd = document.createElement("td");
+    callPriceTd.className = "chain-price chain-price-call";
+    callPriceTd.textContent = Number.isFinite(callPrice) ? formatNumber(callPrice, 2) : "--";
+    tr.appendChild(callPriceTd);
+
+    // Call ratio badges: current strike (lower) vs +1, +2, +3, +4 (higher)
+    const callBadgesTd = document.createElement("td");
+    callBadgesTd.className = "chain-badges";
+    for (let j = 0; j < 4; j++) {
+      if (i + j + 1 < allStrikes.length) {
+        callBadgesTd.appendChild(createRatioBadge(allStrikes[i], allStrikes[i + j + 1], entry.calls, entry.puts, true));
+      } else {
+        callBadgesTd.appendChild(createEmptyChainBadge());
+      }
+    }
+    tr.appendChild(callBadgesTd);
+
+    const distCallTd = document.createElement("td");
+    distCallTd.className = distCallClass;
+    distCallTd.textContent = distText;
+    tr.appendChild(distCallTd);
+
+    const strikeTd = document.createElement("td");
+    strikeTd.className = "chain-strike";
+    strikeTd.textContent = formatNumber(strike, 0);
+    tr.appendChild(strikeTd);
+
+    const distPutTd = document.createElement("td");
+    distPutTd.className = distPutClass;
+    distPutTd.textContent = distText;
+    tr.appendChild(distPutTd);
+
+    // Put ratio badges: -1, -2, -3, -4 (lower) vs current strike (higher)
+    const putBadgesTd = document.createElement("td");
+    putBadgesTd.className = "chain-badges chain-badges-put";
+    for (let j = 0; j < 4; j++) {
+      if (i - j - 1 >= 0) {
+        putBadgesTd.appendChild(createRatioBadge(allStrikes[i - j - 1], allStrikes[i], entry.calls, entry.puts, false));
+      } else {
+        putBadgesTd.appendChild(createEmptyChainBadge());
+      }
+    }
+    tr.appendChild(putBadgesTd);
+
+    const putPriceTd = document.createElement("td");
+    putPriceTd.className = "chain-price chain-price-put";
+    putPriceTd.textContent = Number.isFinite(putPrice) ? formatNumber(putPrice, 2) : "--";
+    tr.appendChild(putPriceTd);
+
+    tbody.appendChild(tr);
+
+    if (strike === atmLow && Number.isFinite(ggal)) {
+      const ggalRow = buildGgalRow(ggal);
+      tbody.appendChild(ggalRow);
+    }
+  });
+
+  requestAnimationFrame(equalizeRatioBadgeWidths);
+}
+
+function createRatioBadge(sLow, sHigh, calls, puts, isCall) {
+  // Call: ratio = price(lower strike) / price(higher strike)
+  // Put:  ratio = price(higher strike) / price(lower strike)
+  const p1 = isCall ? calls[strikeKey(sLow)]  : puts[strikeKey(sHigh)];
+  const p2 = isCall ? calls[strikeKey(sHigh)] : puts[strikeKey(sLow)];
+  const ratio = (Number.isFinite(p1) && Number.isFinite(p2) && p2 > 0) ? p1 / p2 : NaN;
+
+  let colorClass = "chain-badge-red";
+  if (!Number.isFinite(ratio)) {
+    colorClass = "chain-badge-empty";
+  } else if (ratio < 1.5) {
+    colorClass = "chain-badge-green";
+  } else if (ratio <= 2.2) {
+    colorClass = "chain-badge-yellow";
+  }
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `chain-badge ${colorClass}`;
+  btn.textContent = Number.isFinite(ratio) ? ratio.toFixed(2) + "x" : "--";
+
+  const tl = isCall ? "C" : "P";
+  btn.title = `${tl}${Math.round(sLow / 100)}/${tl}${Math.round(sHigh / 100)}`;
+
+  btn.addEventListener("click", () => {
+    elements.base1Select.value = String(sLow);
+    elements.base2Select.value = String(sHigh);
+    state.optionTypes.base1 = isCall ? "call" : "put";
+    state.optionTypes.base2 = isCall ? "call" : "put";
+    syncOptionTypeUi();
+    setViewMode("chart");
+    renderTable();
+  });
+  return btn;
+}
+
+function equalizeRatioBadgeWidths() {
+  const badges = elements.ratioTableBody.querySelectorAll(".chain-badge");
+  badges.forEach((b) => { b.style.width = ""; });
+  let maxW = 0;
+  badges.forEach((b) => { maxW = Math.max(maxW, b.offsetWidth); });
+  if (maxW > 0) badges.forEach((b) => { b.style.width = `${maxW}px`; });
 }
