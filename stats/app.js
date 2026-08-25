@@ -403,7 +403,14 @@ async function loadLiveData() {
     }
 
     if (alreadyCovered) {
-      state.liveEntry = null;
+      // Sintetizar liveEntry desde el histórico de hoy para que Spread/Ratio chain puedan renderizar.
+      // buildRowsByDate() ya evita duplicar la fila en la tabla porque compara fechaRaw.
+      state.liveEntry = {
+        fechaRaw: todayHistoryEntry.fechaRaw,
+        ggal: todayHistoryEntry.ggal,
+        calls: todayHistoryEntry.calls ?? {},
+        puts: todayHistoryEntry.puts ?? {},
+      };
       state.lastUpdatedAt = new Date();
       state.liveStatus = "Ok";
       renderTable();

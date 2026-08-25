@@ -27,7 +27,7 @@
   const $ = (id) => document.getElementById(id);
 
   const DEFAULTS = {
-    webAppUrl: 'https://script.google.com/macros/s/AKfycbzYrpSs7-4n9hL7SK15DeaDVbP8apabGGXQLVWf5h_u2kb3WB2xY5wpBBiD_N0bBGvX/exec',
+    webAppUrl: 'https://script.google.com/macros/s/AKfycbx3U-DXD4soaIA1UjDnkCBu5c7DHxW8eptZiaHYMdH-HMyhAcDy_TT4mT-R9YLZfrxU/exec',
     historySheet: 'HMD',
     liveSheet: 'DMD_Bot',
     autoSeconds: 0,
