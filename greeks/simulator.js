@@ -337,8 +337,9 @@ function computeSummary(computed) {
   let costoArmado = 0, costoDesarmado = 0;
   for (const { pos, g } of computed) {
     const sign = Math.sign(pos.lotes);
-    costoArmado    += -100 * pos.lotes * pos.prima      * (1 + sign * comFactor);
-    costoDesarmado +=  100 * pos.lotes * g.currentPrice * (1 - sign * comFactor);
+    const mult = pos.type === 'suby' ? 1 : 100;
+    costoArmado    += -mult * pos.lotes * pos.prima      * (1 + sign * comFactor);
+    costoDesarmado +=  mult * pos.lotes * g.currentPrice * (1 - sign * comFactor);
   }
   const resultado = costoDesarmado + costoArmado;
 
