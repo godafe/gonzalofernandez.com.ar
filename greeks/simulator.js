@@ -488,6 +488,7 @@ function startEdit(td, stratId, pos, field) {
       el.appendChild(opt);
     }
   } else if (field === 'strike') {
+    if (pos.type === 'suby') { td.classList.remove('editing'); return; }
     el = document.createElement('select');
     el.className = 'cell-edit-input cell-edit-select';
     const strikes = getAvailableStrikes(pos.type);
@@ -807,7 +808,7 @@ function renderStrategyTable(stratId, computed) {
     tr.innerHTML = `
       <td class="td-left td-type" data-field="type"         data-strat-id="${stratId}" data-pos-id="${pos.id}">${TYPE_LABEL[pos.type] ?? pos.type}</td>
       <td class="${lotesCls}"     data-field="lotes"        data-strat-id="${stratId}" data-pos-id="${pos.id}">${lotesStr}</td>
-      <td                         data-field="strike"       data-strat-id="${stratId}" data-pos-id="${pos.id}">${fmt2(pos.strike)}</td>
+      <td                         data-field="strike"       data-strat-id="${stratId}" data-pos-id="${pos.id}" ${pos.type === 'suby' ? 'class="muted"' : ''}>${pos.type === 'suby' ? '—' : fmt2(pos.strike)}</td>
       <td                         data-field="prima"        data-strat-id="${stratId}" data-pos-id="${pos.id}">${fmt3(pos.prima)}</td>
       <td class="${priceCls}"     data-field="currentPrice" data-strat-id="${stratId}" data-pos-id="${pos.id}">
         ${priceCell}
