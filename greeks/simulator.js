@@ -66,7 +66,8 @@ const state = {
     S_orig: 0,
     r: 40,
     dte: calcDTE(),
-    comisiones: 0.5,
+    comisionesOpc: 0.21,
+    comisionesAcc: 0.33,
     ivOverrides: {},  // { [strike]: pct }
     ivOriginals: {},  // { [strike]: pct }
     opexDate: getDefaultOpexDate(),
@@ -333,14 +334,17 @@ function computeAll(positions, preciosCierre) {
 function computeSummary(computed) {
   if (!computed.length) return null;
 
-  const comFactor = (state.simParams.comisiones / 100 + 0.002) * 1.21;
+  const comFactorOpc = (state.simParams.comisionesOpc / 100 + 0.002)  * 1.21;
+  const comFactorAcc = (state.simParams.comisionesAcc / 100 + 0.0005) * 1.21;
   let costoArmado = 0, costoDesarmado = 0;
   for (const { pos, g } of computed) {
-    const sign = Math.sign(pos.lotes);
-    const mult = pos.type === 'suby' ? 1 : 100;
+    const sign      = Math.sign(pos.lotes);
+    const mult      = pos.type === 'suby' ? 1 : 100;
+    const comFactor = pos.type === 'suby' ? comFactorAcc : comFactorOpc;
     costoArmado    += -mult * pos.lotes * pos.prima      * (1 + sign * comFactor);
     costoDesarmado +=  mult * pos.lotes * g.currentPrice * (1 - sign * comFactor);
   }
+  const pnlBruto = computed.reduce((s, { g }) => s + g.pnl, 0);
   const resultado = costoDesarmado + costoArmado;
 
   const longs  = computed.filter(c => c.pos.lotes > 0);
@@ -366,7 +370,7 @@ function computeSummary(computed) {
     }
   }
 
-  return { costoArmado, costoDesarmado, resultado, ratioLotes, ratioArmado, ratioActual, spreadPctArmado, spreadPctActual, costoRIRC_arm, costoRIRC_act };
+  return { costoArmado, costoDesarmado, pnlBruto, resultado, ratioLotes, ratioArmado, ratioActual, spreadPctArmado, spreadPctActual, costoRIRC_arm, costoRIRC_act };
 }
 
 // ── PPP (Precio Ponderado Promedio) ──────────────────────────────
@@ -919,7 +923,9 @@ function renderSummaryInto(el, summary, greeks, hasPositions) {
         <span class="sum-value ${cs(summary.costoArmado)}">${mon(summary.costoArmado)}</span>
         <span class="sum-label">Costo Desarmado</span>
         <span class="sum-value ${cs(summary.costoDesarmado)}">${mon(summary.costoDesarmado)}</span>
-        <span class="sum-label">Resultado</span>
+        <span class="sum-label">P&L Bruto</span>
+        <span class="sum-value ${cs(summary.pnlBruto)}">${mon(summary.pnlBruto)}</span>
+        <span class="sum-label">Resultado Neto</span>
         <span class="sum-value ${cs(summary.resultado)}">${mon(summary.resultado)}</span>
         <span class="sum-sep"></span>
         <span class="sum-label">Spread % Armado</span>
@@ -1436,7 +1442,8 @@ function saveState() {
       S_orig:     state.simParams.S_orig,
       r:          state.simParams.r,
       dte:        state.simParams.dte,
-      comisiones: state.simParams.comisiones,
+      comisionesOpc: state.simParams.comisionesOpc,
+      comisionesAcc: state.simParams.comisionesAcc,
       opexDate:   state.simParams.opexDate,
     },
   }));
@@ -1470,8 +1477,9 @@ function loadSavedState() {
       state.simParams.S          = s.simParams.S          ?? 0;
       state.simParams.S_orig     = s.simParams.S_orig     ?? 0;
       state.simParams.r          = s.simParams.r          ?? 40;
-      state.simParams.dte        = s.simParams.dte        ?? calcDTE();
-      state.simParams.comisiones = s.simParams.comisiones ?? 0.5;
+      state.simParams.dte        = calcDTEFromDate(s.simParams.opexDate ?? getDefaultOpexDate());
+      state.simParams.comisionesOpc = s.simParams.comisionesOpc ?? s.simParams.comisiones ?? 0.21;
+      state.simParams.comisionesAcc = s.simParams.comisionesAcc ?? 0.33;
       state.simParams.opexDate   = s.simParams.opexDate   ?? getDefaultOpexDate();
     }
     for (const strat of (s.strategies ?? [])) {
@@ -1506,7 +1514,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('sim-r').value          = state.simParams.r;
   document.getElementById('sim-opex-date').value  = state.simParams.opexDate;
   document.getElementById('sim-dte').value        = state.simParams.dte || calcDTEFromDate(state.simParams.opexDate);
-  document.getElementById('sim-comisiones').value = state.simParams.comisiones.toFixed(3);
+  document.getElementById('sim-comisiones-opc').value = state.simParams.comisionesOpc.toFixed(3);
+  document.getElementById('sim-comisiones-acc').value = state.simParams.comisionesAcc.toFixed(3);
   updateSimSummary();
 
   ['input', 'change'].forEach(ev => {
@@ -1522,9 +1531,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const v = parseInt(document.getElementById('sim-dte').value);
       if (isFinite(v) && v >= 0) { state.simParams.dte = v; updateSimSummary(); recompute(); }
     });
-    document.getElementById('sim-comisiones').addEventListener(ev, () => {
-      const v = parseFloat(document.getElementById('sim-comisiones').value);
-      if (isFinite(v) && v >= 0) { state.simParams.comisiones = v; recompute(); }
+    document.getElementById('sim-comisiones-opc').addEventListener(ev, () => {
+      const v = parseFloat(document.getElementById('sim-comisiones-opc').value);
+      if (isFinite(v) && v >= 0) { state.simParams.comisionesOpc = v; recompute(); }
+    });
+    document.getElementById('sim-comisiones-acc').addEventListener(ev, () => {
+      const v = parseFloat(document.getElementById('sim-comisiones-acc').value);
+      if (isFinite(v) && v >= 0) { state.simParams.comisionesAcc = v; recompute(); }
     });
     document.getElementById('sim-opex-date').addEventListener(ev, () => {
       const dateStr = document.getElementById('sim-opex-date').value;

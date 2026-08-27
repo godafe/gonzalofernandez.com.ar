@@ -208,7 +208,7 @@
     .sum-row {
       display: flex;
       align-items: center;
-      gap: 0.35rem 2rem;
+      gap: 0.35rem 1.2rem;
       flex-wrap: wrap;
       padding: 0.55rem 0;
     }
@@ -227,7 +227,7 @@
       font-variant-numeric: tabular-nums;
       color: var(--text-bright);
       white-space: nowrap;
-      margin-right: 1rem;
+      margin-right: 0.4rem;
     }
     .sum-value.pos { color: var(--positive); }
     .sum-value.neg { color: var(--negative); }
@@ -271,7 +271,7 @@
     #sim-r          { width: 72px; }
     #sim-opex-date  { width: 138px; }
     #sim-dte        { width: 64px; }
-    #sim-comisiones { width: 78px; }
+    #sim-comisiones-opc, #sim-comisiones-acc { width: 78px; }
 
     .sim-dte-row {
       display: flex;
@@ -904,8 +904,12 @@
             </div>
           </div>
           <div class="input-group">
-            <label for="sim-comisiones">Comisiones (%)</label>
-            <input type="number" id="sim-comisiones" step="0.001" min="0" value="0.500">
+            <label for="sim-comisiones-opc">Comisión Opc (%)</label>
+            <input type="number" id="sim-comisiones-opc" step="0.001" min="0" value="0.210">
+          </div>
+          <div class="input-group">
+            <label for="sim-comisiones-acc">Comisión Acc (%)</label>
+            <input type="number" id="sim-comisiones-acc" step="0.001" min="0" value="0.330">
           </div>
         </div>
         <div class="scenario-group">
