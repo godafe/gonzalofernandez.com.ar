@@ -68,7 +68,8 @@ const CONFIG = {
   currentOpexDate: _calcOpexDate(),
   defaultAutoRefreshEnabled: false,
   defaultAutoRefreshSeconds: 7,
-  defaultCrossCount: 4
+  defaultCrossCount: 4,
+  defaultStrikeRange: "near"
 };
 
 const state = {
@@ -159,6 +160,15 @@ const elements = {
   lotesInput: document.getElementById("lotesInput"),
   relationInput: document.getElementById("relationInput"),
   rateDaysInput: document.getElementById("rateDaysInput"),
+  strikeRangeField: document.getElementById("strikeRangeField"),
+  strikeRangeSelect: document.getElementById("strikeRangeSelect"),
+  fechaDesdeField: document.getElementById("fechaDesdeField"),
+  base1Field: document.getElementById("base1Field"),
+  swapField: document.getElementById("swapField"),
+  base2Field: document.getElementById("base2Field"),
+  lotesField: document.getElementById("lotesField"),
+  relationField: document.getElementById("relationField"),
+  rateDaysField: document.getElementById("rateDaysField"),
   crossCountField: document.getElementById("crossCountField"),
   crossCountInput: document.getElementById("crossCountInput"),
   reloadButton: document.getElementById("reloadButton"),
@@ -271,6 +281,7 @@ elements.relationInput.addEventListener("change", handleRelationCommit);
 elements.relationInput.addEventListener("blur", handleRelationCommit);
 elements.rateDaysInput.addEventListener("input", renderTable);
 elements.crossCountInput.addEventListener("input", renderTable);
+elements.strikeRangeSelect.addEventListener("change", renderTable);
 elements.reloadButton.addEventListener("click", reloadSheetData);
 elements.multipleTableBody.addEventListener("click", handleMultipleTableClick);
 elements.vencimientoSelect.addEventListener("change", handleVencimientoChange);
@@ -548,6 +559,7 @@ function renderTable() {
   const relation = clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation);
   const rateDays = clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays);
   const crossCount = clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount);
+  const strikeRangeAll = elements.strikeRangeSelect.value === "all";
   const base1Strike = Number(elements.base1Select.value);
   const base2Strike = Number(elements.base2Select.value);
   const combinationMode = getCombinationMode();
@@ -559,7 +571,8 @@ function renderTable() {
     lotes,
     relation,
     rateDays,
-    crossCount
+    crossCount,
+    strikeRange: elements.strikeRangeSelect.value
   });
   updateBaseHeaders(base1Strike, base2Strike);
   updateHeadersForMode(combinationMode);
@@ -572,8 +585,8 @@ function renderTable() {
   const rowsHtml = enrichedRows.map((row) => buildRowMarkup(row, seriesStats, combinationMode)).join("");
   renderCharts(enrichedRows, combinationMode);
   renderMultipleView(base1Strike, base2Strike, lotes, relation, rateDays, crossCount, combinationMode);
-  renderSpreadChain();
-  renderRatioChain();
+  renderSpreadChain(strikeRangeAll);
+  renderRatioChain(strikeRangeAll);
   syncMetricVisibility(combinationMode);
   syncViewModeUi();
   syncStatus();
@@ -896,6 +909,9 @@ function applyStoredSettings() {
   elements.crossCountInput.value = Number.isFinite(storedSettings.crossCount)
     ? String(clampInteger(storedSettings.crossCount, 0, 20, CONFIG.defaultCrossCount))
     : String(CONFIG.defaultCrossCount);
+  elements.strikeRangeSelect.value = (storedSettings.strikeRange === "all" || storedSettings.strikeRange === "near")
+    ? storedSettings.strikeRange
+    : CONFIG.defaultStrikeRange;
   elements.autoRefreshCheckbox.checked = state.autoRefreshEnabled;
   elements.autoRefreshSecondsSelect.value = String(state.autoRefreshSeconds);
   elements.liveConnectionSelect.value = state.liveConnection;
@@ -982,6 +998,7 @@ function readStoredSettings() {
       relation: Number(parsed.relation),
       rateDays: Number(parsed.rateDays),
       crossCount: Number(parsed.crossCount),
+      strikeRange: parsed.strikeRange,
       viewMode: parsed.viewMode,
       autoRefreshEnabled: parsed.autoRefreshEnabled,
       autoRefreshSeconds: Number(parsed.autoRefreshSeconds),
@@ -1052,7 +1069,8 @@ function setViewMode(mode) {
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
     relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
     rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays),
-    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount)
+    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount),
+    strikeRange: elements.strikeRangeSelect.value
   });
 }
 
@@ -1111,7 +1129,8 @@ function handleAutoRefreshSettingsChange() {
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
     relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
     rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays),
-    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount)
+    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount),
+    strikeRange: elements.strikeRangeSelect.value
   });
   syncStatus();
 }
@@ -1125,7 +1144,8 @@ function handleLiveConnectionChange() {
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
     relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
     rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays),
-    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount)
+    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount),
+    strikeRange: elements.strikeRangeSelect.value
   });
   void loadLiveData();
 }
@@ -1153,7 +1173,8 @@ function togglePanel(panelKey) {
     lotes: clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes),
     relation: clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation),
     rateDays: clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays),
-    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount)
+    crossCount: clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount),
+    strikeRange: elements.strikeRangeSelect.value
   });
 }
 
@@ -1299,7 +1320,43 @@ function syncViewModeUi() {
   elements.multipleSection.classList.toggle("is-hidden-view", !isMultiple);
   elements.chainSection.classList.toggle("is-hidden-view", !isChain);
   elements.ratioSection.classList.toggle("is-hidden-view", !isRatio);
+  const isChainOrRatio = isChain || isRatio;
+  elements.strikeRangeField.hidden = !isChainOrRatio;
+  elements.fechaDesdeField.hidden = isChainOrRatio;
+  elements.base1Field.hidden = isChainOrRatio;
+  elements.swapField.hidden = isChainOrRatio;
+  elements.base2Field.hidden = isChainOrRatio;
+  elements.lotesField.hidden = isChainOrRatio;
+  elements.relationField.hidden = isChainOrRatio;
+  elements.rateDaysField.hidden = isChainOrRatio;
   elements.crossCountField.hidden = !isMultiple;
+  document.getElementById("legendDefault").hidden = isChain || isRatio;
+  document.getElementById("legendSpread").hidden  = !isChain;
+  document.getElementById("legendRatio").hidden   = !isRatio;
+  if (isChain) {
+    elements.legendCollapsedSummary.innerHTML = `<span class="summary-dots">
+      <span class="summary-dot-item"><span class="chain-badge-green legend-badge-sample"></span><span>&lt;33%</span></span>
+      <span class="summary-dot-item"><span class="chain-badge-yellow legend-badge-sample"></span><span>33&ndash;66%</span></span>
+      <span class="summary-dot-item"><span class="chain-badge-red legend-badge-sample"></span><span>&gt;66%</span></span>
+    </span>`;
+  } else if (isRatio) {
+    elements.legendCollapsedSummary.innerHTML = `<span class="summary-dots">
+      <span class="summary-dot-item"><span class="chain-badge-green legend-badge-sample"></span><span>&lt;1.5x</span></span>
+      <span class="summary-dot-item"><span class="chain-badge-yellow legend-badge-sample"></span><span>1.5&ndash;2.2x</span></span>
+      <span class="summary-dot-item"><span class="chain-badge-red legend-badge-sample"></span><span>&gt;2.2x</span></span>
+    </span>`;
+  } else {
+    elements.legendCollapsedSummary.innerHTML = `
+      <span class="summary-dots">
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-max"></span><span>Maximo</span></span>
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-min"></span><span>Minimo</span></span>
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-mid"></span><span>Cercano mediana</span></span>
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-live"></span><span>Live</span></span>
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-last"></span><span>Ultimo</span></span>
+        <span class="summary-dot-item"><span class="legend-mean-line"></span><span>Mediana serie</span></span>
+      </span>
+    `;
+  }
 }
 
 function updateChartTitles(base1Strike, base2Strike, lotes, relation, combinationMode) {
@@ -3150,16 +3207,30 @@ function syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, 
   elements.configCollapsedSummary.textContent =
     `Modo: ${modeText} | Base 1: ${base1TypeText} ${base1Text} | Base 2: ${base2TypeText} ${base2Text} | Lotes: ${lotesText} | Relacion: ${relationText} | Dias tasa: ${rateDaysText} | Cruces: ${crossCountText} | Conexion: ${state.liveConnection}`;
 
-  elements.legendCollapsedSummary.innerHTML = `
-    <span class="summary-dots">
-      <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-max"></span><span>Maximo</span></span>
-      <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-min"></span><span>Minimo</span></span>
-      <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-mid"></span><span>Cercano mediana</span></span>
-      <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-live"></span><span>Live</span></span>
-      <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-last"></span><span>Ultimo</span></span>
-      <span class="summary-dot-item"><span class="legend-mean-line"></span><span>Mediana serie</span></span>
-    </span>
-  `;
+  if (state.viewMode === "chain") {
+    elements.legendCollapsedSummary.innerHTML = `<span class="summary-dots">
+      <span class="summary-dot-item"><span class="chain-badge-green legend-badge-sample"></span><span>&lt;33%</span></span>
+      <span class="summary-dot-item"><span class="chain-badge-yellow legend-badge-sample"></span><span>33&ndash;66%</span></span>
+      <span class="summary-dot-item"><span class="chain-badge-red legend-badge-sample"></span><span>&gt;66%</span></span>
+    </span>`;
+  } else if (state.viewMode === "ratio") {
+    elements.legendCollapsedSummary.innerHTML = `<span class="summary-dots">
+      <span class="summary-dot-item"><span class="chain-badge-green legend-badge-sample"></span><span>&lt;1.5x</span></span>
+      <span class="summary-dot-item"><span class="chain-badge-yellow legend-badge-sample"></span><span>1.5&ndash;2.2x</span></span>
+      <span class="summary-dot-item"><span class="chain-badge-red legend-badge-sample"></span><span>&gt;2.2x</span></span>
+    </span>`;
+  } else {
+    elements.legendCollapsedSummary.innerHTML = `
+      <span class="summary-dots">
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-max"></span><span>Maximo</span></span>
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-min"></span><span>Minimo</span></span>
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-mid"></span><span>Cercano mediana</span></span>
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-live"></span><span>Live</span></span>
+        <span class="summary-dot-item"><span class="metric-dot legend-dot legend-dot-last"></span><span>Ultimo</span></span>
+        <span class="summary-dot-item"><span class="legend-mean-line"></span><span>Mediana serie</span></span>
+      </span>
+    `;
+  }
 }
 
 function renderStatusState(status) {
@@ -3265,7 +3336,7 @@ async function clearCachedPayload() {
   });
 }
 
-function renderSpreadChain() {
+function renderSpreadChain(strikeRangeAll = false) {
   const entry = state.liveEntry;
   const allStrikes = state.availableStrikes; // sorted ascending
   const tbody = elements.chainTableBody;
@@ -3278,10 +3349,9 @@ function renderSpreadChain() {
 
   const ggal = entry.ggal;
 
-  // Show only strikes within ±25% of the underlying price
-  const visibleStrikes = Number.isFinite(ggal)
-    ? allStrikes.filter((s) => s >= ggal * 0.75 && s <= ggal * 1.25)
-    : allStrikes;
+  const visibleStrikes = (strikeRangeAll || !Number.isFinite(ggal))
+    ? allStrikes
+    : allStrikes.filter((s) => s >= ggal * 0.75 && s <= ggal * 1.25);
 
   // Find the two strikes bracketing the underlying for ATM highlight
   let atmLow = null;
@@ -3423,8 +3493,8 @@ function createChainBadge(priceMap, s1, s2, type) {
   btn.addEventListener("click", () => {
     const lower = Math.min(s1, s2);
     const upper = Math.max(s1, s2);
-    elements.base1Select.value = String(lower);
-    elements.base2Select.value = String(upper);
+    elements.base1Select.value = type === "put" ? String(upper) : String(lower);
+    elements.base2Select.value = type === "put" ? String(lower) : String(upper);
     state.optionTypes.base1 = type;
     state.optionTypes.base2 = type;
     syncOptionTypeUi();
@@ -3449,7 +3519,7 @@ function createEmptyChainBadge() {
   return span;
 }
 
-function renderRatioChain() {
+function renderRatioChain(strikeRangeAll = false) {
   const entry = state.liveEntry;
   const allStrikes = state.availableStrikes;
   const tbody = elements.ratioTableBody;
@@ -3462,9 +3532,9 @@ function renderRatioChain() {
 
   const ggal = entry.ggal;
 
-  const visibleStrikes = Number.isFinite(ggal)
-    ? allStrikes.filter((s) => s >= ggal * 0.75 && s <= ggal * 1.25)
-    : allStrikes;
+  const visibleStrikes = (strikeRangeAll || !Number.isFinite(ggal))
+    ? allStrikes
+    : allStrikes.filter((s) => s >= ggal * 0.75 && s <= ggal * 1.25);
 
   let atmLow = null;
   let atmHigh = null;
@@ -3573,8 +3643,8 @@ function createRatioBadge(sLow, sHigh, calls, puts, isCall) {
   btn.title = `${tl}${Math.round(sLow / 100)}/${tl}${Math.round(sHigh / 100)}`;
 
   btn.addEventListener("click", () => {
-    elements.base1Select.value = String(sLow);
-    elements.base2Select.value = String(sHigh);
+    elements.base1Select.value = isCall ? String(sLow) : String(sHigh);
+    elements.base2Select.value = isCall ? String(sHigh) : String(sLow);
     state.optionTypes.base1 = isCall ? "call" : "put";
     state.optionTypes.base2 = isCall ? "call" : "put";
     syncOptionTypeUi();

@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backtester de Estrategias</title>
+  <link rel="stylesheet" href="greeks.css">
+  <style>
+    /* ── Buttons ── */
+    .btn-primary {
+      padding: 0.5rem 1.1rem;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: #0d1117;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .btn-primary:hover { filter: brightness(1.12); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    .btn-secondary {
+      padding: 0.45rem 0.9rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-danger {
+      padding: 0.45rem 0.9rem;
+      background: none;
+      border: 1px solid #6e3030;
+      border-radius: 6px;
+      color: #e06c6c;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-danger:hover { border-color: #e06c6c; color: #ff9090; }
+
+    .btn-success {
+      padding: 0.5rem 1.1rem;
+      background: var(--positive);
+      border: 1px solid var(--positive);
+      border-radius: 6px;
+      color: #0d1117;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .btn-success:hover { filter: brightness(1.12); }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(1rem);
+      background: #1f2937;
+      border: 1px solid var(--panel-border);
+      color: #e6edf3;
+      font-size: 0.85rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      white-space: nowrap;
+      z-index: 9999;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .param-rows { display: flex; flex-direction: column; gap: 0.75rem; }
+    .param-row  { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .param-row label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      min-width: 160px;
+    }
+    .param-row select,
+    .param-row input[type="date"],
+    .param-row input[type="number"] {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      padding: 0.42rem 0.6rem;
+      font-size: 0.85rem;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .param-row select:focus,
+    .param-row input:focus { outline: none; border-color: var(--accent); }
+    .param-row select { min-width: 180px; cursor: pointer; }
+
+    .bt-status {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    .bt-error {
+      display: none;
+      font-size: 0.82rem;
+      color: #f85149;
+      background: rgba(248,81,73,0.08);
+      border: 1px solid rgba(248,81,73,0.3);
+      border-radius: 6px;
+      padding: 0.55rem 0.85rem;
+      margin-top: 0.75rem;
+    }
+
+    /* ── Legs table ── */
+    .legs-action-bar {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .legs-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    .legs-table th {
+      text-align: left;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .legs-table td {
+      padding: 0.35rem 0.4rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: middle;
+    }
+    .legs-table td select,
+    .legs-table td input {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-bright);
+      padding: 0.28rem 0.4rem;
+      font-size: 0.83rem;
+      font-family: inherit;
+      width: 100%;
+    }
+    .legs-table td select { min-width: 68px; cursor: pointer; }
+    .leg-strike-sel { min-width: 100px; }
+    .legs-table td input[type="number"] { min-width: 80px; }
+    .legs-table td input[type="date"]   { min-width: 110px; font-size: 0.78rem; }
+    .legs-table .placeholder {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      padding: 1.5rem;
+    }
+
+    .remove-leg-btn {
+      background: none;
+      border: 1px solid var(--panel-border);
+      color: #8b949e;
+      border-radius: 4px;
+      width: 24px;
+      height: 24px;
+      font-size: 1rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .remove-leg-btn:hover { background: #f85149; border-color: #f85149; color: #fff; }
+
+    /* ── Summary strip ── */
+    .bt-summary-strip {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      padding: 0.85rem 1.25rem;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--panel-border);
+      margin: -1.25rem -1.25rem 1.25rem;
+    }
+    .sum-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .sum-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+    .sum-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-bright);
+    }
+    .sum-value.positive { color: var(--positive); }
+    .sum-value.negative { color: var(--negative); }
+
+    /* ── Tabs ── */
+    .tab-strip {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 1rem;
+    }
+    .tab-btn {
+      padding: 0.4rem 0.9rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .tab-btn.tab-active { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,0.08); }
+
+    /* ── Chart wrapper ── */
+    .chart-wrap {
+      position: relative;
+      height: 380px;
+    }
+
+    /* ── Results table ── */
+    .results-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .results-table th {
+      text-align: right;
+      font-size: 0.63rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 0.45rem 0.6rem;
+      border-bottom: 1px solid var(--panel-border);
+      white-space: nowrap;
+    }
+    .results-table th:first-child { text-align: left; }
+    .results-table td {
+      text-align: right;
+      padding: 0.35rem 0.6rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+    .results-table td:first-child { text-align: left; color: var(--text-muted); }
+    .results-table td.positive { color: var(--positive); }
+    .results-table td.negative { color: var(--negative); }
+
+    /* ── Heatmap diario ── */
+    .heatmap-outer {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .heatmap-grid {
+      display: grid;
+      overflow-x: auto;
+    }
+    .hm-row {
+      display: contents;
+    }
+    .hm-label {
+      display: flex;
+      align-items: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      padding: 0.25rem 0.75rem 0.25rem 0;
+      font-weight: 600;
+    }
+    .hm-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+      border-radius: 6px;
+      margin: 3px;
+      padding: 0.55rem 0.25rem;
+      min-width: 72px;
+      cursor: pointer;
+      transition: filter 0.15s, transform 0.1s;
+      user-select: none;
+    }
+    .hm-cell:hover { filter: brightness(1.18); transform: scale(1.04); }
+    .hm-cell.hm-selected { outline: 2px solid #fff; outline-offset: -2px; }
+    .hm-day-label {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      padding: 0.3rem 3px 0.1rem;
+      min-width: 72px;
+    }
+    .hm-pager {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .hm-pager-btn {
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 5px;
+      color: #8b949e;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .hm-pager-btn:hover  { border-color: var(--accent); color: var(--accent); }
+    .hm-pager-btn:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+    .hm-stats {
+      display: flex;
+      gap: 0;
+      margin-top: 1.5rem;
+      border-top: 1px solid var(--panel-border);
+      padding-top: 1rem;
+    }
+    .hm-stat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+      border-right: 1px solid var(--panel-border);
+      padding: 0.25rem 0.5rem;
+    }
+    .hm-stat:last-child { border-right: none; }
+    .hm-stat-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .hm-stat-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-bright);
+    }
+    .hm-stat-value.positive { color: var(--positive); }
+    .hm-stat-value.negative { color: var(--negative); }
+
+    /* ── Panel header ── */
+    .panel-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+    .panel-header-row h2 { margin: 0; }
+    .btn-icon {
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      color: #8b949e;
+      width: 28px; height: 28px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 480px;
+    }
+    .modal-box h3 { margin: 0 0 0.75rem; font-size: 1rem; color: #c9d1d9; }
+    .modal-hint { font-size: 0.78rem; color: #8b949e; margin-bottom: 0.75rem; line-height: 1.55; }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .modal-field {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .modal-field label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .modal-field select {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      padding: 0.4rem 0.6rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .modal-field select:focus { outline: none; border-color: var(--accent); }
+    .modal-textarea {
+      width: 100%;
+      height: 140px;
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      font-family: monospace;
+      font-size: 0.84rem;
+      padding: 0.6rem 0.75rem;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .modal-textarea:focus { outline: none; border-color: var(--accent); }
+    .modal-error {
+      font-size: 0.78rem;
+      color: #f85149;
+      min-height: 1.2em;
+      margin-top: 0.4rem;
+      margin-bottom: 0.3rem;
+    }
+    .modal-confirm { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
+    .modal-confirm:hover { filter: brightness(1.1); }
+
+    .modal-cancel {
+      padding: 0.5rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      border: 1px solid var(--panel-border);
+      background: none;
+      color: #8b949e;
+    }
+    .modal-cancel:hover { border-color: #8b949e; color: #c9d1d9; }
+
+    .sim-strat-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .sim-strat-item:hover { border-color: var(--accent); background: rgba(88,166,255,0.06); }
+    .sim-strat-item strong { font-size: 0.9rem; color: var(--text-bright); }
+    .sim-strat-list { max-height: 300px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h1>Backtester de Estrategias</h1>
+      <button id="bt-reload-btn" class="btn-secondary" style="font-size:0.8rem">↻ Recargar datos</button>
+    </div>
+  </header>
+
+  <nav class="page-nav">
+    <a href="greeks.html">Base única</a>
+    <a href="portfolio.html">Multi-base</a>
+    <a href="simulator.html">Simulador</a>
+    <a href="backtester.html" class="active">Backtester</a>
+  </nav>
+
+  <!-- Panel: Parámetros -->
+  <section class="panel" id="bt-params-panel">
+    <div class="panel-header-row">
+      <h2>Parámetros</h2>
+      <button class="btn-icon" id="bt-params-toggle" title="Colapsar/Expandir">▼</button>
+    </div>
+    <div id="bt-params-body">
+      <div class="param-rows">
+        <div class="param-row">
+          <label for="bt-venc">Vencimiento</label>
+          <select id="bt-venc"><option>Cargando…</option></select>
+        </div>
+        <div class="param-row">
+          <label for="bt-opex-date">Fecha OPEX</label>
+          <input type="date" id="bt-opex-date">
+        </div>
+        <div class="param-row">
+          <label for="bt-r">Tasa libre de riesgo (%)</label>
+          <input type="number" id="bt-r" value="40" step="0.5" min="0" style="width:90px">
+        </div>
+        <div class="param-row">
+          <label for="bt-entry-date">Fecha de entrada</label>
+          <select id="bt-entry-date" style="min-width:260px"><option>—</option></select>
+        </div>
+      </div>
+
+      <div id="bt-error" class="bt-error"></div>
+
+      <div style="margin-top:1.25rem; display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+        <button id="bt-run-btn" class="btn-primary" disabled>▶ Ejecutar Backtest</button>
+      </div>
+      <p id="bt-status" class="bt-status">Iniciando…</p>
+    </div>
+  </section>
+
+  <!-- Panel: Estrategia -->
+  <section class="panel" id="bt-strategy-panel">
+    <div class="panel-header-row">
+      <h2>Estrategia (legs)</h2>
+      <button class="btn-icon" id="bt-strategy-toggle" title="Colapsar/Expandir">▼</button>
+    </div>
+    <div id="bt-strategy-body">
+      <div class="legs-action-bar">
+        <button id="bt-add-leg"           class="btn-secondary">+ Agregar leg</button>
+        <button id="bt-import-sim"         class="btn-secondary">⬇ Importar del Simulador</button>
+        <button id="bt-import-planilla"    class="btn-secondary">⬇ Importar desde planilla</button>
+        <button id="bt-export-planilla"    class="btn-secondary">↑ Exportar</button>
+        <button id="bt-clear-legs"         class="btn-danger">Limpiar</button>
+      </div>
+      <table class="legs-table">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Lotes</th>
+            <th>Strike</th>
+            <th>Prima</th>
+            <th title="Fecha de apertura (vacío = desde entrada)">Fecha Operación</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="bt-legs-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Panel: Resultados (oculto hasta backtest) -->
+  <section class="panel" id="bt-results-panel" style="display:none">
+    <!-- Summary strip -->
+    <div class="bt-summary-strip">
+      <div class="sum-item">
+        <span class="sum-label">Entrada</span>
+        <span class="sum-value" id="bt-sum-entry-date">—</span>
+      </div>
+      <div class="sum-item">
+        <span class="sum-label">GGAL entrada</span>
+        <span class="sum-value" id="bt-sum-ggal">—</span>
+      </div>
+      <div class="sum-item">
+        <span class="sum-label">P&amp;L actual</span>
+        <span class="sum-value" id="bt-sum-pnl">—</span>
+      </div>
+      <div class="sum-item">
+        <span class="sum-label">DTE (inicio → hoy)</span>
+        <span class="sum-value" id="bt-sum-dte">—</span>
+      </div>
+      <div class="sum-item">
+        <span class="sum-label">Días</span>
+        <span class="sum-value" id="bt-sum-days">—</span>
+      </div>
+    </div>
+
+    <h2>Resultados</h2>
+
+    <!-- Tabs -->
+    <div class="tab-strip">
+      <button class="tab-btn tab-active" data-tab="pnl">P&amp;L</button>
+      <button class="tab-btn" data-tab="greeks">Greeks</button>
+      <button class="tab-btn" data-tab="iv">IV por strike</button>
+      <button class="tab-btn" data-tab="heatmap">Heatmap diario</button>
+    </div>
+
+    <!-- Chart P&L -->
+    <div id="bt-tab-pnl">
+      <div class="chart-wrap"><canvas id="bt-chart-pnl"></canvas></div>
+    </div>
+
+    <!-- Chart Greeks -->
+    <div id="bt-tab-greeks" style="display:none">
+      <div class="chart-wrap"><canvas id="bt-chart-greeks"></canvas></div>
+    </div>
+
+    <!-- Chart IV -->
+    <div id="bt-tab-iv" style="display:none">
+      <div class="chart-wrap"><canvas id="bt-chart-iv"></canvas></div>
+    </div>
+
+    <!-- Heatmap diario -->
+    <div id="bt-tab-heatmap" style="display:none">
+      <div id="bt-heatmap-wrap"></div>
+    </div>
+  </section>
+
+  <!-- Panel: Tabla (colapsable, oculto hasta backtest) -->
+  <section class="panel" id="bt-table-panel" style="display:none">
+    <div class="panel-header-row">
+      <h2>Detalle por fecha</h2>
+      <button class="btn-icon" id="bt-table-toggle" title="Colapsar/Expandir">▼</button>
+    </div>
+    <div id="bt-table-body" style="overflow-x:auto">
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Fecha</th>
+            <th>GGAL</th>
+            <th>DTE</th>
+            <th>P&amp;L</th>
+            <th>Delta</th>
+            <th>Gamma</th>
+            <th>Vega</th>
+            <th>Theta</th>
+          </tr>
+        </thead>
+        <tbody id="bt-results-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Modal: Import del Simulador -->
+  <div id="import-sim-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Importar estrategia del Simulador</h3>
+      <p class="modal-hint">Seleccioná una estrategia para importar todas sus posiciones.</p>
+      <div id="import-sim-list" class="sim-strat-list"></div>
+      <div class="modal-actions">
+        <button id="import-sim-cancel" class="modal-cancel">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Importar desde planilla -->
+  <div id="bt-import-planilla-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Importar desde planilla</h3>
+      <p class="modal-hint">
+        Una posición por línea, columnas separadas por <code>Tab</code> o espacios:<br>
+        <code>lotes &nbsp;&nbsp; strike &nbsp;&nbsp; prima</code><br>
+        Número negativo = venta. Decimales con coma o punto.
+      </p>
+      <div class="modal-field">
+        <label>Tipo de opción</label>
+        <select id="bt-import-planilla-type">
+          <option value="call">Call</option>
+          <option value="put">Put</option>
+          <option value="suby">Acción</option>
+        </select>
+      </div>
+      <textarea id="bt-import-planilla-textarea" class="modal-textarea"
+        placeholder="30&#9;8000,00&#9;313,631&#10;-45&#9;8600,00&#9;138,749"></textarea>
+      <div id="bt-import-planilla-error" class="modal-error"></div>
+      <div class="modal-actions">
+        <button id="bt-import-planilla-cancel"  class="modal-cancel">Cancelar</button>
+        <button id="bt-import-planilla-confirm" class="modal-confirm">Importar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="greeks-engine.js"></script>
+  <script src="history-data.js"></script>
+  <script src="backtester.js"></script>
+</body>
+</html>

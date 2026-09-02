@@ -663,6 +663,7 @@ function buildStrategyPanelHTML(strat) {
                   <th>Lotes</th>
                   <th>Strike</th>
                   <th>Prima</th>
+                  <th class="th-fecha" title="Fecha de apertura (backtesting)">BT</th>
                   <th class="strat-th-price">${strat.cierre ? 'Precio Cierre' : 'Precio Actual'}</th>
                   <th>Var %</th>
                   <th>P&amp;L Actual</th>
@@ -675,7 +676,7 @@ function buildStrategyPanelHTML(strat) {
                 </tr>
               </thead>
               <tbody id="strat-tbody-${strat.id}">
-                <tr><td colspan="13"><div class="empty-state"><span class="empty-icon">📋</span>Agregá posiciones para comenzar</div></td></tr>
+                <tr><td colspan="14"><div class="empty-state"><span class="empty-icon">📋</span>Agregá posiciones para comenzar</div></td></tr>
               </tbody>
             </table>
           </div>
@@ -778,7 +779,7 @@ function renderStrategyTable(stratId, computed) {
   const isCierre = strat?.cierre ?? false;
 
   if (!computed.length) {
-    tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><span class="empty-icon">📋</span>Agregá posiciones para comenzar</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14"><div class="empty-state"><span class="empty-icon">📋</span>Agregá posiciones para comenzar</div></td></tr>`;
     return;
   }
 
@@ -814,6 +815,7 @@ function renderStrategyTable(stratId, computed) {
       <td class="${lotesCls}"     data-field="lotes"        data-strat-id="${stratId}" data-pos-id="${pos.id}">${lotesStr}</td>
       <td                         data-field="strike"       data-strat-id="${stratId}" data-pos-id="${pos.id}" ${pos.type === 'suby' ? 'class="muted"' : ''}>${pos.type === 'suby' ? '—' : fmt2(pos.strike)}</td>
       <td                         data-field="prima"        data-strat-id="${stratId}" data-pos-id="${pos.id}">${fmt3(pos.prima)}</td>
+      <td class="td-fecha"><input type="date" class="fecha-input" data-strat-id="${stratId}" data-pos-id="${pos.id}" value="${pos.fecha ?? ''}" title="Fecha de apertura (backtesting)"></td>
       <td class="${priceCls}"     data-field="currentPrice" data-strat-id="${stratId}" data-pos-id="${pos.id}">
         ${priceCell}
       </td>
@@ -844,6 +846,13 @@ function renderStrategyTable(stratId, computed) {
       const pos = findPosition(stratId, +btn.dataset.id);
       if (pos) { delete pos.priceOverride; recompute(); }
     }));
+
+  tbody.querySelectorAll('.fecha-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const pos = findPosition(+input.dataset.stratId, +input.dataset.posId);
+      if (pos) { pos.fecha = input.value; saveState(); }
+    });
+  });
 
   tbody.querySelectorAll('.cierre-price-input').forEach(input => {
     input.addEventListener('change', () => {
@@ -1261,6 +1270,7 @@ function addPosition(stratId, data) {
     lotes:       data.lotes  ?? 1,
     strike:      data.strike ?? 0,
     prima:       data.prima  ?? 0,
+    fecha:       data.fecha  ?? '',
     cachedSigma: 0.30,
   });
 }

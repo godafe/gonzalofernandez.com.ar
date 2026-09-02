@@ -115,6 +115,10 @@ body {
   display: none !important;
 }
 
+.field[hidden] {
+  display: none !important;
+}
+
 .settings-panel {
   margin-bottom: 16px;
   padding: 14px 16px;
@@ -227,11 +231,22 @@ body {
 }
 
 .controls-grid {
-  display: grid;
-  grid-template-columns: 195px 120px minmax(120px, 1fr) 44px minmax(120px, 1fr) 90px 100px 90px 90px;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px 12px;
   align-items: end;
 }
+
+#strikeRangeField { flex: 0 0 150px; }
+#vencimientoField { flex: 0 0 195px; }
+#fechaDesdeField  { flex: 0 0 120px; }
+#base1Field       { flex: 0 0 160px; }
+#swapField        { flex: 0 0 44px; }
+#base2Field       { flex: 0 0 160px; }
+#lotesField       { flex: 0 0 90px; }
+#relationField    { flex: 0 0 100px; }
+#rateDaysField    { flex: 0 0 90px; }
+#crossCountField  { flex: 0 0 90px; }
 
 .multiple-layout {
   display: grid;
@@ -251,7 +266,7 @@ body {
 
 .field-inline {
   display: grid;
-  grid-template-columns: 68px minmax(120px, 1fr);
+  grid-template-columns: 68px 1fr;
   gap: 8px;
   align-items: center;
 }
@@ -747,8 +762,12 @@ tbody tr.live-row td:last-child {
   }
 
   .controls-grid {
-    grid-template-columns: 1fr;
     gap: 14px;
+  }
+
+  .controls-grid .field,
+  .controls-grid .field-swap {
+    flex: 1 0 100%;
   }
 
   .field-inline {
@@ -923,6 +942,20 @@ tbody tr.live-row td:last-child {
   color: var(--muted);
   cursor: default;
   opacity: 0.5;
+}
+
+.legend-grid[hidden] {
+  display: none !important;
+}
+
+.legend-badge-sample {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .chain-badge-empty:hover {

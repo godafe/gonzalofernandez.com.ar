@@ -63,17 +63,25 @@
         </div>
 
         <div class="controls-grid">
-          <label class="field">
+          <label id="strikeRangeField" class="field" hidden>
+            <span>Strikes visibles</span>
+            <select id="strikeRangeSelect">
+              <option value="all">Todos los strikes</option>
+              <option value="near" selected>Cercanos ±25%</option>
+            </select>
+          </label>
+
+          <label id="vencimientoField" class="field">
             <span>Vencimiento</span>
             <select id="vencimientoSelect"></select>
           </label>
 
-          <label class="field">
+          <label id="fechaDesdeField" class="field">
             <span>Fecha desde</span>
             <select id="fechaDesdeSelect"></select>
           </label>
 
-          <label class="field">
+          <label id="base1Field" class="field">
             <span>Base 1</span>
             <div class="field-inline">
               <button id="base1TypeButton" type="button" class="option-type-button" data-base="1">Call</button>
@@ -81,13 +89,13 @@
             </div>
           </label>
 
-          <div class="field field-swap">
+          <div id="swapField" class="field field-swap">
             <button id="swapBasesButton" type="button" class="swap-button" aria-label="Intercambiar Base 1 y Base 2">
               &#8646;
             </button>
           </div>
 
-          <label class="field">
+          <label id="base2Field" class="field">
             <span>Base 2</span>
             <div class="field-inline">
               <button id="base2TypeButton" type="button" class="option-type-button" data-base="2">Call</button>
@@ -95,17 +103,17 @@
             </div>
           </label>
 
-          <label class="field">
+          <label id="lotesField" class="field">
             <span>Lotes</span>
             <input id="lotesInput" type="number" min="1" max="500" step="1" value="100">
           </label>
 
-          <label class="field">
+          <label id="relationField" class="field">
             <span>Relacion RC/RI</span>
             <input id="relationInput" type="text" inputmode="decimal" value="1,6" placeholder="1,6">
           </label>
 
-          <label class="field">
+          <label id="rateDaysField" class="field">
             <span>Dias tasa</span>
             <input id="rateDaysInput" type="number" min="1" max="5000" step="1" value="365">
           </label>
@@ -149,7 +157,7 @@
         </button>
       </div>
       <div id="legendPanelBody" class="panel-body">
-        <div class="legend-grid">
+        <div id="legendDefault" class="legend-grid">
           <div class="legend-item">
             <span class="metric-dot legend-dot legend-dot-max"></span>
             <span>Rojo: maximo de la serie</span>
@@ -173,6 +181,34 @@
           <div class="legend-item">
             <span class="legend-mean-line" aria-hidden="true"></span>
             <span>Linea blanca punteada: mediana de la serie</span>
+          </div>
+        </div>
+        <div id="legendSpread" class="legend-grid" hidden>
+          <div class="legend-item">
+            <span class="chain-badge-green legend-badge-sample"></span>
+            <span>Verde: spread &lt;33%</span>
+          </div>
+          <div class="legend-item">
+            <span class="chain-badge-yellow legend-badge-sample"></span>
+            <span>Amarillo: spread &gt;33%, &lt;66%</span>
+          </div>
+          <div class="legend-item">
+            <span class="chain-badge-red legend-badge-sample"></span>
+            <span>Rojo: spread &gt;66%</span>
+          </div>
+        </div>
+        <div id="legendRatio" class="legend-grid" hidden>
+          <div class="legend-item">
+            <span class="chain-badge-green legend-badge-sample"></span>
+            <span>Verde: ratio &lt;1.5x</span>
+          </div>
+          <div class="legend-item">
+            <span class="chain-badge-yellow legend-badge-sample"></span>
+            <span>Amarillo: ratio 1.5x &ndash; 2.2x</span>
+          </div>
+          <div class="legend-item">
+            <span class="chain-badge-red legend-badge-sample"></span>
+            <span>Rojo: ratio &gt;2.2x</span>
           </div>
         </div>
       </div>
