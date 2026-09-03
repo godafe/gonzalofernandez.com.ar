@@ -331,20 +331,26 @@ function computeAll(positions, preciosCierre) {
 }
 
 // ── Summary stats ────────────────────────────────────────────────
-function computeSummary(computed) {
+function computeSummary(computed, computedForEntry = null) {
   if (!computed.length) return null;
+  const entryData = computedForEntry ?? computed;
 
   const comFactorOpc = (state.simParams.comisionesOpc / 100 + 0.002)  * 1.21;
   const comFactorAcc = (state.simParams.comisionesAcc / 100 + 0.0005) * 1.21;
   let costoArmado = 0, costoDesarmado = 0;
+  for (const { pos } of entryData) {
+    const sign      = Math.sign(pos.lotes);
+    const mult      = pos.type === 'suby' ? 1 : 100;
+    const comFactor = pos.type === 'suby' ? comFactorAcc : comFactorOpc;
+    costoArmado    += -mult * pos.lotes * pos.prima * (1 + sign * comFactor);
+  }
   for (const { pos, g } of computed) {
     const sign      = Math.sign(pos.lotes);
     const mult      = pos.type === 'suby' ? 1 : 100;
     const comFactor = pos.type === 'suby' ? comFactorAcc : comFactorOpc;
-    costoArmado    += -mult * pos.lotes * pos.prima      * (1 + sign * comFactor);
     costoDesarmado +=  mult * pos.lotes * g.currentPrice * (1 - sign * comFactor);
   }
-  const pnlBruto = computed.reduce((s, { g }) => s + g.pnl, 0);
+  const pnlBruto = entryData.reduce((s, { g }) => s + g.pnl, 0);
   const resultado = costoDesarmado + costoArmado;
 
   const longs  = computed.filter(c => c.pos.lotes > 0);
@@ -811,7 +817,7 @@ function renderStrategyTable(stratId, computed) {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="td-left td-type" data-field="type"         data-strat-id="${stratId}" data-pos-id="${pos.id}">${TYPE_LABEL[pos.type] ?? pos.type}</td>
+      <td class="td-left td-type type-${pos.type}" data-field="type" data-strat-id="${stratId}" data-pos-id="${pos.id}">${TYPE_LABEL[pos.type] ?? pos.type}</td>
       <td class="${lotesCls}"     data-field="lotes"        data-strat-id="${stratId}" data-pos-id="${pos.id}">${lotesStr}</td>
       <td                         data-field="strike"       data-strat-id="${stratId}" data-pos-id="${pos.id}" ${pos.type === 'suby' ? 'class="muted"' : ''}>${pos.type === 'suby' ? '—' : fmt2(pos.strike)}</td>
       <td                         data-field="prima"        data-strat-id="${stratId}" data-pos-id="${pos.id}">${fmt3(pos.prima)}</td>
@@ -884,10 +890,10 @@ function computeGreekTotals(computed) {
   );
 }
 
-function renderStrategySummary(stratId, computed) {
+function renderStrategySummary(stratId, computed, computedForEntry = null) {
   const el = document.getElementById(`strat-summary-${stratId}`);
   if (!el) return;
-  const summary = computeSummary(computed);
+  const summary = computeSummary(computed, computedForEntry);
   if (!summary) { el.innerHTML = ''; updateCollapsedSummary(stratId, null); return; }
   const greeks = computeGreekTotals(computed);
   renderSummaryInto(el, summary, greeks, computed.length > 0);
@@ -1182,13 +1188,26 @@ function updatePnLChart() {
 }
 
 // ── Master recompute ─────────────────────────────────────────────
+const PPP_TYPE_ORDER = { call: 0, put: 1, suby: 2 };
+
 function recompute() {
   const allComputed = [];
   for (const strat of state.strategies) {
-    const computed = computeAll(strat.positions, strat.cierre ? strat.preciosCierre : undefined);
+    let computed = computeAll(strat.positions, strat.cierre ? strat.preciosCierre : undefined);
+    if (strat.ppp) {
+      computed = [...computed].sort((a, b) => {
+        const ta = PPP_TYPE_ORDER[a.pos.type] ?? 3;
+        const tb = PPP_TYPE_ORDER[b.pos.type] ?? 3;
+        if (ta !== tb) return ta - tb;
+        return (a.pos.strike ?? 0) - (b.pos.strike ?? 0);
+      });
+    }
     renderStrategyTable(strat.id, computed);
-    renderStrategySummary(strat.id, computed);
-    if (strat.enabled) allComputed.push(...computed);
+    const computedForEntry = strat.ppp && strat.pppOrigPositions
+      ? computeAll(strat.pppOrigPositions, strat.cierre ? strat.preciosCierre : undefined)
+      : null;
+    renderStrategySummary(strat.id, computed, computedForEntry);
+    if (strat.enabled) allComputed.push(...(computedForEntry ?? computed));
   }
   renderGreeks(allComputed);
   renderIVTable();

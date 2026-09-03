@@ -280,6 +280,11 @@ tbody td:first-child {
 .neu  { color: #58a6ff; }
 .muted { color: #6e7681; }
 
+/* Position type colors */
+.type-call { color: #3fb950; }
+.type-put  { color: #f85149; }
+.type-suby { color: #e3b341; }
+
 /* ===== Calculated field ===== */
 .calc-badge {
   font-size: 0.6rem;
