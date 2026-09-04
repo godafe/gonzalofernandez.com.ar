@@ -152,6 +152,8 @@ const elements = {
   base2TypeButton: document.getElementById("base2TypeButton"),
   base1Header: document.getElementById("base1Header"),
   base2Header: document.getElementById("base2Header"),
+  veBase1Header: document.getElementById("veBase1Header"),
+  veBase2Header: document.getElementById("veBase2Header"),
   rateBase1Header: document.getElementById("rateBase1Header"),
   rateBase2Header: document.getElementById("rateBase2Header"),
   base1Select: document.getElementById("base1Select"),
@@ -580,7 +582,7 @@ function renderTable() {
   updateMultipleTitles(base1Strike, base2Strike, lotes, relation, combinationMode);
   syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, rateDays, crossCount);
   const rows = buildRowsByDate(state.historyByDate, base1Strike, base2Strike);
-  const enrichedRows = rows.map((row) => addDerivedMetrics(row, lotes, relation, rateDays));
+  const enrichedRows = rows.map((row) => addDerivedMetrics(row, lotes, relation, rateDays, state.optionTypes.base1, state.optionTypes.base2));
   const seriesStats = buildSeriesStats(enrichedRows);
   const rowsHtml = enrichedRows.map((row) => buildRowMarkup(row, seriesStats, combinationMode)).join("");
   renderCharts(enrichedRows, combinationMode);
@@ -610,6 +612,12 @@ function updateBaseHeaders(base1Strike, base2Strike) {
   const base2Label = Number.isFinite(base2Strike) ? formatOptionLabel(state.optionTypes.base2, base2Strike, false) : "Base 2";
   elements.base1Header.textContent = base1Label;
   elements.base2Header.textContent = base2Label;
+  elements.veBase1Header.textContent = Number.isFinite(base1Strike)
+    ? `VE ${formatOptionLabel(state.optionTypes.base1, base1Strike)}`
+    : "VE Base1";
+  elements.veBase2Header.textContent = Number.isFinite(base2Strike)
+    ? `VE ${formatOptionLabel(state.optionTypes.base2, base2Strike)}`
+    : "VE Base2";
   elements.rateBase1Header.textContent = Number.isFinite(base1Strike)
     ? `Tasa ${formatOptionLabel(state.optionTypes.base1, base1Strike)}`
     : "Tasa Base1";
@@ -707,9 +715,11 @@ function buildRowsByDate(historyByDate, base1Strike, base2Strike) {
   return rows;
 }
 
-function addDerivedMetrics(row, lotes, relation, rateDays) {
-  const tasaBase1 = getAnnualizedBaseRate(row.strikeBase1, row.lastBase1, row.ggal, row.daysToOpex, rateDays);
-  const tasaBase2 = getAnnualizedBaseRate(row.strikeBase2, row.lastBase2, row.ggal, row.daysToOpex, rateDays);
+function addDerivedMetrics(row, lotes, relation, rateDays, optionType1, optionType2) {
+  const veBase1 = getBaseExtrinsicValue(row.strikeBase1, row.lastBase1, row.ggal, optionType1);
+  const veBase2 = getBaseExtrinsicValue(row.strikeBase2, row.lastBase2, row.ggal, optionType2);
+  const tasaBase1 = getAnnualizedBaseRate(row.strikeBase1, row.lastBase1, row.ggal, row.daysToOpex, rateDays, optionType1);
+  const tasaBase2 = getAnnualizedBaseRate(row.strikeBase2, row.lastBase2, row.ggal, row.daysToOpex, rateDays, optionType2);
   const diferencialTasas = tasaBase2 - tasaBase1;
   const ratio = divide(row.lastBase1, row.lastBase2);
   const costoBull = (row.lastBase1 * lotes) - (row.lastBase2 * lotes);
@@ -719,6 +729,8 @@ function addDerivedMetrics(row, lotes, relation, rateDays) {
 
   return {
     ...row,
+    veBase1,
+    veBase2,
     tasaBase1,
     tasaBase2,
     diferencialTasas,
@@ -781,6 +793,8 @@ function buildRowMarkup(row, seriesStats, combinationMode) {
     <td>${formatGroupedNumber(row.ggal, 2)}</td>
     <td>${formatNumber(row.lastBase1, 2)}</td>
     <td>${formatNumber(row.lastBase2, 2)}</td>
+    <td>${formatNumber(row.veBase1, 2)}</td>
+    <td>${formatNumber(row.veBase2, 2)}</td>
     <td>${renderMetricCell(formatPercent(row.tasaBase1), row.tasaBase1, seriesStats.tasaBase1)}</td>
     <td>${renderMetricCell(formatPercent(row.tasaBase2), row.tasaBase2, seriesStats.tasaBase2)}</td>
     <td>${renderMetricCell(formatPercent(row.diferencialTasas), row.diferencialTasas, seriesStats.diferencialTasas)}</td>
@@ -1239,6 +1253,8 @@ function renderCollapsedTablePreview(rows, seriesStats, combinationMode) {
             <th>GGAL</th>
             <th>${escapeHtml(elements.base1Header.textContent || "Base 1")}</th>
             <th>${escapeHtml(elements.base2Header.textContent || "Base 2")}</th>
+            <th>${escapeHtml(elements.veBase1Header.textContent || "VE Base1")}</th>
+            <th>${escapeHtml(elements.veBase2Header.textContent || "VE Base2")}</th>
             <th>${escapeHtml(elements.rateBase1Header.textContent || "Tasa Base1")}</th>
             <th>${escapeHtml(elements.rateBase2Header.textContent || "Tasa Base2")}</th>
             <th>Diferencial</th>
@@ -1448,7 +1464,7 @@ function buildMultipleSeries(base1Strike, base2Strike, lotes, relation, rateDays
       }
 
       const rows = buildRowsByDate(state.historyByDate, strike1, strike2)
-        .map((row) => addDerivedMetrics(row, lotes, relation, rateDays));
+        .map((row) => addDerivedMetrics(row, lotes, relation, rateDays, state.optionTypes.base1, state.optionTypes.base2));
 
       if (!rows.length) {
         return null;
@@ -2946,13 +2962,19 @@ function isValidRow(row) {
     Number.isFinite(row.lastBase1) && Number.isFinite(row.strikeBase2) && Number.isFinite(row.lastBase2);
 }
 
-function getAnnualizedBaseRate(strike, optionPrice, ggal, daysToOpex, rateDays) {
+function getBaseExtrinsicValue(strike, optionPrice, ggal, optionType) {
+  return optionType === "put"
+    ? optionPrice - Math.max(0, strike - ggal)
+    : optionPrice - Math.max(0, ggal - strike);
+}
+
+function getAnnualizedBaseRate(strike, optionPrice, ggal, daysToOpex, rateDays, optionType) {
   if (!Number.isFinite(strike) || !Number.isFinite(optionPrice) || !Number.isFinite(ggal) ||
     !Number.isFinite(daysToOpex) || !Number.isFinite(rateDays) || ggal === 0 || daysToOpex <= 0) {
     return NaN;
   }
 
-  const baseExtrinsic = divide((strike + optionPrice) - ggal, ggal);
+  const baseExtrinsic = divide(getBaseExtrinsicValue(strike, optionPrice, ggal, optionType), ggal);
   return baseExtrinsic * divide(rateDays, daysToOpex);
 }
 
