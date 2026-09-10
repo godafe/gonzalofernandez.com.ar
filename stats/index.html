@@ -12,11 +12,49 @@
 </head>
 <body>
   <main class="page">
-    <section class="controls-card">
+    <div class="mode-bar mode-bar-standalone">
+      <span class="mode-label">Modo</span>
+      <div class="mode-toggle" role="tablist" aria-label="Modo de visualizacion">
+        <button id="tableModeButton" type="button" class="mode-button is-active" data-mode="table">Tabla</button>
+        <button id="chartModeButton" type="button" class="mode-button" data-mode="chart">Grafico</button>
+        <button id="multipleModeButton" type="button" class="mode-button" data-mode="multiple">Multiple</button>
+        <button id="chainModeButton" type="button" class="mode-button" data-mode="chain">Spread</button>
+        <button id="ratioModeButton" type="button" class="mode-button" data-mode="ratio">Ratio</button>
+        <button id="tasasModeButton" type="button" class="mode-button" data-mode="tasas">Tasas</button>
+        <button id="griegasModeButton" type="button" class="mode-button" data-mode="griegas">Griegas</button>
+      </div>
+      <button id="settingsButton" type="button" class="mode-button settings-gear-button" aria-label="Configuracion de paneles" title="Configuracion de paneles">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+
+    <section id="statusCard" class="status-card">
+      <div class="panel-header">
+        <div class="panel-title">
+          <p class="eyebrow">Estado</p>
+          <p id="statusCollapsedSummary" class="panel-summary" hidden></p>
+        </div>
+        <button id="statusCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="statusPanelBody" aria-label="Colapsar estado">
+          <span class="caret-icon">&#9662;</span>
+        </button>
+      </div>
+
+      <div id="statusPanelBody" class="panel-body">
+        <div class="status-group">
+          <p id="statusMessage" class="status">Cargando datos...</p>
+          <p id="statusMetaMessage" class="status status-meta"></p>
+          <p id="statusUpdateMessage" class="status status-meta"></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="configCard" class="controls-card">
       <div class="controls-header panel-header">
         <div class="panel-title">
           <p class="eyebrow">Configuracion</p>
-          <p id="configCollapsedSummary" class="panel-summary" hidden></p>
         </div>
         <div class="header-actions">
           <button id="configCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="configPanelBody" aria-label="Colapsar configuracion">
@@ -50,19 +88,29 @@
             <button id="reloadButton" type="button" class="reload-button settings-reload-button">Recargar datos</button>
           </div>
         </section>
+      </div>
+    </section>
 
-        <div class="mode-bar">
-          <span class="mode-label">Modo</span>
-          <div class="mode-toggle" role="tablist" aria-label="Modo de visualizacion">
-            <button id="tableModeButton" type="button" class="mode-button is-active" data-mode="table">Tabla</button>
-            <button id="chartModeButton" type="button" class="mode-button" data-mode="chart">Grafico</button>
-            <button id="multipleModeButton" type="button" class="mode-button" data-mode="multiple">Multiple</button>
-            <button id="chainModeButton" type="button" class="mode-button" data-mode="chain">Spread</button>
-            <button id="ratioModeButton" type="button" class="mode-button" data-mode="ratio">Ratio</button>
-          </div>
+    <section id="parametrosCard" class="controls-card">
+      <div class="controls-header panel-header">
+        <div class="panel-title">
+          <p class="eyebrow">Parametros</p>
+          <p id="parametrosCollapsedSummary" class="panel-summary" hidden></p>
         </div>
+        <div class="header-actions">
+          <button id="parametrosCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="parametrosPanelBody" aria-label="Colapsar parametros">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+      </div>
 
+      <div id="parametrosPanelBody" class="panel-body">
         <div class="controls-grid">
+          <div id="griegasTypeField" class="field" hidden>
+            <span>Tipo</span>
+            <button id="griegasTypeButton" type="button" class="option-type-button">Call</button>
+          </div>
+
           <label id="strikeRangeField" class="field" hidden>
             <span>Strikes visibles</span>
             <select id="strikeRangeSelect">
@@ -71,15 +119,23 @@
             </select>
           </label>
 
+          <label id="fechaDesdeField" class="field">
+            <span>Fecha desde</span>
+            <select id="fechaDesdeSelect"></select>
+          </label>
+
           <label id="vencimientoField" class="field">
             <span>Vencimiento</span>
             <select id="vencimientoSelect"></select>
           </label>
 
-          <label id="fechaDesdeField" class="field">
-            <span>Fecha desde</span>
-            <select id="fechaDesdeSelect"></select>
-          </label>
+          <div id="dteField" class="field" hidden>
+            <span title="Doble click para editar manualmente">DTE</span>
+            <div class="greek-param-wrap">
+              <span id="dteLabel" class="greek-param-label" title="Doble click para editar manualmente"></span>
+              <input id="dteInput" type="number" step="1" min="1" class="greek-param-input greek-param-overridden" hidden>
+            </div>
+          </div>
 
           <label id="base1Field" class="field">
             <span>Base 1</span>
@@ -122,31 +178,24 @@
             <span>Cantidad Cruces</span>
             <input id="crossCountInput" type="number" min="0" max="20" step="1" value="4">
           </label>
+
+          <label id="tasaRField" class="field" hidden>
+            <span>TLR</span>
+            <input id="tasaRInput" type="number" step="0.1" value="0" min="0" max="200">
+          </label>
+
+          <div id="ggalOverrideField" class="field" hidden>
+            <span title="Doble click para editar manualmente">Subyacente</span>
+            <div class="greek-param-wrap">
+              <span id="ggalOverrideLabel" class="greek-param-label" title="Doble click para editar manualmente"></span>
+              <input id="ggalOverrideInput" type="number" step="5" min="0" class="greek-param-input greek-param-overridden" hidden>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="status-card">
-      <div class="panel-header">
-        <div class="panel-title">
-          <p class="eyebrow">Estado</p>
-          <p id="statusCollapsedSummary" class="panel-summary" hidden></p>
-        </div>
-        <button id="statusCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="statusPanelBody" aria-label="Colapsar estado">
-          <span class="caret-icon">&#9662;</span>
-        </button>
-      </div>
-
-      <div id="statusPanelBody" class="panel-body">
-        <div class="status-group">
-          <p id="statusMessage" class="status">Cargando datos...</p>
-          <p id="statusMetaMessage" class="status status-meta"></p>
-          <p id="statusUpdateMessage" class="status status-meta"></p>
-        </div>
-      </div>
-    </section>
-
-    <section class="legend-card" aria-label="Referencia de indicadores">
+    <section id="legendCard" class="legend-card" aria-label="Referencia de indicadores">
       <div class="legend-head panel-header">
         <div class="panel-title">
           <p class="chart-kicker">Referencia</p>
@@ -209,6 +258,24 @@
           <div class="legend-item">
             <span class="chain-badge-red legend-badge-sample"></span>
             <span>Rojo: ratio &gt;2.2x</span>
+          </div>
+        </div>
+        <div id="legendGreeks" class="legend-grid" hidden>
+          <div class="legend-item">
+            <span class="greek-legend-swatch greek-delta"></span>
+            <span>&Delta; Delta: sensibilidad al precio del subyacente</span>
+          </div>
+          <div class="legend-item">
+            <span class="greek-legend-swatch greek-gamma"></span>
+            <span>&Gamma; Gamma: tasa de cambio del delta</span>
+          </div>
+          <div class="legend-item">
+            <span class="greek-legend-swatch greek-vega"></span>
+            <span>V Vega: sensibilidad a la volatilidad (por 1%)</span>
+          </div>
+          <div class="legend-item">
+            <span class="greek-legend-swatch greek-theta"></span>
+            <span>&Theta; Theta: decaimiento temporal diario</span>
           </div>
         </div>
       </div>
@@ -513,8 +580,323 @@
         </table>
       </div>
     </section>
+
+    <section id="griegasSection" class="chain-section" hidden>
+      <article class="chart-card greeks-chain-card" hidden>
+        <div class="panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Cadena</p>
+          </div>
+          <button id="griegasTableCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="griegasTablePanelBody" aria-label="Colapsar tabla de griegas">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="griegasTablePanelBody" class="panel-body">
+          <div class="chain-table-wrap">
+            <table class="chain-table greeks-table">
+              <thead>
+                <tr>
+                  <th class="greek-th-price">PRECIO CALL</th>
+                  <th class="greek-th-greek">&Delta;</th>
+                  <th class="greek-th-greek">&Gamma;</th>
+                  <th class="greek-th-greek">V</th>
+                  <th class="greek-th-greek">&Theta;</th>
+                  <th class="greek-th-iv">IV CALL</th>
+                  <th class="chain-th-strike">STRIKE</th>
+                  <th class="greek-th-iv">IV PUT</th>
+                  <th class="greek-th-greek">&Delta;</th>
+                  <th class="greek-th-greek">&Gamma;</th>
+                  <th class="greek-th-greek">V</th>
+                  <th class="greek-th-greek">&Theta;</th>
+                  <th class="greek-th-price">PRECIO PUT</th>
+                </tr>
+              </thead>
+              <tbody id="griegasTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+      <article id="griegasSimpleCard" class="chart-card greeks-chain-card">
+        <div class="panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Cadena</p>
+          </div>
+          <button id="griegasSimpleTableCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="griegasSimpleTablePanelBody" aria-label="Colapsar tabla de griegas">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="griegasSimpleTablePanelBody" class="panel-body">
+          <div class="chain-table-wrap">
+            <table class="chain-table greeks-simple-table">
+              <thead>
+                <tr>
+                  <th class="chain-th-strike">STRIKE</th>
+                  <th class="greek-th-price">PRECIO</th>
+                  <th class="greek-th-iv" title="Volatilidad Implícita — porcentaje anualizado">&#963;</th>
+                  <th class="greek-th-greek" title="Delta — sensibilidad del precio al subyacente (0 a 1 en calls, -1 a 0 en puts)">&Delta;</th>
+                  <th class="greek-th-greek" title="Gamma — tasa de cambio del Delta por punto del subyacente">&Gamma;</th>
+                  <th class="greek-th-greek" title="Vega — cambio en precio por 1% de cambio en volatilidad">V</th>
+                  <th class="greek-th-greek" title="Theta — decaimiento temporal: pérdida de valor por día de calendario">&Theta;</th>
+                </tr>
+              </thead>
+              <tbody id="griegasSimpleTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+      <article id="griegasPriceChartCard" class="chart-card greeks-iv-chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Histórico</p>
+            <h2 id="griegasPriceChartTitle">Precio histórico</h2>
+          </div>
+          <button id="griegasPriceChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="griegasPriceChartPanelBody" aria-label="Colapsar gráfico de precio">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="griegasPriceChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="griegasPriceChart"></canvas>
+          </div>
+        </div>
+      </article>
+      <article id="griegasIVChartCard" class="chart-card greeks-iv-chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Histórico</p>
+            <h2 id="griegasIVChartTitle">IV histórica</h2>
+          </div>
+          <button id="griegasIVChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="griegasIVChartPanelBody" aria-label="Colapsar gráfico de IV">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="griegasIVChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="griegasIVChart"></canvas>
+          </div>
+        </div>
+      </article>
+      <article id="griegasDeltaChartCard" class="chart-card greeks-iv-chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Histórico</p>
+            <h2 id="griegasDeltaChartTitle">Delta histórica</h2>
+          </div>
+          <button id="griegasDeltaChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="griegasDeltaChartPanelBody" aria-label="Colapsar gráfico de Delta">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="griegasDeltaChartPanelBody" class="panel-body">
+          <div class="chart-frame"><canvas id="griegasDeltaChart"></canvas></div>
+        </div>
+      </article>
+      <article id="griegasGammaChartCard" class="chart-card greeks-iv-chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Histórico</p>
+            <h2 id="griegasGammaChartTitle">Gamma histórica</h2>
+          </div>
+          <button id="griegasGammaChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="griegasGammaChartPanelBody" aria-label="Colapsar gráfico de Gamma">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="griegasGammaChartPanelBody" class="panel-body">
+          <div class="chart-frame"><canvas id="griegasGammaChart"></canvas></div>
+        </div>
+      </article>
+      <article id="griegasVegaChartCard" class="chart-card greeks-iv-chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Histórico</p>
+            <h2 id="griegasVegaChartTitle">Vega histórica</h2>
+          </div>
+          <button id="griegasVegaChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="griegasVegaChartPanelBody" aria-label="Colapsar gráfico de Vega">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="griegasVegaChartPanelBody" class="panel-body">
+          <div class="chart-frame"><canvas id="griegasVegaChart"></canvas></div>
+        </div>
+      </article>
+      <article id="griegasThetaChartCard" class="chart-card greeks-iv-chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Histórico</p>
+            <h2 id="griegasThetaChartTitle">Theta histórica</h2>
+          </div>
+          <button id="griegasThetaChartCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="griegasThetaChartPanelBody" aria-label="Colapsar gráfico de Theta">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="griegasThetaChartPanelBody" class="panel-body">
+          <div class="chart-frame"><canvas id="griegasThetaChart"></canvas></div>
+        </div>
+      </article>
+    </section>
+
+    <section id="tasasSection" hidden>
+      <article id="tasasCrossChartCard" class="chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Cross-section</p>
+            <h2 id="tasasCrossChartTitle">VE por Strike</h2>
+          </div>
+          <button id="tasasCrossCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tasasCrossChartPanelBody" aria-label="Colapsar grafico VE por strike">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="tasasCrossChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="tasasCrossChart"></canvas>
+          </div>
+        </div>
+      </article>
+
+      <article id="tasasVenChartCard" class="chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Cross-section</p>
+            <h2 id="tasasVenChartTitle">VEN por Strike</h2>
+          </div>
+          <button id="tasasVenCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tasasVenChartPanelBody" aria-label="Colapsar grafico VEN por strike">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="tasasVenChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="tasasVenChart"></canvas>
+          </div>
+        </div>
+      </article>
+
+      <article id="tasasVrpChartCard" class="chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Análisis</p>
+            <h2 id="tasasVrpChartTitle">VRP — Volatility Risk Premium</h2>
+          </div>
+          <button id="tasasVrpCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tasasVrpChartPanelBody" aria-label="Colapsar grafico VRP">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="tasasVrpChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="tasasVrpChart"></canvas>
+          </div>
+        </div>
+      </article>
+
+      <article id="tasasRankChartCard" class="chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Análisis</p>
+            <h2 id="tasasRankChartTitle">Extrínseco Relativo + Rank</h2>
+          </div>
+          <button id="tasasRankCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tasasRankChartPanelBody" aria-label="Colapsar grafico Rank">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="tasasRankChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="tasasRankChart"></canvas>
+          </div>
+        </div>
+      </article>
+
+      <article id="tasasThetaChartCard" class="chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Análisis</p>
+            <h2 id="tasasThetaChartTitle">Theta Decay Curve</h2>
+          </div>
+          <button id="tasasThetaCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tasasThetaChartPanelBody" aria-label="Colapsar grafico Theta">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="tasasThetaChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="tasasThetaChart"></canvas>
+          </div>
+        </div>
+      </article>
+
+      <article id="tasasSkewChartCard" class="chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Análisis</p>
+            <h2 id="tasasSkewChartTitle">Volatility Skew / Smile</h2>
+          </div>
+          <button id="tasasSkewCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tasasSkewChartPanelBody" aria-label="Colapsar grafico Skew">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="tasasSkewChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="tasasSkewChart"></canvas>
+          </div>
+        </div>
+      </article>
+
+      <article id="tasasTemporalChartCard" class="chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Temporal</p>
+            <h2 id="tasasTemporalChartTitle">VE Temporal</h2>
+          </div>
+          <button id="tasasTemporalCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tasasTemporalChartPanelBody" aria-label="Colapsar grafico VE temporal">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="tasasTemporalChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="tasasTemporalChart"></canvas>
+          </div>
+        </div>
+      </article>
+
+      <article id="tasasPrimaChartCard" class="chart-card">
+        <div class="chart-head panel-header">
+          <div class="panel-title">
+            <p class="chart-kicker">Temporal</p>
+            <h2 id="tasasPrimaChartTitle">Prima Temporal</h2>
+          </div>
+          <button id="tasasPrimaCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tasasPrimaChartPanelBody" aria-label="Colapsar grafico Prima temporal">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
+        <div id="tasasPrimaChartPanelBody" class="panel-body">
+          <div class="chart-frame">
+            <canvas id="tasasPrimaChart"></canvas>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div id="panelSettingsModal" class="modal-overlay" hidden>
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <span class="modal-title">Paneles visibles</span>
+          <button id="modalCloseButton" type="button" class="modal-close-button" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="modal-body">
+          <label class="modal-option">
+            <input type="checkbox" id="showStatusCheck"> <span>Mostrar Estado</span>
+          </label>
+          <label class="modal-option">
+            <input type="checkbox" id="showConfigCheck"> <span>Mostrar Configuracion</span>
+          </label>
+          <label class="modal-option">
+            <input type="checkbox" id="showParametrosCheck"> <span>Mostrar Parametros</span>
+          </label>
+          <label class="modal-option">
+            <input type="checkbox" id="showLegendCheck"> <span>Mostrar Referencia</span>
+          </label>
+        </div>
+      </div>
+    </div>
   </main>
 
+  <script src="greeks-bs.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

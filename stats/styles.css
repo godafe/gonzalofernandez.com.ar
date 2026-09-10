@@ -40,7 +40,8 @@ body {
 .controls-card,
 .table-card,
 .legend-card,
-.status-card {
+.status-card,
+.mode-bar {
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: 20px;
@@ -173,11 +174,7 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 18px;
-  padding: 10px 12px;
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  background: rgba(11, 20, 31, 0.6);
+  padding: 10px 16px;
 }
 
 .mode-label {
@@ -669,6 +666,11 @@ tbody tr.live-row td:last-child {
   border-right: 1px solid rgba(34, 197, 94, 0.45);
 }
 
+.fecha-desde-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
 .live-date {
   display: inline-flex;
   align-items: center;
@@ -1014,4 +1016,283 @@ tbody tr.live-row td:last-child {
   font-size: 0.92rem;
   font-weight: 800;
   text-shadow: 0 0 10px rgba(240, 194, 75, 0.7);
+}
+
+/* === Modo Griegas === */
+
+.greeks-table .greek-th-price {
+  width: 8%;
+  text-align: right;
+}
+
+.greeks-table .greek-th-greek {
+  width: 6%;
+  text-align: center;
+}
+
+.greeks-table .greek-th-iv {
+  width: 7%;
+  text-align: center;
+}
+
+.greek-iv {
+  color: #f0c24b;
+  text-align: right;
+}
+
+.greek-val {
+  text-align: right;
+  padding: 5px 10px;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.greek-na {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.greek-delta {
+  color: #7ff0ae;
+}
+
+.greek-delta-put {
+  color: #ff9a9a;
+}
+
+.greek-gamma {
+  color: #9fd0ff;
+}
+
+.greek-vega {
+  color: #c4b5fd;
+}
+
+.greek-theta {
+  color: #fca5a5;
+}
+
+.greek-legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.greek-legend-swatch.greek-delta  { background: #7ff0ae; }
+.greek-legend-swatch.greek-gamma  { background: #9fd0ff; }
+.greek-legend-swatch.greek-vega   { background: #c4b5fd; }
+.greek-legend-swatch.greek-theta  { background: #fca5a5; }
+
+/* Subyacente override label/input */
+.greek-param-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.greek-param-label {
+  display: block;
+  width: 90px;
+  padding: 9px 12px;
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  font: inherit;
+  background: #101a27;
+  color: var(--text);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.greek-param-label:hover {
+  border-color: rgba(31, 143, 255, 0.4);
+}
+
+.greek-param-input {
+  width: 90px;
+  padding: 9px 12px;
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  font: inherit;
+  background: #101a27;
+}
+
+/* Override .field input specificity (0,1,1) with (0,2,0) */
+.field .greek-param-input {
+  width: 90px;
+}
+
+.greek-param-overridden {
+  color: #e6a817;
+  border-color: rgba(230, 168, 23, 0.5);
+  font-weight: 700;
+}
+
+.field .greek-param-overridden {
+  color: #e6a817;
+}
+
+.greek-param-overridden:focus {
+  outline: 2px solid rgba(230, 168, 23, 0.25);
+  border-color: #e6a817;
+}
+
+#tasaRField        { flex: 0 0 110px; }
+#ggalOverrideField { flex: 0 0 auto; }
+#dteField          { flex: 0 0 auto; }
+
+#griegasTypeButton {
+  padding-block: 9px;
+}
+
+#strikeRangeSelect { padding-left: 15px; text-align: center; text-align-last: center; }
+
+#dteField > span,
+#tasaRField > span,
+#ggalOverrideField > span { text-align: right; }
+
+#tasaRInput { text-align: right; }
+
+#dteField .greek-param-label,
+#dteField .greek-param-input,
+#ggalOverrideField .greek-param-label,
+#ggalOverrideField .greek-param-input { text-align: right; }
+
+.greeks-simple-table th { text-transform: none; }
+
+.greek-param-input::-webkit-outer-spin-button,
+.greek-param-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.greek-param-input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.greeks-row-selected {
+  background: rgba(127, 240, 174, 0.07);
+  outline: 1px solid rgba(127, 240, 174, 0.35);
+  outline-offset: -1px;
+}
+
+.greeks-iv-chart-card {
+  margin: 16px 0 0;
+}
+
+.greeks-iv-chart-card .chart-frame {
+  height: 280px;
+}
+
+#tasasSection {
+  display: grid;
+  gap: 18px;
+}
+
+#tasasSection .chart-frame {
+  min-height: 420px;
+}
+
+#tasasSection .chart-frame canvas {
+  height: 420px;
+}
+
+/* ── Panel visibility ──────────────────────────────────────────────────────── */
+#statusCard[hidden],
+#configCard[hidden],
+#legendCard[hidden] {
+  display: none !important;
+}
+
+/* ── Settings gear button ─────────────────────────────────────────────────── */
+.settings-gear-button {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 11px;
+}
+
+/* ── Settings modal ───────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-overlay[hidden] {
+  display: none !important;
+}
+
+.modal-dialog {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 24px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.modal-close-button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.modal-close-button:hover {
+  color: var(--text);
+  background: rgba(116, 150, 189, 0.1);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.modal-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #1f8fff;
+  cursor: pointer;
+}
+
+#parametrosCard[hidden] {
+  display: none !important;
 }

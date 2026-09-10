@@ -97,6 +97,14 @@ const state = {
     ratesChartCollapsed: false,
     rateDiffChartCollapsed: false,
     ratioChartCollapsed: false,
+    tasasCrossCollapsed: false,
+    tasasVenCollapsed: false,
+    tasasVrpCollapsed: false,
+    tasasRankCollapsed: false,
+    tasasThetaCollapsed: false,
+    tasasSkewCollapsed: false,
+    tasasTemporalCollapsed: false,
+    tasasPrimaCollapsed: false,
     costoPrimaryChartCollapsed: false,
     spreadChartCollapsed: false,
     costoRiChartCollapsed: false,
@@ -105,7 +113,20 @@ const state = {
     multipleRatioChartCollapsed: false,
     multipleCostoChartCollapsed: false,
     multipleSpreadChartCollapsed: false,
-    multipleCostoRiChartCollapsed: false
+    multipleCostoRiChartCollapsed: false,
+    parametrosCollapsed: false,
+    griegasTableCollapsed: false,
+    griegasSimpleTableCollapsed: false,
+    griegasPriceChartCollapsed: false,
+    griegasIVChartCollapsed: false,
+    griegasDeltaChartCollapsed: false,
+    griegasGammaChartCollapsed: false,
+    griegasVegaChartCollapsed: false,
+    griegasThetaChartCollapsed: false,
+    showStatus: true,
+    showConfig: true,
+    showParametros: true,
+    showLegend: true
   },
   optionTypes: {
     base1: "call",
@@ -116,12 +137,17 @@ const state = {
   selectedVencimiento: null,
   availableVencimientos: [],
   rawPayload: null,
-  selectedFechaDesde: null
+  selectedFechaDesde: null,
+  griegasSelectedStrike: null,
+  griegasOptionType: "call"
 };
 
 const elements = {
   tableBody: document.getElementById("tableBody"),
-  configCollapsedSummary: document.getElementById("configCollapsedSummary"),
+  parametrosCard:             document.getElementById("parametrosCard"),
+  parametrosCollapseButton:   document.getElementById("parametrosCollapseButton"),
+  parametrosPanelBody:        document.getElementById("parametrosPanelBody"),
+  parametrosCollapsedSummary: document.getElementById("parametrosCollapsedSummary"),
   statusMessage: document.getElementById("statusMessage"),
   statusMetaMessage: document.getElementById("statusMetaMessage"),
   statusUpdateMessage: document.getElementById("statusUpdateMessage"),
@@ -245,8 +271,104 @@ const elements = {
   ratioModeButton: document.getElementById("ratioModeButton"),
   ratioSection: document.getElementById("ratioSection"),
   ratioTableBody: document.getElementById("ratioTableBody"),
+  tasasModeButton: document.getElementById("tasasModeButton"),
+  tasasSection: document.getElementById("tasasSection"),
+  tasasCrossChartCard: document.getElementById("tasasCrossChartCard"),
+  tasasCrossCollapseButton: document.getElementById("tasasCrossCollapseButton"),
+  tasasCrossChartPanelBody: document.getElementById("tasasCrossChartPanelBody"),
+  tasasCrossChartTitle: document.getElementById("tasasCrossChartTitle"),
+  tasasCrossChart: document.getElementById("tasasCrossChart"),
+  tasasVenChartCard: document.getElementById("tasasVenChartCard"),
+  tasasVenCollapseButton: document.getElementById("tasasVenCollapseButton"),
+  tasasVenChartPanelBody: document.getElementById("tasasVenChartPanelBody"),
+  tasasVenChartTitle: document.getElementById("tasasVenChartTitle"),
+  tasasVenChart: document.getElementById("tasasVenChart"),
+  tasasVrpChartCard: document.getElementById("tasasVrpChartCard"),
+  tasasVrpCollapseButton: document.getElementById("tasasVrpCollapseButton"),
+  tasasVrpChartPanelBody: document.getElementById("tasasVrpChartPanelBody"),
+  tasasVrpChartTitle: document.getElementById("tasasVrpChartTitle"),
+  tasasVrpChart: document.getElementById("tasasVrpChart"),
+  tasasRankChartCard: document.getElementById("tasasRankChartCard"),
+  tasasRankCollapseButton: document.getElementById("tasasRankCollapseButton"),
+  tasasRankChartPanelBody: document.getElementById("tasasRankChartPanelBody"),
+  tasasRankChartTitle: document.getElementById("tasasRankChartTitle"),
+  tasasRankChart: document.getElementById("tasasRankChart"),
+  tasasThetaChartCard: document.getElementById("tasasThetaChartCard"),
+  tasasThetaCollapseButton: document.getElementById("tasasThetaCollapseButton"),
+  tasasThetaChartPanelBody: document.getElementById("tasasThetaChartPanelBody"),
+  tasasThetaChartTitle: document.getElementById("tasasThetaChartTitle"),
+  tasasThetaChart: document.getElementById("tasasThetaChart"),
+  tasasSkewChartCard: document.getElementById("tasasSkewChartCard"),
+  tasasSkewCollapseButton: document.getElementById("tasasSkewCollapseButton"),
+  tasasSkewChartPanelBody: document.getElementById("tasasSkewChartPanelBody"),
+  tasasSkewChartTitle: document.getElementById("tasasSkewChartTitle"),
+  tasasSkewChart: document.getElementById("tasasSkewChart"),
+  tasasTemporalChartCard: document.getElementById("tasasTemporalChartCard"),
+  tasasTemporalCollapseButton: document.getElementById("tasasTemporalCollapseButton"),
+  tasasTemporalChartPanelBody: document.getElementById("tasasTemporalChartPanelBody"),
+  tasasTemporalChartTitle: document.getElementById("tasasTemporalChartTitle"),
+  tasasTemporalChart: document.getElementById("tasasTemporalChart"),
+  tasasPrimaChartCard: document.getElementById("tasasPrimaChartCard"),
+  tasasPrimaCollapseButton: document.getElementById("tasasPrimaCollapseButton"),
+  tasasPrimaChartPanelBody: document.getElementById("tasasPrimaChartPanelBody"),
+  tasasPrimaChartTitle: document.getElementById("tasasPrimaChartTitle"),
+  tasasPrimaChart: document.getElementById("tasasPrimaChart"),
   vencimientoSelect: document.getElementById("vencimientoSelect"),
-  fechaDesdeSelect: document.getElementById("fechaDesdeSelect")
+  fechaDesdeSelect: document.getElementById("fechaDesdeSelect"),
+  griegasModeButton: document.getElementById("griegasModeButton"),
+  griegasSection: document.getElementById("griegasSection"),
+  griegasTableBody: document.getElementById("griegasTableBody"),
+  tasaRField: document.getElementById("tasaRField"),
+  tasaRInput: document.getElementById("tasaRInput"),
+  ggalOverrideField: document.getElementById("ggalOverrideField"),
+  ggalOverrideLabel: document.getElementById("ggalOverrideLabel"),
+  ggalOverrideInput: document.getElementById("ggalOverrideInput"),
+  griegasTypeField:             document.getElementById("griegasTypeField"),
+  griegasTypeButton:            document.getElementById("griegasTypeButton"),
+  griegasTableCollapseButton:   document.getElementById("griegasTableCollapseButton"),
+  griegasTablePanelBody:        document.getElementById("griegasTablePanelBody"),
+  griegasSimpleCard:            document.getElementById("griegasSimpleCard"),
+  griegasSimpleTableCollapseButton: document.getElementById("griegasSimpleTableCollapseButton"),
+  griegasSimpleTablePanelBody:  document.getElementById("griegasSimpleTablePanelBody"),
+  griegasSimpleTableBody:       document.getElementById("griegasSimpleTableBody"),
+  griegasIVChartCard:             document.getElementById("griegasIVChartCard"),
+  griegasPriceChartTitle:         document.getElementById("griegasPriceChartTitle"),
+  griegasPriceChartCollapseButton:document.getElementById("griegasPriceChartCollapseButton"),
+  griegasPriceChartPanelBody:     document.getElementById("griegasPriceChartPanelBody"),
+  griegasPriceChart:              document.getElementById("griegasPriceChart"),
+  griegasIVChartTitle:            document.getElementById("griegasIVChartTitle"),
+  griegasIVChartCollapseButton:   document.getElementById("griegasIVChartCollapseButton"),
+  griegasIVChartPanelBody:        document.getElementById("griegasIVChartPanelBody"),
+  griegasIVChart:                 document.getElementById("griegasIVChart"),
+  griegasDeltaChartTitle:         document.getElementById("griegasDeltaChartTitle"),
+  griegasDeltaChartCollapseButton:document.getElementById("griegasDeltaChartCollapseButton"),
+  griegasDeltaChartPanelBody:     document.getElementById("griegasDeltaChartPanelBody"),
+  griegasDeltaChart:              document.getElementById("griegasDeltaChart"),
+  griegasGammaChartTitle:         document.getElementById("griegasGammaChartTitle"),
+  griegasGammaChartCollapseButton:document.getElementById("griegasGammaChartCollapseButton"),
+  griegasGammaChartPanelBody:     document.getElementById("griegasGammaChartPanelBody"),
+  griegasGammaChart:              document.getElementById("griegasGammaChart"),
+  griegasVegaChartTitle:          document.getElementById("griegasVegaChartTitle"),
+  griegasVegaChartCollapseButton: document.getElementById("griegasVegaChartCollapseButton"),
+  griegasVegaChartPanelBody:      document.getElementById("griegasVegaChartPanelBody"),
+  griegasVegaChart:               document.getElementById("griegasVegaChart"),
+  griegasThetaChartTitle:         document.getElementById("griegasThetaChartTitle"),
+  griegasThetaChartCollapseButton:document.getElementById("griegasThetaChartCollapseButton"),
+  griegasThetaChartPanelBody:     document.getElementById("griegasThetaChartPanelBody"),
+  griegasThetaChart:              document.getElementById("griegasThetaChart"),
+  dteField: document.getElementById("dteField"),
+  dteLabel: document.getElementById("dteLabel"),
+  dteInput: document.getElementById("dteInput"),
+  statusCard: document.getElementById("statusCard"),
+  configCard: document.getElementById("configCard"),
+  legendCard: document.getElementById("legendCard"),
+  settingsButton: document.getElementById("settingsButton"),
+  panelSettingsModal: document.getElementById("panelSettingsModal"),
+  modalCloseButton: document.getElementById("modalCloseButton"),
+  showStatusCheck: document.getElementById("showStatusCheck"),
+  showConfigCheck: document.getElementById("showConfigCheck"),
+  showParametrosCheck: document.getElementById("showParametrosCheck"),
+  showLegendCheck: document.getElementById("showLegendCheck")
 };
 
 elements.tableModeButton.addEventListener("click", () => setViewMode("table"));
@@ -254,10 +376,62 @@ elements.chartModeButton.addEventListener("click", () => setViewMode("chart"));
 elements.multipleModeButton.addEventListener("click", () => setViewMode("multiple"));
 elements.chainModeButton.addEventListener("click", () => setViewMode("chain"));
 elements.ratioModeButton.addEventListener("click", () => setViewMode("ratio"));
+elements.tasasModeButton.addEventListener("click", () => setViewMode("tasas"));
+elements.griegasModeButton.addEventListener("click", () => setViewMode("griegas"));
+elements.tasaRInput.addEventListener("input", renderTable);
+elements.ggalOverrideLabel.addEventListener("dblclick", () => {
+  if (!elements.ggalOverrideInput.hidden) {
+    elements.ggalOverrideInput.hidden = true;
+    elements.ggalOverrideInput.value = "";
+  } else {
+    elements.ggalOverrideInput.value = Math.round(getGreeksGgal());
+    elements.ggalOverrideInput.hidden = false;
+    elements.ggalOverrideInput.focus();
+  }
+  renderTable();
+});
+elements.ggalOverrideInput.addEventListener("input", () => {
+  if (elements.ggalOverrideInput.value === "") {
+    elements.ggalOverrideInput.hidden = true;
+  }
+  renderTable();
+});
+elements.dteLabel.addEventListener("dblclick", () => {
+  if (!elements.dteInput.hidden) {
+    elements.dteInput.hidden = true;
+    elements.dteInput.value = "";
+  } else {
+    const dte = getDaysToOpex(getTodayDateKey());
+    elements.dteInput.value = Number.isFinite(dte) ? String(dte) : "";
+    elements.dteInput.hidden = false;
+    elements.dteInput.focus();
+  }
+  renderTable();
+});
+elements.dteInput.addEventListener("input", () => {
+  if (elements.dteInput.value === "") {
+    elements.dteInput.hidden = true;
+  }
+  renderTable();
+});
 elements.configCollapseButton.addEventListener("click", () => togglePanel("configCollapsed"));
+elements.parametrosCollapseButton.addEventListener("click", () => togglePanel("parametrosCollapsed"));
 elements.statusCollapseButton.addEventListener("click", () => togglePanel("statusCollapsed"));
 elements.legendCollapseButton.addEventListener("click", () => togglePanel("legendCollapsed"));
 elements.tableCollapseButton.addEventListener("click", () => togglePanel("tableCollapsed"));
+elements.griegasTableCollapseButton.addEventListener("click", () => togglePanel("griegasTableCollapsed"));
+elements.griegasSimpleTableCollapseButton.addEventListener("click", () => togglePanel("griegasSimpleTableCollapsed"));
+elements.griegasPriceChartCollapseButton.addEventListener("click", () => togglePanel("griegasPriceChartCollapsed"));
+elements.griegasIVChartCollapseButton.addEventListener("click", () => togglePanel("griegasIVChartCollapsed"));
+elements.griegasDeltaChartCollapseButton.addEventListener("click", () => togglePanel("griegasDeltaChartCollapsed"));
+elements.griegasGammaChartCollapseButton.addEventListener("click", () => togglePanel("griegasGammaChartCollapsed"));
+elements.griegasVegaChartCollapseButton.addEventListener("click", () => togglePanel("griegasVegaChartCollapsed"));
+elements.griegasThetaChartCollapseButton.addEventListener("click", () => togglePanel("griegasThetaChartCollapsed"));
+elements.griegasTypeButton.addEventListener("click", () => {
+  state.griegasOptionType = state.griegasOptionType === "call" ? "put" : "call";
+  updateOptionTypeButton(elements.griegasTypeButton, state.griegasOptionType);
+  renderTable();
+});
 elements.ratesChartCollapseButton.addEventListener("click", () => togglePanel("ratesChartCollapsed"));
 elements.rateDiffChartCollapseButton.addEventListener("click", () => togglePanel("rateDiffChartCollapsed"));
 elements.ratioChartCollapseButton.addEventListener("click", () => togglePanel("ratioChartCollapsed"));
@@ -270,14 +444,22 @@ elements.multipleRatioChartCollapseButton.addEventListener("click", () => toggle
 elements.multipleCostoChartCollapseButton.addEventListener("click", () => togglePanel("multipleCostoChartCollapsed"));
 elements.multipleSpreadChartCollapseButton.addEventListener("click", () => togglePanel("multipleSpreadChartCollapsed"));
 elements.multipleCostoRiChartCollapseButton.addEventListener("click", () => togglePanel("multipleCostoRiChartCollapsed"));
+elements.tasasCrossCollapseButton.addEventListener("click", () => togglePanel("tasasCrossCollapsed"));
+elements.tasasVenCollapseButton.addEventListener("click", () => togglePanel("tasasVenCollapsed"));
+elements.tasasVrpCollapseButton.addEventListener("click", () => togglePanel("tasasVrpCollapsed"));
+elements.tasasRankCollapseButton.addEventListener("click", () => togglePanel("tasasRankCollapsed"));
+elements.tasasThetaCollapseButton.addEventListener("click", () => togglePanel("tasasThetaCollapsed"));
+elements.tasasSkewCollapseButton.addEventListener("click", () => togglePanel("tasasSkewCollapsed"));
+elements.tasasTemporalCollapseButton.addEventListener("click", () => togglePanel("tasasTemporalCollapsed"));
+elements.tasasPrimaCollapseButton.addEventListener("click", () => togglePanel("tasasPrimaCollapsed"));
 elements.autoRefreshCheckbox.addEventListener("change", handleAutoRefreshSettingsChange);
 elements.autoRefreshSecondsSelect.addEventListener("change", handleAutoRefreshSettingsChange);
 elements.liveConnectionSelect.addEventListener("change", handleLiveConnectionChange);
 elements.base1TypeButton.addEventListener("click", () => toggleOptionType(1));
 elements.base2TypeButton.addEventListener("click", () => toggleOptionType(2));
 elements.swapBasesButton.addEventListener("click", swapBases);
-elements.base1Select.addEventListener("change", renderTable);
-elements.base2Select.addEventListener("change", renderTable);
+elements.base1Select.addEventListener("change", () => { resetFechaDesde(); renderTable(); });
+elements.base2Select.addEventListener("change", () => { resetFechaDesde(); renderTable(); });
 elements.lotesInput.addEventListener("input", renderTable);
 elements.relationInput.addEventListener("change", handleRelationCommit);
 elements.relationInput.addEventListener("blur", handleRelationCommit);
@@ -286,8 +468,47 @@ elements.crossCountInput.addEventListener("input", renderTable);
 elements.strikeRangeSelect.addEventListener("change", renderTable);
 elements.reloadButton.addEventListener("click", reloadSheetData);
 elements.multipleTableBody.addEventListener("click", handleMultipleTableClick);
+elements.tableBody.addEventListener("dblclick", (e) => {
+  const td = e.target.closest("td[data-fecha-raw]");
+  if (!td) return;
+  elements.fechaDesdeSelect.value = td.dataset.fechaRaw;
+  handleFechaDesdeChange();
+});
 elements.vencimientoSelect.addEventListener("change", handleVencimientoChange);
 elements.fechaDesdeSelect.addEventListener("change", handleFechaDesdeChange);
+elements.settingsButton.addEventListener("click", () => {
+  elements.showStatusCheck.checked = state.panels.showStatus;
+  elements.showConfigCheck.checked = state.panels.showConfig;
+  elements.showParametrosCheck.checked = state.panels.showParametros;
+  elements.showLegendCheck.checked = state.panels.showLegend;
+  elements.panelSettingsModal.hidden = false;
+});
+elements.modalCloseButton.addEventListener("click", () => {
+  elements.panelSettingsModal.hidden = true;
+});
+elements.panelSettingsModal.addEventListener("click", (e) => {
+  if (e.target === elements.panelSettingsModal) elements.panelSettingsModal.hidden = true;
+});
+elements.showStatusCheck.addEventListener("change", () => {
+  state.panels.showStatus = elements.showStatusCheck.checked;
+  syncPanelCards();
+  persistSettings({});
+});
+elements.showConfigCheck.addEventListener("change", () => {
+  state.panels.showConfig = elements.showConfigCheck.checked;
+  syncPanelCards();
+  persistSettings({});
+});
+elements.showParametrosCheck.addEventListener("change", () => {
+  state.panels.showParametros = elements.showParametrosCheck.checked;
+  syncPanelCards();
+  persistSettings({});
+});
+elements.showLegendCheck.addEventListener("change", () => {
+  state.panels.showLegend = elements.showLegendCheck.checked;
+  syncPanelCards();
+  persistSettings({});
+});
 
 applyStoredPanelStates();
 loadSheetData();
@@ -500,6 +721,9 @@ function populateVencimientoSelector() {
 function handleVencimientoChange() {
   state.selectedVencimiento = elements.vencimientoSelect.value || null;
   state.selectedFechaDesde = null;
+  state.griegasSelectedStrike = null;
+  elements.dteInput.hidden = true;
+  elements.dteInput.value = "";
 
   if (state.rawPayload) {
     hydrateFromPayload(state.rawPayload, state.sourceStats?.source ?? "local");
@@ -535,6 +759,11 @@ function populateFechaDesdeSelector() {
 function handleFechaDesdeChange() {
   state.selectedFechaDesde = elements.fechaDesdeSelect.value || null;
   renderTable();
+}
+
+function resetFechaDesde() {
+  state.selectedFechaDesde = null;
+  elements.fechaDesdeSelect.value = "";
 }
 
 function setSelectValue(select, preferredValue, fallbackValue) {
@@ -589,6 +818,9 @@ function renderTable() {
   renderMultipleView(base1Strike, base2Strike, lotes, relation, rateDays, crossCount, combinationMode);
   renderSpreadChain(strikeRangeAll);
   renderRatioChain(strikeRangeAll);
+  renderGreeksChain(strikeRangeAll);
+  renderGreeksSimpleChain(strikeRangeAll);
+  renderTasasCharts(base1Strike, base2Strike);
   syncMetricVisibility(combinationMode);
   syncViewModeUi();
   syncStatus();
@@ -788,8 +1020,9 @@ function getMetricStats(values) {
 }
 
 function buildRowMarkup(row, seriesStats, combinationMode) {
+  const dateTdAttrs = !row.isLive ? ` class="fecha-desde-clickable" data-fecha-raw="${escapeHtml(row.fechaRaw)}" title="Doble click para filtrar desde esta fecha"` : "";
   const sharedCells = `
-    <td>${renderDateCell(row)}</td>
+    <td${dateTdAttrs}>${renderDateCell(row)}</td>
     <td>${formatGroupedNumber(row.ggal, 2)}</td>
     <td>${formatNumber(row.lastBase1, 2)}</td>
     <td>${formatNumber(row.lastBase2, 2)}</td>
@@ -883,9 +1116,10 @@ function getMetricExtreme(value, stats) {
 
 function applyStoredSettings() {
   const storedSettings = readStoredSettings();
-  state.viewMode = ["chart", "multiple", "chain", "ratio"].includes(storedSettings.viewMode)
+  state.viewMode = ["chart", "multiple", "chain", "ratio", "tasas", "griegas"].includes(storedSettings.viewMode)
     ? storedSettings.viewMode
     : "table";
+  state.selectedFechaDesde = storedSettings.fechaDesde ?? null;
   state.autoRefreshEnabled = typeof storedSettings.autoRefreshEnabled === "boolean"
     ? storedSettings.autoRefreshEnabled
     : CONFIG.defaultAutoRefreshEnabled;
@@ -908,6 +1142,28 @@ function applyStoredSettings() {
   state.panels.multipleCostoChartCollapsed = storedSettings.multipleCostoChartCollapsed === true;
   state.panels.multipleSpreadChartCollapsed = storedSettings.multipleSpreadChartCollapsed === true;
   state.panels.multipleCostoRiChartCollapsed = storedSettings.multipleCostoRiChartCollapsed === true;
+  state.panels.tasasCrossCollapsed = storedSettings.tasasCrossCollapsed === true;
+  state.panels.tasasVenCollapsed = storedSettings.tasasVenCollapsed === true;
+  state.panels.tasasVrpCollapsed = storedSettings.tasasVrpCollapsed === true;
+  state.panels.tasasRankCollapsed = storedSettings.tasasRankCollapsed === true;
+  state.panels.tasasThetaCollapsed = storedSettings.tasasThetaCollapsed === true;
+  state.panels.tasasSkewCollapsed = storedSettings.tasasSkewCollapsed === true;
+  state.panels.tasasTemporalCollapsed = storedSettings.tasasTemporalCollapsed === true;
+  state.panels.tasasPrimaCollapsed = storedSettings.tasasPrimaCollapsed === true;
+  state.panels.parametrosCollapsed = storedSettings.parametrosCollapsed === true;
+  state.panels.griegasTableCollapsed = storedSettings.griegasTableCollapsed === true;
+  state.panels.griegasSimpleTableCollapsed = storedSettings.griegasSimpleTableCollapsed === true;
+  state.panels.griegasPriceChartCollapsed = storedSettings.griegasPriceChartCollapsed === true;
+  state.panels.griegasIVChartCollapsed = storedSettings.griegasIVChartCollapsed === true;
+  state.panels.griegasDeltaChartCollapsed = storedSettings.griegasDeltaChartCollapsed === true;
+  state.panels.griegasGammaChartCollapsed = storedSettings.griegasGammaChartCollapsed === true;
+  state.panels.griegasVegaChartCollapsed = storedSettings.griegasVegaChartCollapsed === true;
+  state.panels.griegasThetaChartCollapsed = storedSettings.griegasThetaChartCollapsed === true;
+  state.griegasOptionType = (storedSettings.griegasOptionType === "put") ? "put" : "call";
+  state.panels.showStatus = storedSettings.showStatus !== false;
+  state.panels.showConfig = storedSettings.showConfig !== false;
+  state.panels.showParametros = storedSettings.showParametros !== false;
+  state.panels.showLegend = storedSettings.showLegend !== false;
   state.optionTypes.base1 = storedSettings.base1Type === "put" ? "put" : "call";
   state.optionTypes.base2 = storedSettings.base2Type === "put" ? "put" : "call";
   state.liveConnection = getSafeLiveConnection(storedSettings.liveConnection);
@@ -926,12 +1182,16 @@ function applyStoredSettings() {
   elements.strikeRangeSelect.value = (storedSettings.strikeRange === "all" || storedSettings.strikeRange === "near")
     ? storedSettings.strikeRange
     : CONFIG.defaultStrikeRange;
+  elements.tasaRInput.value = (Number.isFinite(storedSettings.tasaR) && storedSettings.tasaR >= 0)
+    ? String(storedSettings.tasaR)
+    : "0";
   elements.autoRefreshCheckbox.checked = state.autoRefreshEnabled;
   elements.autoRefreshSecondsSelect.value = String(state.autoRefreshSeconds);
   elements.liveConnectionSelect.value = state.liveConnection;
   updateAutoRefreshUi();
   syncOptionTypeUi();
   syncPanelUi();
+  syncPanelCards();
   scheduleAutoRefresh();
 }
 
@@ -953,7 +1213,35 @@ function applyStoredPanelStates() {
   state.panels.multipleCostoChartCollapsed = storedSettings.multipleCostoChartCollapsed === true;
   state.panels.multipleSpreadChartCollapsed = storedSettings.multipleSpreadChartCollapsed === true;
   state.panels.multipleCostoRiChartCollapsed = storedSettings.multipleCostoRiChartCollapsed === true;
+  state.panels.tasasCrossCollapsed = storedSettings.tasasCrossCollapsed === true;
+  state.panels.tasasVenCollapsed = storedSettings.tasasVenCollapsed === true;
+  state.panels.tasasVrpCollapsed = storedSettings.tasasVrpCollapsed === true;
+  state.panels.tasasRankCollapsed = storedSettings.tasasRankCollapsed === true;
+  state.panels.tasasThetaCollapsed = storedSettings.tasasThetaCollapsed === true;
+  state.panels.tasasSkewCollapsed = storedSettings.tasasSkewCollapsed === true;
+  state.panels.tasasTemporalCollapsed = storedSettings.tasasTemporalCollapsed === true;
+  state.panels.parametrosCollapsed = storedSettings.parametrosCollapsed === true;
+  state.panels.griegasTableCollapsed = storedSettings.griegasTableCollapsed === true;
+  state.panels.griegasSimpleTableCollapsed = storedSettings.griegasSimpleTableCollapsed === true;
+  state.panels.griegasPriceChartCollapsed = storedSettings.griegasPriceChartCollapsed === true;
+  state.panels.griegasIVChartCollapsed = storedSettings.griegasIVChartCollapsed === true;
+  state.panels.griegasDeltaChartCollapsed = storedSettings.griegasDeltaChartCollapsed === true;
+  state.panels.griegasGammaChartCollapsed = storedSettings.griegasGammaChartCollapsed === true;
+  state.panels.griegasVegaChartCollapsed = storedSettings.griegasVegaChartCollapsed === true;
+  state.panels.griegasThetaChartCollapsed = storedSettings.griegasThetaChartCollapsed === true;
+  state.panels.showStatus = storedSettings.showStatus !== false;
+  state.panels.showConfig = storedSettings.showConfig !== false;
+  state.panels.showParametros = storedSettings.showParametros !== false;
+  state.panels.showLegend = storedSettings.showLegend !== false;
   syncPanelUi();
+  syncPanelCards();
+}
+
+function syncPanelCards() {
+  elements.statusCard.hidden = !state.panels.showStatus;
+  elements.configCard.hidden = !state.panels.showConfig;
+  elements.parametrosCard.hidden = !state.panels.showParametros;
+  elements.legendCard.hidden = !state.panels.showLegend;
 }
 
 function getComputedDefaults() {
@@ -1034,7 +1322,31 @@ function readStoredSettings() {
       multipleRatioChartCollapsed: parsed.multipleRatioChartCollapsed,
       multipleCostoChartCollapsed: parsed.multipleCostoChartCollapsed,
       multipleSpreadChartCollapsed: parsed.multipleSpreadChartCollapsed,
-      multipleCostoRiChartCollapsed: parsed.multipleCostoRiChartCollapsed
+      multipleCostoRiChartCollapsed: parsed.multipleCostoRiChartCollapsed,
+      tasasCrossCollapsed: parsed.tasasCrossCollapsed,
+      tasasVenCollapsed: parsed.tasasVenCollapsed,
+      tasasVrpCollapsed: parsed.tasasVrpCollapsed,
+      tasasRankCollapsed: parsed.tasasRankCollapsed,
+      tasasThetaCollapsed: parsed.tasasThetaCollapsed,
+      tasasSkewCollapsed: parsed.tasasSkewCollapsed,
+      tasasTemporalCollapsed: parsed.tasasTemporalCollapsed,
+      tasasPrimaCollapsed: parsed.tasasPrimaCollapsed,
+      fechaDesde: parsed.fechaDesde ?? null,
+      tasaR: Number(parsed.tasaR),
+      parametrosCollapsed: parsed.parametrosCollapsed,
+      griegasTableCollapsed: parsed.griegasTableCollapsed,
+      griegasSimpleTableCollapsed: parsed.griegasSimpleTableCollapsed,
+      griegasPriceChartCollapsed: parsed.griegasPriceChartCollapsed,
+      griegasIVChartCollapsed: parsed.griegasIVChartCollapsed,
+      griegasDeltaChartCollapsed: parsed.griegasDeltaChartCollapsed,
+      griegasGammaChartCollapsed: parsed.griegasGammaChartCollapsed,
+      griegasVegaChartCollapsed: parsed.griegasVegaChartCollapsed,
+      griegasThetaChartCollapsed: parsed.griegasThetaChartCollapsed,
+      griegasOptionType: parsed.griegasOptionType,
+      showStatus: parsed.showStatus !== false,
+      showConfig: parsed.showConfig !== false,
+      showParametros: parsed.showParametros !== false,
+      showLegend: parsed.showLegend !== false
     };
   } catch (error) {
     console.warn("No se pudo leer localStorage", error);
@@ -1067,7 +1379,31 @@ function persistSettings(settings) {
       multipleRatioChartCollapsed: state.panels.multipleRatioChartCollapsed,
       multipleCostoChartCollapsed: state.panels.multipleCostoChartCollapsed,
       multipleSpreadChartCollapsed: state.panels.multipleSpreadChartCollapsed,
-      multipleCostoRiChartCollapsed: state.panels.multipleCostoRiChartCollapsed
+      multipleCostoRiChartCollapsed: state.panels.multipleCostoRiChartCollapsed,
+      tasasCrossCollapsed: state.panels.tasasCrossCollapsed,
+      tasasVenCollapsed: state.panels.tasasVenCollapsed,
+      tasasVrpCollapsed: state.panels.tasasVrpCollapsed,
+      tasasRankCollapsed: state.panels.tasasRankCollapsed,
+      tasasThetaCollapsed: state.panels.tasasThetaCollapsed,
+      tasasSkewCollapsed: state.panels.tasasSkewCollapsed,
+      tasasTemporalCollapsed: state.panels.tasasTemporalCollapsed,
+      tasasPrimaCollapsed: state.panels.tasasPrimaCollapsed,
+      fechaDesde: state.selectedFechaDesde ?? null,
+      tasaR: parseFloat(elements.tasaRInput.value) || 0,
+      parametrosCollapsed: state.panels.parametrosCollapsed,
+      griegasTableCollapsed: state.panels.griegasTableCollapsed,
+      griegasSimpleTableCollapsed: state.panels.griegasSimpleTableCollapsed,
+      griegasPriceChartCollapsed: state.panels.griegasPriceChartCollapsed,
+      griegasIVChartCollapsed: state.panels.griegasIVChartCollapsed,
+      griegasDeltaChartCollapsed: state.panels.griegasDeltaChartCollapsed,
+      griegasGammaChartCollapsed: state.panels.griegasGammaChartCollapsed,
+      griegasVegaChartCollapsed: state.panels.griegasVegaChartCollapsed,
+      griegasThetaChartCollapsed: state.panels.griegasThetaChartCollapsed,
+      griegasOptionType: state.griegasOptionType,
+      showStatus: state.panels.showStatus,
+      showConfig: state.panels.showConfig,
+      showParametros: state.panels.showParametros,
+      showLegend: state.panels.showLegend
     }));
   } catch (error) {
     console.warn("No se pudo guardar localStorage", error);
@@ -1075,7 +1411,7 @@ function persistSettings(settings) {
 }
 
 function setViewMode(mode) {
-  state.viewMode = ["chart", "multiple", "chain", "ratio"].includes(mode) ? mode : "table";
+  state.viewMode = ["chart", "multiple", "chain", "ratio", "tasas", "griegas"].includes(mode) ? mode : "table";
   syncViewModeUi();
   persistSettings({
     base1: Number(elements.base1Select.value),
@@ -1122,6 +1458,7 @@ function toggleOptionType(baseNumber) {
 function syncOptionTypeUi() {
   updateOptionTypeButton(elements.base1TypeButton, state.optionTypes.base1);
   updateOptionTypeButton(elements.base2TypeButton, state.optionTypes.base2);
+  updateOptionTypeButton(elements.griegasTypeButton, state.griegasOptionType);
 }
 
 function updateOptionTypeButton(button, optionType) {
@@ -1194,6 +1531,7 @@ function togglePanel(panelKey) {
 
 function syncPanelUi() {
   syncSinglePanel(elements.configCollapseButton, elements.configPanelBody, state.panels.configCollapsed);
+  syncSinglePanel(elements.parametrosCollapseButton, elements.parametrosPanelBody, state.panels.parametrosCollapsed);
   syncSinglePanel(elements.statusCollapseButton, elements.statusPanelBody, state.panels.statusCollapsed);
   syncSinglePanel(elements.legendCollapseButton, elements.legendPanelBody, state.panels.legendCollapsed);
   syncSinglePanel(elements.tableCollapseButton, elements.tablePanelBody, state.panels.tableCollapsed);
@@ -1209,6 +1547,22 @@ function syncPanelUi() {
   syncSinglePanel(elements.multipleCostoChartCollapseButton, elements.multipleCostoChartPanelBody, state.panels.multipleCostoChartCollapsed);
   syncSinglePanel(elements.multipleSpreadChartCollapseButton, elements.multipleSpreadChartPanelBody, state.panels.multipleSpreadChartCollapsed);
   syncSinglePanel(elements.multipleCostoRiChartCollapseButton, elements.multipleCostoRiChartPanelBody, state.panels.multipleCostoRiChartCollapsed);
+  syncSinglePanel(elements.tasasCrossCollapseButton, elements.tasasCrossChartPanelBody, state.panels.tasasCrossCollapsed);
+  syncSinglePanel(elements.tasasVenCollapseButton, elements.tasasVenChartPanelBody, state.panels.tasasVenCollapsed);
+  syncSinglePanel(elements.tasasVrpCollapseButton, elements.tasasVrpChartPanelBody, state.panels.tasasVrpCollapsed);
+  syncSinglePanel(elements.tasasRankCollapseButton, elements.tasasRankChartPanelBody, state.panels.tasasRankCollapsed);
+  syncSinglePanel(elements.tasasThetaCollapseButton, elements.tasasThetaChartPanelBody, state.panels.tasasThetaCollapsed);
+  syncSinglePanel(elements.tasasSkewCollapseButton, elements.tasasSkewChartPanelBody, state.panels.tasasSkewCollapsed);
+  syncSinglePanel(elements.tasasTemporalCollapseButton, elements.tasasTemporalChartPanelBody, state.panels.tasasTemporalCollapsed);
+  syncSinglePanel(elements.tasasPrimaCollapseButton, elements.tasasPrimaChartPanelBody, state.panels.tasasPrimaCollapsed);
+  syncSinglePanel(elements.griegasTableCollapseButton, elements.griegasTablePanelBody, state.panels.griegasTableCollapsed);
+  syncSinglePanel(elements.griegasSimpleTableCollapseButton, elements.griegasSimpleTablePanelBody, state.panels.griegasSimpleTableCollapsed);
+  syncSinglePanel(elements.griegasPriceChartCollapseButton, elements.griegasPriceChartPanelBody, state.panels.griegasPriceChartCollapsed);
+  syncSinglePanel(elements.griegasIVChartCollapseButton, elements.griegasIVChartPanelBody, state.panels.griegasIVChartCollapsed);
+  syncSinglePanel(elements.griegasDeltaChartCollapseButton, elements.griegasDeltaChartPanelBody, state.panels.griegasDeltaChartCollapsed);
+  syncSinglePanel(elements.griegasGammaChartCollapseButton, elements.griegasGammaChartPanelBody, state.panels.griegasGammaChartCollapsed);
+  syncSinglePanel(elements.griegasVegaChartCollapseButton, elements.griegasVegaChartPanelBody, state.panels.griegasVegaChartCollapsed);
+  syncSinglePanel(elements.griegasThetaChartCollapseButton, elements.griegasThetaChartPanelBody, state.panels.griegasThetaChartCollapsed);
 }
 
 function syncSinglePanel(button, body, collapsed) {
@@ -1220,8 +1574,8 @@ function syncSinglePanel(button, body, collapsed) {
     elements.statusCollapsedSummary.hidden = !collapsed;
   }
 
-  if (body === elements.configPanelBody) {
-    elements.configCollapsedSummary.hidden = !collapsed;
+  if (body === elements.parametrosPanelBody) {
+    elements.parametrosCollapsedSummary.hidden = !collapsed;
   }
 
   if (body === elements.legendPanelBody) {
@@ -1316,39 +1670,54 @@ function syncViewModeUi() {
   const isMultiple = state.viewMode === "multiple";
   const isChain = state.viewMode === "chain";
   const isRatio = state.viewMode === "ratio";
+  const isTasas = state.viewMode === "tasas";
+  const isGreigas = state.viewMode === "griegas";
   elements.tableModeButton.classList.toggle("is-active", isTable);
   elements.chartModeButton.classList.toggle("is-active", isChart);
   elements.multipleModeButton.classList.toggle("is-active", isMultiple);
   elements.chainModeButton.classList.toggle("is-active", isChain);
   elements.ratioModeButton.classList.toggle("is-active", isRatio);
+  elements.tasasModeButton.classList.toggle("is-active", isTasas);
+  elements.griegasModeButton.classList.toggle("is-active", isGreigas);
   elements.tableModeButton.setAttribute("aria-selected", String(isTable));
   elements.chartModeButton.setAttribute("aria-selected", String(isChart));
   elements.multipleModeButton.setAttribute("aria-selected", String(isMultiple));
   elements.chainModeButton.setAttribute("aria-selected", String(isChain));
   elements.ratioModeButton.setAttribute("aria-selected", String(isRatio));
+  elements.tasasModeButton.setAttribute("aria-selected", String(isTasas));
+  elements.griegasModeButton.setAttribute("aria-selected", String(isGreigas));
   elements.tableSection.hidden = !isTable;
   elements.chartsSection.hidden = !isChart;
   elements.multipleSection.hidden = !isMultiple;
   elements.chainSection.hidden = !isChain;
   elements.ratioSection.hidden = !isRatio;
+  elements.tasasSection.hidden = !isTasas;
+  elements.griegasSection.hidden = !isGreigas;
   elements.tableSection.classList.toggle("is-hidden-view", !isTable);
   elements.chartsSection.classList.toggle("is-hidden-view", !isChart);
   elements.multipleSection.classList.toggle("is-hidden-view", !isMultiple);
   elements.chainSection.classList.toggle("is-hidden-view", !isChain);
   elements.ratioSection.classList.toggle("is-hidden-view", !isRatio);
-  const isChainOrRatio = isChain || isRatio;
-  elements.strikeRangeField.hidden = !isChainOrRatio;
-  elements.fechaDesdeField.hidden = isChainOrRatio;
-  elements.base1Field.hidden = isChainOrRatio;
-  elements.swapField.hidden = isChainOrRatio;
-  elements.base2Field.hidden = isChainOrRatio;
-  elements.lotesField.hidden = isChainOrRatio;
-  elements.relationField.hidden = isChainOrRatio;
-  elements.rateDaysField.hidden = isChainOrRatio;
+  elements.tasasSection.classList.toggle("is-hidden-view", !isTasas);
+  elements.griegasSection.classList.toggle("is-hidden-view", !isGreigas);
+  const isChainLike = isChain || isRatio || isGreigas;
+  elements.strikeRangeField.hidden = !isChainLike;
+  elements.fechaDesdeField.hidden = isChain || isRatio;
+  elements.base1Field.hidden = isChainLike;
+  elements.swapField.hidden = isChainLike;
+  elements.base2Field.hidden = isChainLike;
+  elements.lotesField.hidden = isChainLike || isTasas;
+  elements.relationField.hidden = isChainLike || isTasas;
+  elements.rateDaysField.hidden = isChainLike || isTasas;
   elements.crossCountField.hidden = !isMultiple;
-  document.getElementById("legendDefault").hidden = isChain || isRatio;
+  elements.griegasTypeField.hidden = !isGreigas;
+  elements.tasaRField.hidden = !isGreigas;
+  elements.ggalOverrideField.hidden = !isGreigas;
+  elements.dteField.hidden = !isGreigas;
+  document.getElementById("legendDefault").hidden = isChain || isRatio || isTasas || isGreigas;
   document.getElementById("legendSpread").hidden  = !isChain;
   document.getElementById("legendRatio").hidden   = !isRatio;
+  document.getElementById("legendGreeks").hidden  = !isGreigas;
   if (isChain) {
     elements.legendCollapsedSummary.innerHTML = `<span class="summary-dots">
       <span class="summary-dot-item"><span class="chain-badge-green legend-badge-sample"></span><span>&lt;33%</span></span>
@@ -1360,6 +1729,13 @@ function syncViewModeUi() {
       <span class="summary-dot-item"><span class="chain-badge-green legend-badge-sample"></span><span>&lt;1.5x</span></span>
       <span class="summary-dot-item"><span class="chain-badge-yellow legend-badge-sample"></span><span>1.5&ndash;2.2x</span></span>
       <span class="summary-dot-item"><span class="chain-badge-red legend-badge-sample"></span><span>&gt;2.2x</span></span>
+    </span>`;
+  } else if (isGreigas) {
+    elements.legendCollapsedSummary.innerHTML = `<span class="summary-dots">
+      <span class="summary-dot-item"><span>&Delta;</span><span>Delta</span></span>
+      <span class="summary-dot-item"><span>&Gamma;</span><span>Gamma</span></span>
+      <span class="summary-dot-item"><span>&nu;</span><span>Vega</span></span>
+      <span class="summary-dot-item"><span>&Theta;</span><span>Theta</span></span>
     </span>`;
   } else {
     elements.legendCollapsedSummary.innerHTML = `
@@ -1373,6 +1749,7 @@ function syncViewModeUi() {
       </span>
     `;
   }
+  syncParametrosSummary();
 }
 
 function updateChartTitles(base1Strike, base2Strike, lotes, relation, combinationMode) {
@@ -2963,9 +3340,10 @@ function isValidRow(row) {
 }
 
 function getBaseExtrinsicValue(strike, optionPrice, ggal, optionType) {
-  return optionType === "put"
+  const raw = optionType === "put"
     ? optionPrice - Math.max(0, strike - ggal)
     : optionPrice - Math.max(0, ggal - strike);
+  return Math.max(0, raw);
 }
 
 function getAnnualizedBaseRate(strike, optionPrice, ggal, daysToOpex, rateDays, optionType) {
@@ -3215,19 +3593,63 @@ function setStatus(message, metaMessage = "", updateMessage = "", collapsedSumma
   elements.statusCollapsedSummary.innerHTML = collapsedSummary;
 }
 
-function syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, rateDays, crossCount) {
-  const base1Text = Number.isFinite(base1Strike) ? formatNumber(base1Strike, 0) : "-";
-  const base2Text = Number.isFinite(base2Strike) ? formatNumber(base2Strike, 0) : "-";
-  const lotesText = Number.isFinite(lotes) ? String(lotes) : "-";
-  const relationText = Number.isFinite(relation) ? formatStoredRelation(relation) : "-";
-  const rateDaysText = Number.isFinite(rateDays) ? String(rateDays) : "-";
-  const crossCountText = Number.isFinite(crossCount) ? String(crossCount) : "-";
-  const base1TypeText = state.optionTypes.base1 === "put" ? "Put" : "Call";
-  const base2TypeText = state.optionTypes.base2 === "put" ? "Put" : "Call";
-  const modeText = state.viewMode === "chart" ? "Grafico" : state.viewMode === "multiple" ? "Multiple" : state.viewMode === "chain" ? "Spread" : "Tabla";
+function syncParametrosSummary() {
+  const mode = state.viewMode;
+  const isChain   = mode === "chain";
+  const isRatio   = mode === "ratio";
+  const isGreigas = mode === "griegas";
+  const isTasas   = mode === "tasas";
+  const isMultiple = mode === "multiple";
+  const isChainLike = isChain || isRatio || isGreigas;
 
-  elements.configCollapsedSummary.textContent =
-    `Modo: ${modeText} | Base 1: ${base1TypeText} ${base1Text} | Base 2: ${base2TypeText} ${base2Text} | Lotes: ${lotesText} | Relacion: ${relationText} | Dias tasa: ${rateDaysText} | Cruces: ${crossCountText} | Conexion: ${state.liveConnection}`;
+  const venIdx = elements.vencimientoSelect.selectedIndex;
+  const venText = venIdx >= 0 ? elements.vencimientoSelect.options[venIdx].text : "-";
+
+  const parts = [`Vencimiento: ${venText}`];
+
+  if (isChainLike) {
+    const strikeText = elements.strikeRangeSelect.value === "all" ? "Todos" : "Cercanos";
+    parts.push(`Strikes: ${strikeText}`);
+    if (isGreigas) {
+      const tasaR = parseFloat(elements.tasaRInput.value) || 0;
+      parts.push(`Tasa r: ${tasaR}%`);
+      const ggal = elements.ggalOverrideInput.hidden
+        ? elements.ggalOverrideLabel.textContent
+        : formatNumber(parseFloat(elements.ggalOverrideInput.value) || 0, 0);
+      if (ggal && ggal !== "--") parts.push(`Subyacente: ${ggal}`);
+      const dte = elements.dteInput.hidden
+        ? elements.dteLabel.textContent
+        : elements.dteInput.value;
+      if (dte && dte !== "--") parts.push(`DTE: ${dte}`);
+    }
+  } else {
+    const fdIdx = elements.fechaDesdeSelect.selectedIndex;
+    if (fdIdx >= 0) parts.push(`Fecha: ${elements.fechaDesdeSelect.options[fdIdx].text}`);
+    const b1Type = state.optionTypes.base1 === "put" ? "Put" : "Call";
+    const b2Type = state.optionTypes.base2 === "put" ? "Put" : "Call";
+    const b1 = Number(elements.base1Select.value);
+    const b2 = Number(elements.base2Select.value);
+    parts.push(`Base 1: ${b1Type} ${Number.isFinite(b1) ? formatNumber(b1, 0) : "-"}`);
+    parts.push(`Base 2: ${b2Type} ${Number.isFinite(b2) ? formatNumber(b2, 0) : "-"}`);
+    if (!isTasas) {
+      const lotes    = clampInteger(elements.lotesInput.value, 1, 500, CONFIG.defaultLotes);
+      const relation = clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation);
+      const rateDays = clampInteger(elements.rateDaysInput.value, 1, 5000, CONFIG.defaultRateDays);
+      parts.push(`Lotes: ${lotes}`);
+      parts.push(`Relacion: ${Number.isFinite(relation) ? formatStoredRelation(relation) : "-"}`);
+      parts.push(`Dias tasa: ${rateDays}`);
+      if (isMultiple) {
+        const crossCount = clampInteger(elements.crossCountInput.value, 0, 20, CONFIG.defaultCrossCount);
+        parts.push(`Cruces: ${crossCount}`);
+      }
+    }
+  }
+
+  elements.parametrosCollapsedSummary.textContent = parts.join(" | ");
+}
+
+function syncCollapsedPanelSummaries(base1Strike, base2Strike, lotes, relation, rateDays, crossCount) {
+  syncParametrosSummary();
 
   if (state.viewMode === "chain") {
     elements.legendCollapsedSummary.innerHTML = `<span class="summary-dots">
@@ -3682,4 +4104,1439 @@ function equalizeRatioBadgeWidths() {
   let maxW = 0;
   badges.forEach((b) => { maxW = Math.max(maxW, b.offsetWidth); });
   if (maxW > 0) badges.forEach((b) => { b.style.width = `${maxW}px`; });
+}
+
+function getGreeksT() {
+  if (!elements.dteInput.hidden) {
+    const val = parseInt(elements.dteInput.value, 10);
+    if (Number.isFinite(val) && val > 0) return val / 365;
+  }
+  const vencimiento = state.selectedVencimiento;
+  if (!vencimiento) return NaN;
+  const opexDateStr = calcOpexDateKeyForVencimiento(vencimiento);
+  if (!opexDateStr) return NaN;
+  const opexDate = new Date(opexDateStr + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffMs = opexDate.getTime() - today.getTime();
+  if (diffMs <= 0) return 0;
+  return diffMs / (365 * 24 * 60 * 60 * 1000);
+}
+
+function getGreeksGgal() {
+  if (!elements.ggalOverrideInput.hidden) {
+    const val = parseFloat(elements.ggalOverrideInput.value);
+    if (Number.isFinite(val) && val > 0) return val;
+  }
+  return state.liveEntry?.ggal ?? NaN;
+}
+
+function renderGreeksChain(strikeRangeAll = false) {
+  const tbody = elements.griegasTableBody;
+  tbody.innerHTML = "";
+
+  const entry = state.liveEntry;
+  if (!entry) {
+    tbody.innerHTML = `<tr><td colspan="13" class="placeholder">Sin datos live disponibles.</td></tr>`;
+    renderGreeksIVChart(null);
+    return;
+  }
+
+  const ggal = getGreeksGgal();
+
+  if (elements.ggalOverrideInput.hidden) {
+    elements.ggalOverrideLabel.textContent = Number.isFinite(entry.ggal)
+      ? formatNumber(entry.ggal, 0)
+      : "--";
+  }
+  if (elements.dteInput.hidden) {
+    const dte = getDaysToOpex(getTodayDateKey());
+    elements.dteLabel.textContent = Number.isFinite(dte) ? String(dte) : "--";
+  }
+
+  const r = (parseFloat(elements.tasaRInput.value) || 0) / 100;
+  const T = getGreeksT();
+
+  const allStrikes = state.availableStrikes;
+  const visibleStrikes = (strikeRangeAll || !Number.isFinite(ggal))
+    ? allStrikes
+    : allStrikes.filter((s) => s >= ggal * 0.75 && s <= ggal * 1.25);
+
+  let atmLow = null, atmHigh = null;
+  if (Number.isFinite(ggal)) {
+    for (const s of visibleStrikes) {
+      if (s <= ggal) atmLow = s;
+      else if (atmHigh === null) atmHigh = s;
+    }
+  }
+  const firstAtm = atmLow ?? atmHigh;
+
+  const canCompute = Number.isFinite(T) && T > 0 && Number.isFinite(ggal) && ggal > 0;
+
+  function makeGreekTd(val, displayDecimals, cssClass) {
+    const td = document.createElement("td");
+    if (Number.isFinite(val)) {
+      td.className = "greek-val " + cssClass;
+      td.textContent = val.toFixed(displayDecimals);
+      td.title = val.toFixed(10);
+    } else {
+      td.className = "greek-val greek-na";
+      td.textContent = "--";
+    }
+    return td;
+  }
+
+  visibleStrikes.forEach((strike) => {
+    const callPrice = entry.calls[strikeKey(strike)];
+    const putPrice  = entry.puts[strikeKey(strike)];
+    const isAtm = strike === atmLow || strike === atmHigh;
+
+    const tr = document.createElement("tr");
+    if (isAtm) tr.classList.add("chain-row-atm");
+    if (strike === state.griegasSelectedStrike) tr.classList.add("greeks-row-selected");
+    tr.style.cursor = "pointer";
+    tr.addEventListener("dblclick", () => {
+      state.griegasSelectedStrike = (state.griegasSelectedStrike === strike) ? null : strike;
+      tbody.querySelectorAll("tr").forEach((r) => r.classList.remove("greeks-row-selected"));
+      if (state.griegasSelectedStrike !== null) tr.classList.add("greeks-row-selected");
+      renderGreeksIVChart(firstAtm);
+    });
+
+    let callIV = NaN;
+    let callG = { delta: NaN, gamma: NaN, vega: NaN, theta: NaN };
+    if (canCompute && Number.isFinite(callPrice)) {
+      callIV = greeksBSComputeIV(callPrice, ggal, strike, T, r, true);
+      if (Number.isFinite(callIV)) callG = greeksBSAll(ggal, strike, T, r, callIV, true);
+    }
+
+    let putIV = NaN;
+    let putG = { delta: NaN, gamma: NaN, vega: NaN, theta: NaN };
+    if (canCompute && Number.isFinite(putPrice)) {
+      putIV = greeksBSComputeIV(putPrice, ggal, strike, T, r, false);
+      if (Number.isFinite(putIV)) putG = greeksBSAll(ggal, strike, T, r, putIV, false);
+    }
+
+    function makeIVTd(iv) {
+      const td = document.createElement("td");
+      if (Number.isFinite(iv)) {
+        const pct = iv * 100;
+        td.className = "greek-val greek-iv";
+        td.textContent = pct.toFixed(2) + "%";
+        td.title = pct.toFixed(10) + "%";
+      } else {
+        td.className = "greek-val greek-na";
+        td.textContent = "--";
+      }
+      return td;
+    }
+
+    const callPriceTd = document.createElement("td");
+    callPriceTd.className = "chain-price chain-price-call";
+    callPriceTd.textContent = Number.isFinite(callPrice) ? formatNumber(callPrice, 2) : "--";
+    tr.appendChild(callPriceTd);
+
+    tr.appendChild(makeGreekTd(callG.delta, 3, "greek-delta"));
+    tr.appendChild(makeGreekTd(callG.gamma, 5, "greek-gamma"));
+    tr.appendChild(makeGreekTd(callG.vega,  3, "greek-vega"));
+    tr.appendChild(makeGreekTd(callG.theta, 3, "greek-theta"));
+    tr.appendChild(makeIVTd(callIV));
+
+    const strikeTd = document.createElement("td");
+    strikeTd.className = "chain-strike";
+    strikeTd.textContent = formatNumber(strike, 0);
+    tr.appendChild(strikeTd);
+
+    tr.appendChild(makeIVTd(putIV));
+    tr.appendChild(makeGreekTd(putG.delta, 3, "greek-delta-put"));
+    tr.appendChild(makeGreekTd(putG.gamma, 5, "greek-gamma"));
+    tr.appendChild(makeGreekTd(putG.vega,  3, "greek-vega"));
+    tr.appendChild(makeGreekTd(putG.theta, 3, "greek-theta"));
+
+    const putPriceTd = document.createElement("td");
+    putPriceTd.className = "chain-price chain-price-put";
+    putPriceTd.textContent = Number.isFinite(putPrice) ? formatNumber(putPrice, 2) : "--";
+    tr.appendChild(putPriceTd);
+
+    tbody.appendChild(tr);
+  });
+
+  renderGreeksPriceChart(firstAtm);
+  renderGreeksIVChart(firstAtm);
+  renderGreeksDeltaChart(firstAtm);
+  renderGreeksGammaChart(firstAtm);
+  renderGreeksVegaChart(firstAtm);
+  renderGreeksThetaChart(firstAtm);
+}
+
+function renderGreeksSimpleChain(strikeRangeAll = false) {
+  const tbody = elements.griegasSimpleTableBody;
+  tbody.innerHTML = "";
+
+  const entry = state.liveEntry;
+  if (!entry) {
+    tbody.innerHTML = `<tr><td colspan="7" class="placeholder">Sin datos live disponibles.</td></tr>`;
+    return;
+  }
+
+  const ggal = getGreeksGgal();
+  const r = (parseFloat(elements.tasaRInput.value) || 0) / 100;
+  const T = getGreeksT();
+  const isCall = state.griegasOptionType !== "put";
+
+  const allStrikes = state.availableStrikes;
+  const visibleStrikes = (strikeRangeAll || !Number.isFinite(ggal))
+    ? allStrikes
+    : allStrikes.filter((s) => s >= ggal * 0.75 && s <= ggal * 1.25);
+
+  let atmLow = null, atmHigh = null;
+  if (Number.isFinite(ggal)) {
+    for (const s of visibleStrikes) {
+      if (s <= ggal) atmLow = s;
+      else if (atmHigh === null) atmHigh = s;
+    }
+  }
+
+  const canCompute = Number.isFinite(T) && T > 0 && Number.isFinite(ggal) && ggal > 0;
+
+  function makeGreekTd(val, displayDecimals, cssClass) {
+    const td = document.createElement("td");
+    if (Number.isFinite(val)) {
+      td.className = "greek-val " + cssClass;
+      td.textContent = val.toFixed(displayDecimals);
+      td.title = val.toFixed(10);
+    } else {
+      td.className = "greek-val greek-na";
+      td.textContent = "--";
+    }
+    return td;
+  }
+
+  visibleStrikes.forEach((strike) => {
+    const price = isCall ? entry.calls[strikeKey(strike)] : entry.puts[strikeKey(strike)];
+    const isAtm = strike === atmLow || strike === atmHigh;
+
+    const tr = document.createElement("tr");
+    if (isAtm) tr.classList.add("chain-row-atm");
+    if (strike === state.griegasSelectedStrike) tr.classList.add("greeks-row-selected");
+    tr.style.cursor = "pointer";
+    tr.addEventListener("click", () => {
+      state.griegasSelectedStrike = (state.griegasSelectedStrike === strike) ? null : strike;
+      tbody.querySelectorAll("tr").forEach((r) => r.classList.remove("greeks-row-selected"));
+      if (state.griegasSelectedStrike !== null) tr.classList.add("greeks-row-selected");
+      const atm = atmLow ?? atmHigh;
+      renderGreeksPriceChart(atm);
+      renderGreeksIVChart(atm);
+      renderGreeksDeltaChart(atm);
+      renderGreeksGammaChart(atm);
+      renderGreeksVegaChart(atm);
+      renderGreeksThetaChart(atm);
+    });
+
+    let iv = NaN;
+    let g = { delta: NaN, gamma: NaN, vega: NaN, theta: NaN };
+    if (canCompute && Number.isFinite(price)) {
+      iv = greeksBSComputeIV(price, ggal, strike, T, r, isCall);
+      if (Number.isFinite(iv)) g = greeksBSAll(ggal, strike, T, r, iv, isCall);
+    }
+
+    const strikeTd = document.createElement("td");
+    strikeTd.className = "chain-strike";
+    strikeTd.textContent = formatNumber(strike, 0);
+    tr.appendChild(strikeTd);
+
+    const priceTd = document.createElement("td");
+    priceTd.className = isCall ? "chain-price chain-price-call" : "chain-price chain-price-put";
+    priceTd.textContent = Number.isFinite(price) ? formatNumber(price, 2) : "--";
+    tr.appendChild(priceTd);
+
+    const ivTd = document.createElement("td");
+    if (Number.isFinite(iv)) {
+      const pct = iv * 100;
+      ivTd.className = "greek-val greek-iv";
+      ivTd.textContent = pct.toFixed(2) + "%";
+      ivTd.title = pct.toFixed(10) + "%";
+    } else {
+      ivTd.className = "greek-val greek-na";
+      ivTd.textContent = "--";
+    }
+    tr.appendChild(ivTd);
+
+    tr.appendChild(makeGreekTd(g.delta, 3, isCall ? "greek-delta" : "greek-delta-put"));
+    tr.appendChild(makeGreekTd(g.gamma, 5, "greek-gamma"));
+    tr.appendChild(makeGreekTd(g.vega,  3, "greek-vega"));
+    tr.appendChild(makeGreekTd(g.theta, 3, "greek-theta"));
+
+    tbody.appendChild(tr);
+  });
+}
+
+function renderGreeksPriceChart(firstAtm) {
+  const chartKey = "griegasPrice";
+  const k = state.griegasSelectedStrike ?? firstAtm;
+
+  if (!k) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const isCall = state.griegasOptionType !== "put";
+  const kStr = strikeKey(k);
+
+  let entries = [...state.historyByDate];
+  if (state.liveEntry && !entries.some((e) => e.fechaRaw === state.liveEntry.fechaRaw)) {
+    entries.push(state.liveEntry);
+  }
+  entries.sort((a, b) => a.fechaRaw.localeCompare(b.fechaRaw));
+  if (state.selectedFechaDesde) {
+    entries = entries.filter((e) => e.fechaRaw >= state.selectedFechaDesde);
+  }
+
+  const labels = [];
+  const prices = [];
+
+  for (const entry of entries) {
+    const price = isCall ? entry.calls?.[kStr] : entry.puts?.[kStr];
+    if (!Number.isFinite(price)) continue;
+    labels.push(formatChartDate(formatDate(entry.fechaRaw)));
+    prices.push(price);
+  }
+
+  if (!labels.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const typeLabel = isCall ? "Call" : "Put";
+  const color = isCall ? "#22c55e" : "#e14d4d";
+  const strikeLabel = state.griegasSelectedStrike
+    ? `Strike ${formatNumber(k, 0)} (seleccionado)`
+    : `Strike ${formatNumber(k, 0)} (ATM)`;
+  elements.griegasPriceChartTitle.textContent = `Precio histórico — ${typeLabel} — ${strikeLabel}`;
+
+  const datasets = [{
+    label: `Precio ${typeLabel}`,
+    data: prices,
+    borderColor: color,
+    backgroundColor: withAlphaFromHex(color, 0.12),
+    borderWidth: 2,
+    tension: 0.28,
+    fill: false,
+    pointRadius: 2,
+    pointHoverRadius: 5,
+    spanGaps: true
+  }];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+  state.charts[chartKey] = new Chart(elements.griegasPriceChart, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "nearest", intersect: false },
+      animation: false,
+      layout: { padding: { left: 10, right: 22, top: 10 } },
+      plugins: {
+        legend: { display: true, labels: { color: "#c7d7ef" } },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: "#111c29",
+          borderColor: "rgba(116, 150, 189, 0.22)",
+          borderWidth: 1,
+          titleColor: "#eaf2ff",
+          bodyColor: "#c7d7ef",
+          callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y != null ? formatNumber(ctx.parsed.y, 2) : "--"}` }
+        }
+      },
+      scales: {
+        x: {
+          offset: true,
+          ticks: { color: "#8ea7c6", autoSkip: true, maxRotation: 45, minRotation: 45, maxTicksLimit: 24 },
+          grid: { color: "rgba(116, 150, 189, 0.08)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y: {
+          grace: "10%",
+          ticks: { color: "#8ea7c6", callback: (v) => formatNumber(v, 2) },
+          grid: { color: "rgba(116, 150, 189, 0.12)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        }
+      }
+    }
+  });
+}
+
+function renderGreeksIVChart(firstAtm) {
+  const chartKey = "griegasIV";
+  const k = state.griegasSelectedStrike ?? firstAtm;
+
+  if (!k) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const isCall = state.griegasOptionType !== "put";
+  const r = (parseFloat(elements.tasaRInput.value) || 0) / 100;
+  const kStr = strikeKey(k);
+
+  let entries = [...state.historyByDate];
+  if (state.liveEntry && !entries.some((e) => e.fechaRaw === state.liveEntry.fechaRaw)) {
+    entries.push(state.liveEntry);
+  }
+  entries.sort((a, b) => a.fechaRaw.localeCompare(b.fechaRaw));
+  if (state.selectedFechaDesde) {
+    entries = entries.filter((e) => e.fechaRaw >= state.selectedFechaDesde);
+  }
+
+  const labels = [];
+  const ivValues = [];
+
+  for (const entry of entries) {
+    const S = entry.ggal;
+    if (!Number.isFinite(S) || S <= 0) continue;
+    const daysToOpex = getDaysToOpex(entry.fechaRaw);
+    if (!Number.isFinite(daysToOpex) || daysToOpex <= 0) continue;
+    const T = daysToOpex / 365;
+    const price = isCall ? entry.calls?.[kStr] : entry.puts?.[kStr];
+    const iv = Number.isFinite(price) ? greeksBSComputeIV(price, S, k, T, r, isCall) : NaN;
+    if (!Number.isFinite(iv)) continue;
+    labels.push(formatChartDate(formatDate(entry.fechaRaw)));
+    ivValues.push(iv * 100);
+  }
+
+  if (!labels.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const typeLabel = isCall ? "Call" : "Put";
+  const color = "#f0c24b";
+  const strikeLabel = state.griegasSelectedStrike
+    ? `Strike ${formatNumber(k, 0)} (seleccionado)`
+    : `Strike ${formatNumber(k, 0)} (ATM)`;
+  elements.griegasIVChartTitle.textContent = `IV histórica — ${typeLabel} — ${strikeLabel}`;
+
+  const fmtPct = (v) => (v != null ? v.toFixed(2) + "%" : "--");
+  const datasets = [{
+    label: `IV ${typeLabel}`,
+    data: ivValues,
+    borderColor: color,
+    backgroundColor: withAlphaFromHex(color, 0.12),
+    borderWidth: 2,
+    tension: 0.28,
+    fill: false,
+    pointRadius: 2,
+    pointHoverRadius: 5,
+    spanGaps: true
+  }];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+  state.charts[chartKey] = new Chart(elements.griegasIVChart, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "nearest", intersect: false },
+      animation: false,
+      layout: { padding: { left: 10, right: 22, top: 10 } },
+      plugins: {
+        legend: { display: true, labels: { color: "#c7d7ef" } },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: "#111c29",
+          borderColor: "rgba(116, 150, 189, 0.22)",
+          borderWidth: 1,
+          titleColor: "#eaf2ff",
+          bodyColor: "#c7d7ef",
+          callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtPct(ctx.parsed.y)}` }
+        }
+      },
+      scales: {
+        x: {
+          offset: true,
+          ticks: { color: "#8ea7c6", autoSkip: true, maxRotation: 45, minRotation: 45, maxTicksLimit: 24 },
+          grid: { color: "rgba(116, 150, 189, 0.08)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y: {
+          grace: "10%",
+          ticks: { color: "#8ea7c6", callback: (v) => Number(v).toFixed(1) + "%" },
+          grid: { color: "rgba(116, 150, 189, 0.12)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        }
+      }
+    }
+  });
+}
+
+function renderGreekHistoryChart(cfg, firstAtm) {
+  const { chartKey, canvasEl, titleEl, greekName, accessor, yTickCallback } = cfg;
+  const k = state.griegasSelectedStrike ?? firstAtm;
+
+  if (!k) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const isCall = state.griegasOptionType !== "put";
+  const r = (parseFloat(elements.tasaRInput.value) || 0) / 100;
+  const kStr = strikeKey(k);
+
+  let entries = [...state.historyByDate];
+  if (state.liveEntry && !entries.some((e) => e.fechaRaw === state.liveEntry.fechaRaw)) {
+    entries.push(state.liveEntry);
+  }
+  entries.sort((a, b) => a.fechaRaw.localeCompare(b.fechaRaw));
+  if (state.selectedFechaDesde) {
+    entries = entries.filter((e) => e.fechaRaw >= state.selectedFechaDesde);
+  }
+
+  const labels = [];
+  const values = [];
+
+  for (const entry of entries) {
+    const S = entry.ggal;
+    if (!Number.isFinite(S) || S <= 0) continue;
+    const daysToOpex = getDaysToOpex(entry.fechaRaw);
+    if (!Number.isFinite(daysToOpex) || daysToOpex <= 0) continue;
+    const T = daysToOpex / 365;
+    const price = isCall ? entry.calls?.[kStr] : entry.puts?.[kStr];
+    if (!Number.isFinite(price)) continue;
+    const iv = greeksBSComputeIV(price, S, k, T, r, isCall);
+    if (!Number.isFinite(iv)) continue;
+    const g = greeksBSAll(S, k, T, r, iv, isCall);
+    const val = accessor(g);
+    if (!Number.isFinite(val)) continue;
+    labels.push(formatChartDate(formatDate(entry.fechaRaw)));
+    values.push(val);
+  }
+
+  if (!labels.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const typeLabel = isCall ? "Call" : "Put";
+  const color = cfg.fixedColor ?? (isCall ? "#7ff0ae" : "#ff9a9a");
+  const strikeLabel = state.griegasSelectedStrike
+    ? `Strike ${formatNumber(k, 0)} (seleccionado)`
+    : `Strike ${formatNumber(k, 0)} (ATM)`;
+  titleEl.textContent = `${greekName} — ${typeLabel} — ${strikeLabel}`;
+
+  const datasets = [{
+    label: `${greekName} ${typeLabel}`,
+    data: values,
+    borderColor: color,
+    backgroundColor: withAlphaFromHex(color, 0.12),
+    borderWidth: 2,
+    tension: 0.28,
+    fill: false,
+    pointRadius: 2,
+    pointHoverRadius: 5,
+    spanGaps: true
+  }];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+  state.charts[chartKey] = new Chart(canvasEl, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "nearest", intersect: false },
+      animation: false,
+      layout: { padding: { left: 10, right: 22, top: 10 } },
+      plugins: {
+        legend: { display: true, labels: { color: "#c7d7ef" } },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: "#111c29",
+          borderColor: "rgba(116, 150, 189, 0.22)",
+          borderWidth: 1,
+          titleColor: "#eaf2ff",
+          bodyColor: "#c7d7ef",
+          callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(6) : "--"}` }
+        }
+      },
+      scales: {
+        x: {
+          offset: true,
+          ticks: { color: "#8ea7c6", autoSkip: true, maxRotation: 45, minRotation: 45, maxTicksLimit: 24 },
+          grid: { color: "rgba(116, 150, 189, 0.08)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y: {
+          grace: "10%",
+          ticks: { color: "#8ea7c6", callback: yTickCallback },
+          grid: { color: "rgba(116, 150, 189, 0.12)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        }
+      }
+    }
+  });
+}
+
+function renderGreeksDeltaChart(firstAtm) {
+  renderGreekHistoryChart({
+    chartKey:  "griegasDelta",
+    canvasEl:  elements.griegasDeltaChart,
+    titleEl:   elements.griegasDeltaChartTitle,
+    greekName: "Delta histórica",
+    accessor:  (g) => g.delta,
+    yTickCallback: (v) => Number(v).toFixed(3),
+  }, firstAtm);
+}
+
+function renderGreeksGammaChart(firstAtm) {
+  renderGreekHistoryChart({
+    chartKey:  "griegasGamma",
+    canvasEl:  elements.griegasGammaChart,
+    titleEl:   elements.griegasGammaChartTitle,
+    greekName: "Gamma histórica",
+    accessor:  (g) => g.gamma,
+    yTickCallback: (v) => Number(v).toFixed(5),
+    fixedColor: "#9fd0ff",
+  }, firstAtm);
+}
+
+function renderGreeksVegaChart(firstAtm) {
+  renderGreekHistoryChart({
+    chartKey:  "griegasVega",
+    canvasEl:  elements.griegasVegaChart,
+    titleEl:   elements.griegasVegaChartTitle,
+    greekName: "Vega histórica",
+    accessor:  (g) => g.vega,
+    yTickCallback: (v) => Number(v).toFixed(4),
+    fixedColor: "#c4b5fd",
+  }, firstAtm);
+}
+
+function renderGreeksThetaChart(firstAtm) {
+  renderGreekHistoryChart({
+    chartKey:  "griegasTheta",
+    canvasEl:  elements.griegasThetaChart,
+    titleEl:   elements.griegasThetaChartTitle,
+    greekName: "Theta histórica",
+    accessor:  (g) => g.theta,
+    yTickCallback: (v) => Number(v).toFixed(4),
+    fixedColor: "#fca5a5",
+  }, firstAtm);
+}
+
+function renderTasasCharts(base1Strike, base2Strike) {
+  renderTasasCrossChart();
+  renderTasasVenChart();
+  renderTasasVrpChart(base1Strike);
+  renderTasasRankChart(base1Strike, base2Strike);
+  renderTasasThetaChart(base1Strike, base2Strike);
+  renderTasasSkewChart();
+  renderTasasTemporalChart(base1Strike, base2Strike);
+  renderTasasPrimaChart(base1Strike, base2Strike);
+}
+
+function renderTasasCrossChart() {
+  const chartKey = "tasasCross";
+  const entry = state.liveEntry ?? state.historyByDate.at(-1);
+
+  if (!entry) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const allStrikeKeys = new Set([
+    ...Object.keys(entry.calls ?? {}),
+    ...Object.keys(entry.puts ?? {})
+  ]);
+  const sortedStrikes = [...allStrikeKeys]
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+
+  if (!sortedStrikes.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const labels = sortedStrikes.map((s) => formatNumber(s, 0));
+  const vecData = sortedStrikes.map((s) => {
+    const price = entry.calls?.[strikeKey(s)];
+    return Number.isFinite(price) ? getBaseExtrinsicValue(s, price, entry.ggal, "call") : null;
+  });
+  const vepData = sortedStrikes.map((s) => {
+    const price = entry.puts?.[strikeKey(s)];
+    return Number.isFinite(price) ? getBaseExtrinsicValue(s, price, entry.ggal, "put") : null;
+  });
+
+  const dateLabel = entry.fechaRaw ?? "";
+  elements.tasasCrossChartTitle.textContent = `VE por Strike${dateLabel ? ` — ${dateLabel}` : ""}`;
+
+  const commonPointStyle = {
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    tension: 0.2,
+    fill: false,
+    spanGaps: true
+  };
+
+  const datasets = [
+    {
+      label: "VEC (Call)",
+      data: vecData,
+      borderColor: "#4fc3f7",
+      backgroundColor: "#4fc3f7",
+      ...commonPointStyle
+    },
+    {
+      label: "VEP (Put)",
+      data: vepData,
+      borderColor: "#ef5350",
+      backgroundColor: "#ef5350",
+      ...commonPointStyle
+    }
+  ];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+
+  state.charts[chartKey] = new Chart(elements.tasasCrossChart, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "nearest", intersect: false },
+      layout: { padding: { left: 10, right: 22, top: 10 } },
+      plugins: {
+        legend: {
+          display: true,
+          onClick: handlePersistentLegendClick,
+          labels: { color: "#c7d7ef" }
+        },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: "#111c29",
+          borderColor: "rgba(116, 150, 189, 0.22)",
+          borderWidth: 1,
+          titleColor: "#eaf2ff",
+          bodyColor: "#c7d7ef",
+          callbacks: {
+            label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed.y, 2)}`
+          }
+        }
+      },
+      animation: false,
+      scales: {
+        x: {
+          offset: true,
+          ticks: { color: "#8ea7c6", maxRotation: 45, minRotation: 45 },
+          grid: { color: "rgba(116, 150, 189, 0.08)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y: {
+          grace: "5%",
+          ticks: { color: "#8ea7c6", callback: (v) => formatNumber(v, 0) },
+          grid: { color: "rgba(116, 150, 189, 0.12)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        }
+      }
+    }
+  });
+}
+
+function renderTasasVenChart() {
+  const chartKey = "tasasVen";
+  const entry = state.liveEntry ?? state.historyByDate.at(-1);
+
+  if (!entry || !Number.isFinite(entry.ggal) || entry.ggal === 0) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const allStrikeKeys = new Set([
+    ...Object.keys(entry.calls ?? {}),
+    ...Object.keys(entry.puts ?? {})
+  ]);
+  const sortedStrikes = [...allStrikeKeys]
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+
+  if (!sortedStrikes.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const labels = sortedStrikes.map((s) => formatNumber(s, 0));
+  const vencData = sortedStrikes.map((s) => {
+    const price = entry.calls?.[strikeKey(s)];
+    return Number.isFinite(price) ? getBaseExtrinsicValue(s, price, entry.ggal, "call") / entry.ggal : null;
+  });
+  const venpData = sortedStrikes.map((s) => {
+    const price = entry.puts?.[strikeKey(s)];
+    return Number.isFinite(price) ? getBaseExtrinsicValue(s, price, entry.ggal, "put") / entry.ggal : null;
+  });
+
+  const dateLabel = entry.fechaRaw ?? "";
+  elements.tasasVenChartTitle.textContent = `VEN por Strike${dateLabel ? ` — ${dateLabel}` : ""}`;
+
+  const commonPointStyle = {
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    tension: 0.2,
+    fill: false,
+    spanGaps: true
+  };
+
+  const datasets = [
+    {
+      label: "VENC (Call)",
+      data: vencData,
+      borderColor: "#4fc3f7",
+      backgroundColor: "#4fc3f7",
+      ...commonPointStyle
+    },
+    {
+      label: "VENP (Put)",
+      data: venpData,
+      borderColor: "#ef5350",
+      backgroundColor: "#ef5350",
+      ...commonPointStyle
+    }
+  ];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+
+  state.charts[chartKey] = new Chart(elements.tasasVenChart, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "nearest", intersect: false },
+      layout: { padding: { left: 10, right: 22, top: 10 } },
+      plugins: {
+        legend: {
+          display: true,
+          onClick: handlePersistentLegendClick,
+          labels: { color: "#c7d7ef" }
+        },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: "#111c29",
+          borderColor: "rgba(116, 150, 189, 0.22)",
+          borderWidth: 1,
+          titleColor: "#eaf2ff",
+          bodyColor: "#c7d7ef",
+          callbacks: {
+            label: (context) => `${context.dataset.label}: ${formatPercent(context.parsed.y)}`
+          }
+        }
+      },
+      animation: false,
+      scales: {
+        x: {
+          offset: true,
+          ticks: { color: "#8ea7c6", maxRotation: 45, minRotation: 45 },
+          grid: { color: "rgba(116, 150, 189, 0.08)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y: {
+          grace: "5%",
+          ticks: { color: "#8ea7c6", callback: (v) => formatPercent(v) },
+          grid: { color: "rgba(116, 150, 189, 0.12)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        }
+      }
+    }
+  });
+}
+
+function findClosestEntry(sortedEntries, targetMs) {
+  let closest = null;
+  let minDiff = Infinity;
+  for (const entry of sortedEntries) {
+    const entryMs = new Date(entry.fechaRaw).getTime();
+    const diff = Math.abs(entryMs - targetMs);
+    if (diff < minDiff) { minDiff = diff; closest = entry; }
+  }
+  return closest;
+}
+
+function makeTasasChartOptions(yLeftFormatter, yRightFormatter) {
+  const scales = {
+    x: {
+      offset: true,
+      ticks: { color: "#8ea7c6", maxRotation: 45, minRotation: 45, autoSkip: true, maxTicksLimit: 24 },
+      grid: { color: "rgba(116, 150, 189, 0.08)" },
+      border: { color: "rgba(116, 150, 189, 0.18)" }
+    },
+    y: {
+      position: "left",
+      grace: "5%",
+      ticks: { color: "#8ea7c6", callback: (v) => yLeftFormatter(v) },
+      grid: { color: "rgba(116, 150, 189, 0.12)" },
+      border: { color: "rgba(116, 150, 189, 0.18)" }
+    }
+  };
+  if (yRightFormatter) {
+    scales.y2 = {
+      position: "right",
+      grace: "5%",
+      ticks: { color: "#8ea7c6", callback: (v) => yRightFormatter(v) },
+      grid: { drawOnChartArea: false },
+      border: { color: "rgba(116, 150, 189, 0.18)" }
+    };
+  }
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "nearest", intersect: false },
+    layout: { padding: { left: 10, right: 22, top: 10 } },
+    plugins: {
+      legend: { display: true, onClick: handlePersistentLegendClick, labels: { color: "#c7d7ef" } },
+      tooltip: {
+        displayColors: true,
+        backgroundColor: "#111c29",
+        borderColor: "rgba(116, 150, 189, 0.22)",
+        borderWidth: 1,
+        titleColor: "#eaf2ff",
+        bodyColor: "#c7d7ef"
+      }
+    },
+    animation: false,
+    scales
+  };
+}
+
+function renderTasasVrpChart(base1Strike) {
+  const chartKey = "tasasVrp";
+
+  if (!Number.isFinite(base1Strike) || !state.historyByDate.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const b1Key = strikeKey(base1Strike);
+  const b1TypeKey = state.optionTypes.base1 === "put" ? "puts" : "calls";
+  const sorted = [...state.historyByDate].sort((a, b) => a.fechaRaw.localeCompare(b.fechaRaw));
+
+  const labels = [];
+  const impliedData = [];
+  const realizedData = [];
+  const vrpData = [];
+
+  for (const entry of sorted) {
+    if (state.selectedFechaDesde && entry.fechaRaw < state.selectedFechaDesde) continue;
+    const price1 = entry[b1TypeKey]?.[b1Key];
+    if (!Number.isFinite(price1) || !Number.isFinite(entry.ggal) || entry.ggal === 0) continue;
+
+    const dte = getDaysToOpex(entry.fechaRaw);
+    const ven = getBaseExtrinsicValue(base1Strike, price1, entry.ggal, state.optionTypes.base1) / entry.ggal;
+    const targetMs = new Date(entry.fechaRaw).getTime() + dte * 86400000;
+    const futureEntry = findClosestEntry(sorted, targetMs);
+    const realized = (futureEntry && futureEntry.fechaRaw > entry.fechaRaw && Number.isFinite(futureEntry.ggal))
+      ? Math.abs(futureEntry.ggal - entry.ggal) / entry.ggal
+      : null;
+
+    const [yr, mo, dy] = entry.fechaRaw.split("-");
+    labels.push(`${dy}/${mo}`);
+    impliedData.push(ven);
+    realizedData.push(realized);
+    vrpData.push(realized !== null ? ven - realized : null);
+  }
+
+  if (!labels.length) { destroyChart(chartKey); return; }
+
+  const b1Label = formatOptionLabel(state.optionTypes.base1, base1Strike);
+  elements.tasasVrpChartTitle.textContent = `VRP — ${b1Label}`;
+
+  const pt = { tension: 0.2, fill: false, spanGaps: true, pointRadius: 3, pointHoverRadius: 5 };
+  const datasets = [
+    { label: "VEN implícito", data: impliedData, borderColor: "#4fc3f7", backgroundColor: "#4fc3f7", yAxisID: "y", ...pt },
+    { label: "Movimiento realizado", data: realizedData, borderColor: "#66bb6a", backgroundColor: "#66bb6a", yAxisID: "y", ...pt },
+    { label: "VRP (impl − real)", data: vrpData, borderColor: "#ffa726", backgroundColor: "#ffa726", yAxisID: "y", borderDash: [4, 3], ...pt }
+  ];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+
+  const opts = makeTasasChartOptions((v) => formatPercent(v));
+  opts.plugins.tooltip.callbacks = { label: (ctx) => `${ctx.dataset.label}: ${formatPercent(ctx.parsed.y)}` };
+  state.charts[chartKey] = new Chart(elements.tasasVrpChart, { type: "line", data: { labels, datasets }, options: opts });
+}
+
+function renderTasasRankChart(base1Strike, base2Strike) {
+  const chartKey = "tasasRank";
+
+  if (!Number.isFinite(base1Strike) || !Number.isFinite(base2Strike) || !state.historyByDate.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const b1Key = strikeKey(base1Strike);
+  const b2Key = strikeKey(base2Strike);
+  const b1TypeKey = state.optionTypes.base1 === "put" ? "puts" : "calls";
+  const b2TypeKey = state.optionTypes.base2 === "put" ? "puts" : "calls";
+
+  const sorted = [...state.historyByDate].sort((a, b) => a.fechaRaw.localeCompare(b.fechaRaw));
+
+  // Compute full historical VEN for rank context (no date filter)
+  const allVen1 = sorted
+    .map((e) => {
+      const p = e[b1TypeKey]?.[b1Key];
+      return (Number.isFinite(p) && Number.isFinite(e.ggal) && e.ggal > 0)
+        ? getBaseExtrinsicValue(base1Strike, p, e.ggal, state.optionTypes.base1) / e.ggal
+        : null;
+    })
+    .filter((v) => v !== null)
+    .sort((a, b) => a - b);
+
+  const percentileOf = (val, sortedArr) => {
+    if (!sortedArr.length) return null;
+    const below = sortedArr.filter((v) => v <= val).length;
+    return (below / sortedArr.length) * 100;
+  };
+
+  const labels = [];
+  const ven1Data = [];
+  const ven2Data = [];
+  const rankData = [];
+
+  for (const entry of sorted) {
+    if (state.selectedFechaDesde && entry.fechaRaw < state.selectedFechaDesde) continue;
+    const p1 = entry[b1TypeKey]?.[b1Key];
+    const p2 = entry[b2TypeKey]?.[b2Key];
+    if (!Number.isFinite(p1) && !Number.isFinite(p2)) continue;
+    if (!Number.isFinite(entry.ggal) || entry.ggal === 0) continue;
+
+    const ven1 = Number.isFinite(p1) ? getBaseExtrinsicValue(base1Strike, p1, entry.ggal, state.optionTypes.base1) / entry.ggal : null;
+    const ven2 = Number.isFinite(p2) ? getBaseExtrinsicValue(base2Strike, p2, entry.ggal, state.optionTypes.base2) / entry.ggal : null;
+    const rank = ven1 !== null ? percentileOf(ven1, allVen1) : null;
+
+    const [yr, mo, dy] = entry.fechaRaw.split("-");
+    labels.push(`${dy}/${mo}`);
+    ven1Data.push(ven1);
+    ven2Data.push(ven2);
+    rankData.push(rank);
+  }
+
+  if (!labels.length) { destroyChart(chartKey); return; }
+
+  const b1Label = formatOptionLabel(state.optionTypes.base1, base1Strike);
+  const b2Label = formatOptionLabel(state.optionTypes.base2, base2Strike);
+  elements.tasasRankChartTitle.textContent = `VEN + Rank — ${b1Label} / ${b2Label}`;
+
+  const pt = { tension: 0.2, fill: false, spanGaps: true, pointRadius: 3, pointHoverRadius: 5 };
+  const datasets = [
+    { label: `VEN ${b1Label}`, data: ven1Data, borderColor: "#4fc3f7", backgroundColor: "#4fc3f7", yAxisID: "y", ...pt },
+    { label: `VEN ${b2Label}`, data: ven2Data, borderColor: "#ef5350", backgroundColor: "#ef5350", yAxisID: "y", ...pt },
+    { label: `Rank ${b1Label}`, data: rankData, borderColor: "#f0c24b", backgroundColor: "#f0c24b", yAxisID: "y2", borderDash: [4, 3], pointRadius: 2, pointHoverRadius: 4, tension: 0.2, fill: false, spanGaps: true }
+  ];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+
+  const opts = makeTasasChartOptions((v) => formatPercent(v), (v) => `${formatNumber(v, 0)}%`);
+  opts.scales.y2.min = 0;
+  opts.scales.y2.max = 100;
+  opts.scales.y2.grace = 0;
+  opts.plugins.tooltip.callbacks = {
+    label: (ctx) => ctx.dataset.yAxisID === "y2"
+      ? `${ctx.dataset.label}: ${formatNumber(ctx.parsed.y, 1)}%`
+      : `${ctx.dataset.label}: ${formatPercent(ctx.parsed.y)}`
+  };
+  state.charts[chartKey] = new Chart(elements.tasasRankChart, { type: "line", data: { labels, datasets }, options: opts });
+}
+
+function renderTasasThetaChart(base1Strike, base2Strike) {
+  const chartKey = "tasasTheta";
+
+  if (!Number.isFinite(base1Strike) || !Number.isFinite(base2Strike) || !state.historyByDate.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const b1Key = strikeKey(base1Strike);
+  const b2Key = strikeKey(base2Strike);
+  const b1TypeKey = state.optionTypes.base1 === "put" ? "puts" : "calls";
+  const b2TypeKey = state.optionTypes.base2 === "put" ? "puts" : "calls";
+
+  const data1 = [];
+  const data2 = [];
+
+  for (const entry of state.historyByDate) {
+    if (state.selectedFechaDesde && entry.fechaRaw < state.selectedFechaDesde) continue;
+    if (!Number.isFinite(entry.ggal) || entry.ggal === 0) continue;
+    const dte = getDaysToOpex(entry.fechaRaw);
+    if (!Number.isFinite(dte) || dte < 0) continue;
+
+    const p1 = entry[b1TypeKey]?.[b1Key];
+    const p2 = entry[b2TypeKey]?.[b2Key];
+    if (Number.isFinite(p1)) data1.push({ x: dte, y: getBaseExtrinsicValue(base1Strike, p1, entry.ggal, state.optionTypes.base1) / entry.ggal });
+    if (Number.isFinite(p2)) data2.push({ x: dte, y: getBaseExtrinsicValue(base2Strike, p2, entry.ggal, state.optionTypes.base2) / entry.ggal });
+  }
+
+  if (!data1.length && !data2.length) { destroyChart(chartKey); return; }
+
+  const b1Label = formatOptionLabel(state.optionTypes.base1, base1Strike);
+  const b2Label = formatOptionLabel(state.optionTypes.base2, base2Strike);
+  elements.tasasThetaChartTitle.textContent = `Theta Decay — ${b1Label} / ${b2Label}`;
+
+  const datasets = [
+    { label: `VEN ${b1Label}`, data: data1, backgroundColor: "#4fc3f780", borderColor: "#4fc3f7", pointRadius: 5, pointHoverRadius: 7 },
+    { label: `VEN ${b2Label}`, data: data2, backgroundColor: "#ef535080", borderColor: "#ef5350", pointRadius: 5, pointHoverRadius: 7 }
+  ];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+
+  const opts = makeTasasChartOptions((v) => formatPercent(v));
+  opts.scales.x = {
+    type: "linear",
+    title: { display: true, text: "DTE (días al vencimiento)", color: "#8ea7c6" },
+    ticks: { color: "#8ea7c6" },
+    grid: { color: "rgba(116, 150, 189, 0.08)" },
+    border: { color: "rgba(116, 150, 189, 0.18)" }
+  };
+  opts.plugins.tooltip.callbacks = {
+    title: (items) => `DTE: ${items[0]?.parsed.x} días`,
+    label: (ctx) => `${ctx.dataset.label}: ${formatPercent(ctx.parsed.y)}`
+  };
+  state.charts[chartKey] = new Chart(elements.tasasThetaChart, { type: "scatter", data: { datasets }, options: opts });
+}
+
+function renderTasasSkewChart() {
+  const chartKey = "tasasSkew";
+  const entry = state.liveEntry ?? state.historyByDate.at(-1);
+
+  if (!entry || !Number.isFinite(entry.ggal) || entry.ggal === 0) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const allStrikeKeys = new Set([
+    ...Object.keys(entry.calls ?? {}),
+    ...Object.keys(entry.puts ?? {})
+  ]);
+  const sortedStrikes = [...allStrikeKeys].map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+
+  if (!sortedStrikes.length) { destroyChart(chartKey); return; }
+
+  const callData = [];
+  const putData = [];
+
+  for (const s of sortedStrikes) {
+    const moneyness = s / entry.ggal;
+    const callPrice = entry.calls?.[strikeKey(s)];
+    const putPrice = entry.puts?.[strikeKey(s)];
+    if (Number.isFinite(callPrice)) callData.push({ x: moneyness, y: getBaseExtrinsicValue(s, callPrice, entry.ggal, "call") / entry.ggal });
+    if (Number.isFinite(putPrice)) putData.push({ x: moneyness, y: getBaseExtrinsicValue(s, putPrice, entry.ggal, "put") / entry.ggal });
+  }
+
+  const dateLabel = entry.fechaRaw ?? "";
+  elements.tasasSkewChartTitle.textContent = `Volatility Skew / Smile${dateLabel ? ` — ${dateLabel}` : ""}`;
+
+  const pt = { tension: 0.2, fill: false, spanGaps: true, pointRadius: 4, pointHoverRadius: 6 };
+  const datasets = [
+    { label: "VENC (Call)", data: callData, borderColor: "#4fc3f7", backgroundColor: "#4fc3f7", ...pt },
+    { label: "VENP (Put)", data: putData, borderColor: "#ef5350", backgroundColor: "#ef5350", ...pt }
+  ];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+
+  const opts = makeTasasChartOptions((v) => formatPercent(v));
+  opts.scales.x = {
+    type: "linear",
+    title: { display: true, text: "Moneyness (K/S)", color: "#8ea7c6" },
+    ticks: { color: "#8ea7c6", callback: (v) => formatNumber(v, 2) },
+    grid: { color: "rgba(116, 150, 189, 0.08)" },
+    border: { color: "rgba(116, 150, 189, 0.18)" }
+  };
+  opts.plugins.tooltip.callbacks = {
+    title: (items) => `K/S: ${formatNumber(items[0]?.parsed.x, 3)}`,
+    label: (ctx) => `${ctx.dataset.label}: ${formatPercent(ctx.parsed.y)}`
+  };
+  state.charts[chartKey] = new Chart(elements.tasasSkewChart, { type: "line", data: { datasets }, options: opts });
+}
+
+function renderTasasTemporalChart(base1Strike, base2Strike) {
+  const chartKey = "tasasTemporal";
+
+  if (!Number.isFinite(base1Strike) || !Number.isFinite(base2Strike) || !state.historyByDate.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const b1Key = strikeKey(base1Strike);
+  const b2Key = strikeKey(base2Strike);
+  const b1TypeKey = state.optionTypes.base1 === "put" ? "puts" : "calls";
+  const b2TypeKey = state.optionTypes.base2 === "put" ? "puts" : "calls";
+
+  const sorted = [...state.historyByDate].sort((a, b) => a.fechaRaw.localeCompare(b.fechaRaw));
+  const labels = [];
+  const ve1Data = [];
+  const ve2Data = [];
+  const straddleData = [];
+  const ggalData = [];
+
+  for (const entry of sorted) {
+    if (state.selectedFechaDesde && entry.fechaRaw < state.selectedFechaDesde) continue;
+    const price1 = entry[b1TypeKey]?.[b1Key];
+    const price2 = entry[b2TypeKey]?.[b2Key];
+    if (!Number.isFinite(price1) && !Number.isFinite(price2)) continue;
+    const [yr, mo, dy] = entry.fechaRaw.split("-");
+    labels.push(`${dy}/${mo}`);
+    ve1Data.push(Number.isFinite(price1) ? getBaseExtrinsicValue(base1Strike, price1, entry.ggal, state.optionTypes.base1) : null);
+    ve2Data.push(Number.isFinite(price2) ? getBaseExtrinsicValue(base2Strike, price2, entry.ggal, state.optionTypes.base2) : null);
+    straddleData.push((Number.isFinite(price1) && Number.isFinite(price2)) ? price1 + price2 : null);
+    ggalData.push(Number.isFinite(entry.ggal) ? entry.ggal : null);
+  }
+
+  if (!labels.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const b1Label = formatOptionLabel(state.optionTypes.base1, base1Strike);
+  const b2Label = formatOptionLabel(state.optionTypes.base2, base2Strike);
+  elements.tasasTemporalChartTitle.textContent = `VE Temporal — ${b1Label} / ${b2Label}`;
+
+  const commonPointStyle = {
+    pointRadius: 3,
+    pointHoverRadius: 5,
+    tension: 0.2,
+    fill: false,
+    spanGaps: true
+  };
+
+  const datasets = [
+    {
+      label: `VE ${b1Label}`,
+      data: ve1Data,
+      borderColor: "#4fc3f7",
+      backgroundColor: "#4fc3f7",
+      yAxisID: "y",
+      ...commonPointStyle
+    },
+    {
+      label: `VE ${b2Label}`,
+      data: ve2Data,
+      borderColor: "#ef5350",
+      backgroundColor: "#ef5350",
+      yAxisID: "y",
+      ...commonPointStyle
+    },
+    {
+      label: "Straddle",
+      data: straddleData,
+      borderColor: "#66bb6a",
+      backgroundColor: "#66bb6a",
+      yAxisID: "y2",
+      borderDash: [4, 3],
+      pointRadius: 2,
+      pointHoverRadius: 4,
+      tension: 0.2,
+      fill: false,
+      spanGaps: true
+    },
+    {
+      label: "GGAL",
+      data: ggalData,
+      borderColor: "#f0c24b",
+      backgroundColor: "#f0c24b",
+      yAxisID: "y3",
+      borderDash: [6, 3],
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      tension: 0.2,
+      fill: false,
+      spanGaps: true
+    }
+  ];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+
+  state.charts[chartKey] = new Chart(elements.tasasTemporalChart, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "nearest", intersect: false },
+      layout: { padding: { left: 10, right: 22, top: 10 } },
+      plugins: {
+        legend: {
+          display: true,
+          onClick: handlePersistentLegendClick,
+          labels: { color: "#c7d7ef" }
+        },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: "#111c29",
+          borderColor: "rgba(116, 150, 189, 0.22)",
+          borderWidth: 1,
+          titleColor: "#eaf2ff",
+          bodyColor: "#c7d7ef",
+          callbacks: {
+            label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed.y, 2)}`
+          }
+        }
+      },
+      animation: false,
+      scales: {
+        x: {
+          offset: true,
+          ticks: { color: "#8ea7c6", maxRotation: 45, minRotation: 45, autoSkip: true, maxTicksLimit: 20 },
+          grid: { color: "rgba(116, 150, 189, 0.08)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y: {
+          position: "left",
+          grace: "5%",
+          ticks: { color: "#8ea7c6", callback: (v) => formatNumber(v, 0) },
+          grid: { color: "rgba(116, 150, 189, 0.12)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y2: {
+          position: "right",
+          grace: "5%",
+          ticks: { color: "#66bb6a", callback: (v) => formatNumber(v, 2) },
+          grid: { drawOnChartArea: false },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y3: {
+          position: "right",
+          offset: true,
+          grace: "5%",
+          ticks: { color: "#f0c24b", callback: (v) => formatNumber(v, 0) },
+          grid: { drawOnChartArea: false },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        }
+      }
+    }
+  });
+}
+
+function renderTasasPrimaChart(base1Strike, base2Strike) {
+  const chartKey = "tasasPrima";
+
+  if (!Number.isFinite(base1Strike) || !Number.isFinite(base2Strike) || !state.historyByDate.length) {
+    destroyChart(chartKey);
+    return;
+  }
+
+  const b1Key = strikeKey(base1Strike);
+  const b2Key = strikeKey(base2Strike);
+  const b1TypeKey = state.optionTypes.base1 === "put" ? "puts" : "calls";
+  const b2TypeKey = state.optionTypes.base2 === "put" ? "puts" : "calls";
+
+  const sorted = [...state.historyByDate].sort((a, b) => a.fechaRaw.localeCompare(b.fechaRaw));
+  const labels = [];
+  const p1Data = [];
+  const p2Data = [];
+  const straddleData = [];
+  const ggalData = [];
+
+  for (const entry of sorted) {
+    if (state.selectedFechaDesde && entry.fechaRaw < state.selectedFechaDesde) continue;
+    const price1 = entry[b1TypeKey]?.[b1Key];
+    const price2 = entry[b2TypeKey]?.[b2Key];
+    if (!Number.isFinite(price1) && !Number.isFinite(price2)) continue;
+    const [yr, mo, dy] = entry.fechaRaw.split("-");
+    labels.push(`${dy}/${mo}`);
+    p1Data.push(Number.isFinite(price1) ? price1 : null);
+    p2Data.push(Number.isFinite(price2) ? price2 : null);
+    straddleData.push((Number.isFinite(price1) && Number.isFinite(price2)) ? price1 + price2 : null);
+    ggalData.push(Number.isFinite(entry.ggal) ? entry.ggal : null);
+  }
+
+  if (!labels.length) { destroyChart(chartKey); return; }
+
+  const b1Label = formatOptionLabel(state.optionTypes.base1, base1Strike);
+  const b2Label = formatOptionLabel(state.optionTypes.base2, base2Strike);
+  elements.tasasPrimaChartTitle.textContent = `Prima Temporal — ${b1Label} / ${b2Label}`;
+
+  const commonPointStyle = { pointRadius: 3, pointHoverRadius: 5, tension: 0.2, fill: false, spanGaps: true };
+
+  const datasets = [
+    { label: `Prima ${b1Label}`, data: p1Data, borderColor: "#4fc3f7", backgroundColor: "#4fc3f7", yAxisID: "y", ...commonPointStyle },
+    { label: `Prima ${b2Label}`, data: p2Data, borderColor: "#ef5350", backgroundColor: "#ef5350", yAxisID: "y", ...commonPointStyle },
+    { label: "Straddle", data: straddleData, borderColor: "#66bb6a", backgroundColor: "#66bb6a", yAxisID: "y2", borderDash: [4, 3], pointRadius: 2, pointHoverRadius: 4, tension: 0.2, fill: false, spanGaps: true },
+    { label: "GGAL", data: ggalData, borderColor: "#f0c24b", backgroundColor: "#f0c24b", yAxisID: "y3", borderDash: [6, 3], pointRadius: 0, pointHoverRadius: 4, tension: 0.2, fill: false, spanGaps: true }
+  ];
+
+  captureChartVisibilityState(chartKey);
+  applyChartVisibilityState(chartKey, datasets);
+  destroyChart(chartKey);
+
+  state.charts[chartKey] = new Chart(elements.tasasPrimaChart, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "nearest", intersect: false },
+      layout: { padding: { left: 10, right: 22, top: 10 } },
+      plugins: {
+        legend: { display: true, onClick: handlePersistentLegendClick, labels: { color: "#c7d7ef" } },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: "#111c29",
+          borderColor: "rgba(116, 150, 189, 0.22)",
+          borderWidth: 1,
+          titleColor: "#eaf2ff",
+          bodyColor: "#c7d7ef",
+          callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.parsed.y, 2)}` }
+        }
+      },
+      animation: false,
+      scales: {
+        x: {
+          offset: true,
+          ticks: { color: "#8ea7c6", maxRotation: 45, minRotation: 45, autoSkip: true, maxTicksLimit: 20 },
+          grid: { color: "rgba(116, 150, 189, 0.08)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y: {
+          position: "left",
+          grace: "5%",
+          ticks: { color: "#8ea7c6", callback: (v) => formatNumber(v, 2) },
+          grid: { color: "rgba(116, 150, 189, 0.12)" },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y2: {
+          position: "right",
+          grace: "5%",
+          ticks: { color: "#66bb6a", callback: (v) => formatNumber(v, 2) },
+          grid: { drawOnChartArea: false },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        },
+        y3: {
+          position: "right",
+          offset: true,
+          grace: "5%",
+          ticks: { color: "#f0c24b", callback: (v) => formatNumber(v, 0) },
+          grid: { drawOnChartArea: false },
+          border: { color: "rgba(116, 150, 189, 0.18)" }
+        }
+      }
+    }
+  });
 }
