@@ -4777,48 +4777,120 @@ function renderTasasCrossChart() {
   const dateLabel = entry.fechaRaw ?? "";
   elements.tasasCrossChartTitle.textContent = `VE por Strike${dateLabel ? ` — ${dateLabel}` : ""}`;
 
-  const commonPointStyle = {
-    pointRadius: 4,
-    pointHoverRadius: 6,
-    tension: 0.2,
-    fill: false,
-    spanGaps: true
-  };
-
+  // Datasets are transparent: the plugin draws the actual bars centered on each
+  // category so that the smaller bar appears visually "inside" the larger one.
   const datasets = [
-    {
-      label: "VEC (Call)",
-      data: vecData,
-      borderColor: "#4fc3f7",
-      backgroundColor: "#4fc3f7",
-      ...commonPointStyle
-    },
-    {
-      label: "VEP (Put)",
-      data: vepData,
-      borderColor: "#ef5350",
-      backgroundColor: "#ef5350",
-      ...commonPointStyle
-    }
+    { label: "VEC (Call)", data: vecData, backgroundColor: "transparent", borderColor: "transparent", hoverBackgroundColor: "transparent", hoverBorderColor: "transparent" },
+    { label: "VEP (Put)",  data: vepData, backgroundColor: "transparent", borderColor: "transparent", hoverBackgroundColor: "transparent", hoverBorderColor: "transparent" }
   ];
 
   captureChartVisibilityState(chartKey);
   applyChartVisibilityState(chartKey, datasets);
   destroyChart(chartKey);
 
+  const veStrikeLabelsPlugin = {
+    id: "veStrikeLabels",
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      const meta0 = chart.getDatasetMeta(0);
+      const meta1 = chart.getDatasetMeta(1);
+      const yScale = chart.scales.y;
+      const yZero = yScale.getPixelForValue(0);
+      const hidden0 = meta0.hidden;
+      const hidden1 = meta1.hidden;
+
+      const drawBar = (catCenter, groupW, value, fillColor, strokeColor) => {
+        if (value === null || value === undefined || !Number.isFinite(value)) return;
+        const yTop = yScale.getPixelForValue(value);
+        const barH = yZero - yTop;
+        if (barH <= 0) return;
+        const r = Math.min(4, groupW / 4, barH / 2);
+        ctx.save();
+        ctx.fillStyle = fillColor;
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(catCenter - groupW / 2, yTop, groupW, barH, [r, r, 0, 0]);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      vecData.forEach((vecVal, i) => {
+        const vepVal = vepData[i];
+        const bar0 = meta0.data[i];
+        const bar1 = meta1.data[i];
+        // Average of the two grouped bar centers = category center
+        const catCenter = (bar0.x + bar1.x) / 2;
+        // Combined width covers the full bar group
+        const groupW = bar0.width + bar1.width;
+
+        // Draw larger bar first (behind), smaller bar on top
+        if (!hidden0 && !hidden1) {
+          if ((vecVal ?? 0) >= (vepVal ?? 0)) {
+            drawBar(catCenter, groupW, vecVal, "rgba(79, 195, 247, 0.65)", "#4fc3f7");
+            drawBar(catCenter, groupW, vepVal, "rgba(239, 83, 80, 0.85)",  "#ef5350");
+          } else {
+            drawBar(catCenter, groupW, vepVal, "rgba(239, 83, 80, 0.65)", "#ef5350");
+            drawBar(catCenter, groupW, vecVal, "rgba(79, 195, 247, 0.85)", "#4fc3f7");
+          }
+        } else if (!hidden0) {
+          drawBar(catCenter, groupW, vecVal, "rgba(79, 195, 247, 0.7)", "#4fc3f7");
+        } else if (!hidden1) {
+          drawBar(catCenter, groupW, vepVal, "rgba(239, 83, 80, 0.7)", "#ef5350");
+        }
+
+        // Labels above each bar's top edge
+        ctx.save();
+        ctx.font = "bold 10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+
+        if (!hidden0 && vecVal !== null && Number.isFinite(vecVal)) {
+          const yTop = yScale.getPixelForValue(vecVal);
+          ctx.fillStyle = "#69f0ae";
+          ctx.fillText(labels[i], catCenter, yTop - 12);
+          ctx.fillText(formatNumber(vecVal, 2), catCenter, yTop - 2);
+        }
+        if (!hidden1 && vepVal !== null && Number.isFinite(vepVal)) {
+          const yTop = yScale.getPixelForValue(vepVal);
+          const vecTop = (!hidden0 && Number.isFinite(vecVal)) ? yScale.getPixelForValue(vecVal) : Infinity;
+          // Skip label if too close to the VEC label (avoids overlap)
+          if (Math.abs(yTop - vecTop) > 20 || hidden0) {
+            ctx.fillStyle = "#ff1744";
+            ctx.fillText(labels[i], catCenter, yTop - 12);
+            ctx.fillText(formatNumber(vepVal, 2), catCenter, yTop - 2);
+          }
+        }
+        ctx.restore();
+      });
+    }
+  };
+
   state.charts[chartKey] = new Chart(elements.tasasCrossChart, {
-    type: "line",
+    type: "bar",
     data: { labels, datasets },
+    plugins: [veStrikeLabelsPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: "nearest", intersect: false },
+      interaction: { mode: "index", intersect: false },
       layout: { padding: { left: 10, right: 22, top: 10 } },
       plugins: {
         legend: {
           display: true,
           onClick: handlePersistentLegendClick,
-          labels: { color: "#c7d7ef" }
+          labels: {
+            color: "#c7d7ef",
+            generateLabels(chart) {
+              return chart.data.datasets.map((ds, i) => {
+                const meta = chart.getDatasetMeta(i);
+                const fillColor = i === 0 ? "rgba(79, 195, 247, 0.7)" : "rgba(239, 83, 80, 0.7)";
+                const strokeColor = i === 0 ? "#4fc3f7" : "#ef5350";
+                return { text: ds.label, fillStyle: fillColor, strokeStyle: strokeColor, lineWidth: 1, datasetIndex: i, hidden: meta.hidden, fontColor: "#c7d7ef" };
+              });
+            }
+          }
         },
         tooltip: {
           displayColors: true,
@@ -5274,6 +5346,38 @@ function renderTasasSkewChart() {
   state.charts[chartKey] = new Chart(elements.tasasSkewChart, { type: "line", data: { datasets }, options: opts });
 }
 
+function createTemporalLivePlugin(chartKey, liveIndex, seriesEntries) {
+  return {
+    id: `pointLabels-${chartKey}`,
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "12px Barlow, sans-serif";
+
+      seriesEntries.forEach(({ datasetIndex, values }) => {
+        const datasetMeta = chart.getDatasetMeta(datasetIndex);
+        if (!datasetMeta?.data) return;
+
+        const targetIndex = liveIndex >= 0 ? liveIndex : values.length - 1;
+        const value = values[targetIndex];
+        if (!Number.isFinite(value)) return;
+
+        const element = datasetMeta.data[targetIndex];
+        if (!element) return;
+
+        const label = formatNumber(value, 2);
+        const placement = chooseSpecialLabelPlacement(chart, element, label, ctx);
+        ctx.fillStyle = liveIndex >= 0 ? "#22c55e" : "#a78bfa";
+        ctx.textAlign = placement.align;
+        ctx.textBaseline = placement.baseline;
+        ctx.fillText(label, placement.x, placement.y);
+      });
+
+      ctx.restore();
+    }
+  };
+}
+
 function renderTasasTemporalChart(base1Strike, base2Strike) {
   const chartKey = "tasasTemporal";
 
@@ -5287,18 +5391,25 @@ function renderTasasTemporalChart(base1Strike, base2Strike) {
   const b1TypeKey = state.optionTypes.base1 === "put" ? "puts" : "calls";
   const b2TypeKey = state.optionTypes.base2 === "put" ? "puts" : "calls";
 
-  const sorted = [...state.historyByDate].sort((a, b) => a.fechaRaw.localeCompare(b.fechaRaw));
+  const allEntries = [...state.historyByDate];
+  if (state.liveEntry && !state.historyByDate.some((e) => e.fechaRaw === state.liveEntry.fechaRaw)) {
+    allEntries.push({ ...state.liveEntry, isLive: true });
+  }
+  const sorted = allEntries.sort((a, b) => a.fechaRaw.localeCompare(b.fechaRaw));
+
   const labels = [];
   const ve1Data = [];
   const ve2Data = [];
   const straddleData = [];
   const ggalData = [];
+  let liveIndex = -1;
 
   for (const entry of sorted) {
     if (state.selectedFechaDesde && entry.fechaRaw < state.selectedFechaDesde) continue;
     const price1 = entry[b1TypeKey]?.[b1Key];
     const price2 = entry[b2TypeKey]?.[b2Key];
     if (!Number.isFinite(price1) && !Number.isFinite(price2)) continue;
+    if (entry.isLive) liveIndex = labels.length;
     const [yr, mo, dy] = entry.fechaRaw.split("-");
     labels.push(`${dy}/${mo}`);
     ve1Data.push(Number.isFinite(price1) ? getBaseExtrinsicValue(base1Strike, price1, entry.ggal, state.optionTypes.base1) : null);
@@ -5316,12 +5427,18 @@ function renderTasasTemporalChart(base1Strike, base2Strike) {
   const b2Label = formatOptionLabel(state.optionTypes.base2, base2Strike);
   elements.tasasTemporalChartTitle.textContent = `VE Temporal — ${b1Label} / ${b2Label}`;
 
-  const commonPointStyle = {
-    pointRadius: 3,
-    pointHoverRadius: 5,
-    tension: 0.2,
-    fill: false,
-    spanGaps: true
+  const livePointRadius = (dataIndex, defaultRadius) => {
+    if (dataIndex === liveIndex) return 6;
+    const lastIdx = liveIndex >= 0 ? liveIndex - 1 : ve1Data.length - 1;
+    if (dataIndex === lastIdx) return 5;
+    return defaultRadius;
+  };
+
+  const livePointColor = (dataIndex, baseColor) => {
+    if (dataIndex === liveIndex) return "#22c55e";
+    const lastIdx = liveIndex >= 0 ? liveIndex - 1 : ve1Data.length - 1;
+    if (dataIndex === lastIdx) return "#a78bfa";
+    return baseColor;
   };
 
   const datasets = [
@@ -5331,7 +5448,13 @@ function renderTasasTemporalChart(base1Strike, base2Strike) {
       borderColor: "#4fc3f7",
       backgroundColor: "#4fc3f7",
       yAxisID: "y",
-      ...commonPointStyle
+      pointRadius: (context) => livePointRadius(context.dataIndex, 3),
+      pointHoverRadius: 5,
+      pointBackgroundColor: (context) => livePointColor(context.dataIndex, "#4fc3f7"),
+      segment: { borderDash: (context) => getLiveSegmentBorderDash(context, liveIndex) },
+      tension: 0.2,
+      fill: false,
+      spanGaps: true
     },
     {
       label: `VE ${b2Label}`,
@@ -5339,7 +5462,13 @@ function renderTasasTemporalChart(base1Strike, base2Strike) {
       borderColor: "#ef5350",
       backgroundColor: "#ef5350",
       yAxisID: "y",
-      ...commonPointStyle
+      pointRadius: (context) => livePointRadius(context.dataIndex, 3),
+      pointHoverRadius: 5,
+      pointBackgroundColor: (context) => livePointColor(context.dataIndex, "#ef5350"),
+      segment: { borderDash: (context) => getLiveSegmentBorderDash(context, liveIndex) },
+      tension: 0.2,
+      fill: false,
+      spanGaps: true
     },
     {
       label: "Straddle",
@@ -5348,6 +5477,7 @@ function renderTasasTemporalChart(base1Strike, base2Strike) {
       backgroundColor: "#66bb6a",
       yAxisID: "y2",
       borderDash: [4, 3],
+      segment: { borderDash: (context) => getLiveSegmentBorderDash(context, liveIndex) },
       pointRadius: 2,
       pointHoverRadius: 4,
       tension: 0.2,
@@ -5361,6 +5491,7 @@ function renderTasasTemporalChart(base1Strike, base2Strike) {
       backgroundColor: "#f0c24b",
       yAxisID: "y3",
       borderDash: [6, 3],
+      segment: { borderDash: (context) => getLiveSegmentBorderDash(context, liveIndex) },
       pointRadius: 0,
       pointHoverRadius: 4,
       tension: 0.2,
@@ -5403,7 +5534,7 @@ function renderTasasTemporalChart(base1Strike, base2Strike) {
       scales: {
         x: {
           offset: true,
-          ticks: { color: "#8ea7c6", maxRotation: 45, minRotation: 45, autoSkip: true, maxTicksLimit: 20 },
+          ticks: { color: "#8ea7c6", maxRotation: 45, minRotation: 45, autoSkip: false },
           grid: { color: "rgba(116, 150, 189, 0.08)" },
           border: { color: "rgba(116, 150, 189, 0.18)" }
         },
@@ -5430,7 +5561,11 @@ function renderTasasTemporalChart(base1Strike, base2Strike) {
           border: { color: "rgba(116, 150, 189, 0.18)" }
         }
       }
-    }
+    },
+    plugins: [createTemporalLivePlugin(chartKey, liveIndex, [
+      { datasetIndex: 0, values: ve1Data },
+      { datasetIndex: 1, values: ve2Data }
+    ])]
   });
 }
 
