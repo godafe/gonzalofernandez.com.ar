@@ -139,7 +139,10 @@ const state = {
   rawPayload: null,
   selectedFechaDesde: null,
   griegasSelectedStrike: null,
-  griegasOptionType: "call"
+  griegasSelectedStrike2: null,
+  griegasOptionType: "call",
+  griegasOptionType2: "call",
+  griegasCruzar: false
 };
 
 const elements = {
@@ -200,6 +203,7 @@ const elements = {
   crossCountField: document.getElementById("crossCountField"),
   crossCountInput: document.getElementById("crossCountInput"),
   reloadButton: document.getElementById("reloadButton"),
+  refreshButton: document.getElementById("refreshButton"),
   ratesChartCard: document.getElementById("ratesChartCard"),
   ratesChartCollapseButton: document.getElementById("ratesChartCollapseButton"),
   ratesChartPanelBody: document.getElementById("ratesChartPanelBody"),
@@ -325,6 +329,13 @@ const elements = {
   ggalOverrideInput: document.getElementById("ggalOverrideInput"),
   griegasTypeField:             document.getElementById("griegasTypeField"),
   griegasTypeButton:            document.getElementById("griegasTypeButton"),
+  griegasStrikeSelect:          document.getElementById("griegasStrikeSelect"),
+  griegasCruzarCheck:           document.getElementById("griegasCruzarCheck"),
+  griegasSwapField:             document.getElementById("griegasSwapField"),
+  griegasSwapButton:            document.getElementById("griegasSwapButton"),
+  griegasBase2Field:            document.getElementById("griegasBase2Field"),
+  griegasBase2TypeButton:       document.getElementById("griegasBase2TypeButton"),
+  griegasBase2Select:           document.getElementById("griegasBase2Select"),
   griegasTableCollapseButton:   document.getElementById("griegasTableCollapseButton"),
   griegasTablePanelBody:        document.getElementById("griegasTablePanelBody"),
   griegasSimpleCard:            document.getElementById("griegasSimpleCard"),
@@ -432,6 +443,37 @@ elements.griegasTypeButton.addEventListener("click", () => {
   updateOptionTypeButton(elements.griegasTypeButton, state.griegasOptionType);
   renderTable();
 });
+elements.griegasStrikeSelect.addEventListener("change", () => {
+  const val = elements.griegasStrikeSelect.value;
+  state.griegasSelectedStrike = val ? parseFloat(val) : null;
+  renderTable();
+});
+elements.griegasCruzarCheck.addEventListener("change", () => {
+  state.griegasCruzar = elements.griegasCruzarCheck.checked;
+  syncGriegasCruzarUi();
+  renderTable();
+});
+elements.griegasSwapButton.addEventListener("click", () => {
+  const s1 = state.griegasSelectedStrike, s2 = state.griegasSelectedStrike2;
+  const t1 = state.griegasOptionType, t2 = state.griegasOptionType2;
+  state.griegasSelectedStrike  = s2; state.griegasSelectedStrike2 = s1;
+  state.griegasOptionType      = t2; state.griegasOptionType2     = t1;
+  elements.griegasStrikeSelect.value = s2 !== null ? String(s2) : "";
+  elements.griegasBase2Select.value  = s1 !== null ? String(s1) : "";
+  updateOptionTypeButton(elements.griegasTypeButton,      state.griegasOptionType);
+  updateOptionTypeButton(elements.griegasBase2TypeButton, state.griegasOptionType2);
+  renderTable();
+});
+elements.griegasBase2TypeButton.addEventListener("click", () => {
+  state.griegasOptionType2 = state.griegasOptionType2 === "call" ? "put" : "call";
+  updateOptionTypeButton(elements.griegasBase2TypeButton, state.griegasOptionType2);
+  renderTable();
+});
+elements.griegasBase2Select.addEventListener("change", () => {
+  const val = elements.griegasBase2Select.value;
+  state.griegasSelectedStrike2 = val ? parseFloat(val) : null;
+  renderTable();
+});
 elements.ratesChartCollapseButton.addEventListener("click", () => togglePanel("ratesChartCollapsed"));
 elements.rateDiffChartCollapseButton.addEventListener("click", () => togglePanel("rateDiffChartCollapsed"));
 elements.ratioChartCollapseButton.addEventListener("click", () => togglePanel("ratioChartCollapsed"));
@@ -467,6 +509,7 @@ elements.rateDaysInput.addEventListener("input", renderTable);
 elements.crossCountInput.addEventListener("input", renderTable);
 elements.strikeRangeSelect.addEventListener("change", renderTable);
 elements.reloadButton.addEventListener("click", reloadSheetData);
+elements.refreshButton.addEventListener("click", reloadSheetData);
 elements.multipleTableBody.addEventListener("click", handleMultipleTableClick);
 elements.tableBody.addEventListener("dblclick", (e) => {
   const td = e.target.closest("td[data-fecha-raw]");
@@ -721,7 +764,10 @@ function populateVencimientoSelector() {
 function handleVencimientoChange() {
   state.selectedVencimiento = elements.vencimientoSelect.value || null;
   state.selectedFechaDesde = null;
-  state.griegasSelectedStrike = null;
+  state.griegasSelectedStrike  = null;
+  state.griegasSelectedStrike2 = null;
+  elements.griegasStrikeSelect.value = "";
+  elements.griegasBase2Select.value  = "";
   elements.dteInput.hidden = true;
   elements.dteInput.value = "";
 
@@ -1160,6 +1206,12 @@ function applyStoredSettings() {
   state.panels.griegasVegaChartCollapsed = storedSettings.griegasVegaChartCollapsed === true;
   state.panels.griegasThetaChartCollapsed = storedSettings.griegasThetaChartCollapsed === true;
   state.griegasOptionType = (storedSettings.griegasOptionType === "put") ? "put" : "call";
+  state.griegasCruzar = storedSettings.griegasCruzar === true;
+  state.griegasOptionType2 = (storedSettings.griegasOptionType2 === "put") ? "put" : "call";
+  state.griegasSelectedStrike = Number.isFinite(storedSettings.griegasSelectedStrike) && storedSettings.griegasSelectedStrike > 0 ? storedSettings.griegasSelectedStrike : null;
+  state.griegasSelectedStrike2 = Number.isFinite(storedSettings.griegasSelectedStrike2) && storedSettings.griegasSelectedStrike2 > 0 ? storedSettings.griegasSelectedStrike2 : null;
+  elements.griegasCruzarCheck.checked = state.griegasCruzar;
+  updateOptionTypeButton(elements.griegasBase2TypeButton, state.griegasOptionType2);
   state.panels.showStatus = storedSettings.showStatus !== false;
   state.panels.showConfig = storedSettings.showConfig !== false;
   state.panels.showParametros = storedSettings.showParametros !== false;
@@ -1343,6 +1395,10 @@ function readStoredSettings() {
       griegasVegaChartCollapsed: parsed.griegasVegaChartCollapsed,
       griegasThetaChartCollapsed: parsed.griegasThetaChartCollapsed,
       griegasOptionType: parsed.griegasOptionType,
+      griegasCruzar: parsed.griegasCruzar === true,
+      griegasOptionType2: parsed.griegasOptionType2,
+      griegasSelectedStrike: Number.isFinite(Number(parsed.griegasSelectedStrike)) && Number(parsed.griegasSelectedStrike) > 0 ? Number(parsed.griegasSelectedStrike) : null,
+      griegasSelectedStrike2: Number.isFinite(Number(parsed.griegasSelectedStrike2)) && Number(parsed.griegasSelectedStrike2) > 0 ? Number(parsed.griegasSelectedStrike2) : null,
       showStatus: parsed.showStatus !== false,
       showConfig: parsed.showConfig !== false,
       showParametros: parsed.showParametros !== false,
@@ -1400,6 +1456,10 @@ function persistSettings(settings) {
       griegasVegaChartCollapsed: state.panels.griegasVegaChartCollapsed,
       griegasThetaChartCollapsed: state.panels.griegasThetaChartCollapsed,
       griegasOptionType: state.griegasOptionType,
+      griegasCruzar: state.griegasCruzar,
+      griegasOptionType2: state.griegasOptionType2,
+      griegasSelectedStrike: state.griegasSelectedStrike,
+      griegasSelectedStrike2: state.griegasSelectedStrike2,
       showStatus: state.panels.showStatus,
       showConfig: state.panels.showConfig,
       showParametros: state.panels.showParametros,
@@ -1459,6 +1519,12 @@ function syncOptionTypeUi() {
   updateOptionTypeButton(elements.base1TypeButton, state.optionTypes.base1);
   updateOptionTypeButton(elements.base2TypeButton, state.optionTypes.base2);
   updateOptionTypeButton(elements.griegasTypeButton, state.griegasOptionType);
+}
+
+function syncGriegasCruzarUi() {
+  const on = state.griegasCruzar;
+  elements.griegasSwapField.hidden  = !on;
+  elements.griegasBase2Field.hidden = !on;
 }
 
 function updateOptionTypeButton(button, optionType) {
@@ -1711,6 +1777,7 @@ function syncViewModeUi() {
   elements.rateDaysField.hidden = isChainLike || isTasas;
   elements.crossCountField.hidden = !isMultiple;
   elements.griegasTypeField.hidden = !isGreigas;
+  if (isGreigas) syncGriegasCruzarUi();
   elements.tasaRField.hidden = !isGreigas;
   elements.ggalOverrideField.hidden = !isGreigas;
   elements.dteField.hidden = !isGreigas;
@@ -4197,6 +4264,7 @@ function renderGreeksChain(strikeRangeAll = false) {
     tr.style.cursor = "pointer";
     tr.addEventListener("dblclick", () => {
       state.griegasSelectedStrike = (state.griegasSelectedStrike === strike) ? null : strike;
+      elements.griegasStrikeSelect.value = state.griegasSelectedStrike !== null ? String(state.griegasSelectedStrike) : "";
       tbody.querySelectorAll("tr").forEach((r) => r.classList.remove("greeks-row-selected"));
       if (state.griegasSelectedStrike !== null) tr.classList.add("greeks-row-selected");
       renderGreeksIVChart(firstAtm);
@@ -4268,6 +4336,30 @@ function renderGreeksChain(strikeRangeAll = false) {
   renderGreeksThetaChart(firstAtm);
 }
 
+function strikeAbbrev(strike) {
+  return String(Math.floor(strike / 100));
+}
+
+function populateGreekStrikeSelect(strikes) {
+  function fillSelect(sel, currentVal) {
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">ATM</option>';
+    for (const s of strikes) {
+      const opt = document.createElement("option");
+      opt.value = String(s);
+      opt.textContent = formatNumber(s, 0);
+      sel.appendChild(opt);
+    }
+    if (currentVal !== null) {
+      sel.value = String(currentVal);
+    } else if (prev && strikes.includes(parseFloat(prev))) {
+      sel.value = prev;
+    }
+  }
+  fillSelect(elements.griegasStrikeSelect,  state.griegasSelectedStrike);
+  fillSelect(elements.griegasBase2Select,   state.griegasSelectedStrike2);
+}
+
 function renderGreeksSimpleChain(strikeRangeAll = false) {
   const tbody = elements.griegasSimpleTableBody;
   tbody.innerHTML = "";
@@ -4287,6 +4379,8 @@ function renderGreeksSimpleChain(strikeRangeAll = false) {
   const visibleStrikes = (strikeRangeAll || !Number.isFinite(ggal))
     ? allStrikes
     : allStrikes.filter((s) => s >= ggal * 0.75 && s <= ggal * 1.25);
+
+  populateGreekStrikeSelect(allStrikes);
 
   let atmLow = null, atmHigh = null;
   if (Number.isFinite(ggal)) {
@@ -4321,6 +4415,7 @@ function renderGreeksSimpleChain(strikeRangeAll = false) {
     tr.style.cursor = "pointer";
     tr.addEventListener("click", () => {
       state.griegasSelectedStrike = (state.griegasSelectedStrike === strike) ? null : strike;
+      elements.griegasStrikeSelect.value = state.griegasSelectedStrike !== null ? String(state.griegasSelectedStrike) : "";
       tbody.querySelectorAll("tr").forEach((r) => r.classList.remove("greeks-row-selected"));
       if (state.griegasSelectedStrike !== null) tr.classList.add("greeks-row-selected");
       const atm = atmLow ?? atmHigh;
@@ -4370,6 +4465,73 @@ function renderGreeksSimpleChain(strikeRangeAll = false) {
   });
 }
 
+function createGreeksLastValuePlugin(chartKey, formatter) {
+  return {
+    id: `greeksLastValue-${chartKey}`,
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "bold 12px Barlow, sans-serif";
+
+      const entries = [];
+      chart.data.datasets.forEach((dataset, dsIndex) => {
+        const meta = chart.getDatasetMeta(dsIndex);
+        if (meta.hidden) return;
+        const data = dataset.data;
+        let lastIdx = -1;
+        for (let i = data.length - 1; i >= 0; i--) {
+          if (Number.isFinite(data[i])) { lastIdx = i; break; }
+        }
+        if (lastIdx < 0) return;
+        const element = meta.data[lastIdx];
+        if (!element) return;
+        entries.push({ element, value: data[lastIdx], color: dataset.borderColor ?? "#c7d7ef" });
+      });
+
+      entries.sort((a, b) => a.element.y - b.element.y);
+
+      const THRESHOLD = 20;
+      const OFFSET = 10;
+      const directions = entries.map(() => -1);
+      for (let i = 0; i < entries.length - 1; i++) {
+        if (Math.abs(entries[i + 1].element.y - entries[i].element.y) < THRESHOLD) {
+          directions[i]     = -1;
+          directions[i + 1] = +1;
+        }
+      }
+
+      const chartArea = chart.chartArea;
+      const hPad = 12;
+      for (let i = 0; i < entries.length; i++) {
+        const { element, value, color } = entries[i];
+        const label = formatter(value);
+
+        let placement;
+        if (directions[i] === -1) {
+          placement = chooseSpecialLabelPlacement(chart, element, label, ctx);
+        } else {
+          const textWidth = ctx.measureText(label).width;
+          const y = element.y + OFFSET;
+          let x = element.x, align = "center";
+          if (element.x + textWidth / 2 > chartArea.right - 4) {
+            x = chartArea.right - hPad; align = "right";
+          } else if (element.x - textWidth / 2 < chartArea.left + 4) {
+            x = chartArea.left + hPad; align = "left";
+          }
+          placement = { x, y, align, baseline: "top" };
+        }
+
+        ctx.fillStyle = color;
+        ctx.textAlign = placement.align;
+        ctx.textBaseline = placement.baseline;
+        ctx.fillText(label, placement.x, placement.y);
+      }
+
+      ctx.restore();
+    }
+  };
+}
+
 function renderGreeksPriceChart(firstAtm) {
   const chartKey = "griegasPrice";
   const k = state.griegasSelectedStrike ?? firstAtm;
@@ -4391,14 +4553,27 @@ function renderGreeksPriceChart(firstAtm) {
     entries = entries.filter((e) => e.fechaRaw >= state.selectedFechaDesde);
   }
 
+  const isCruzar = state.griegasCruzar;
+  const k2p    = isCruzar ? (state.griegasSelectedStrike2 ?? firstAtm) : null;
+  const isCall2p = state.griegasOptionType2 !== "put";
+  const kStr2p = k2p ? strikeKey(k2p) : null;
+
   const labels = [];
   const prices = [];
+  const prices2 = [];
 
   for (const entry of entries) {
     const price = isCall ? entry.calls?.[kStr] : entry.puts?.[kStr];
-    if (!Number.isFinite(price)) continue;
+    const p1 = (Number.isFinite(price) && price > 0) ? price : NaN;
+    let p2 = NaN;
+    if (isCruzar && k2p) {
+      const price2 = isCall2p ? entry.calls?.[kStr2p] : entry.puts?.[kStr2p];
+      p2 = (Number.isFinite(price2) && price2 > 0) ? price2 : NaN;
+    }
+    if (!Number.isFinite(p1) && !Number.isFinite(p2)) continue;
     labels.push(formatChartDate(formatDate(entry.fechaRaw)));
-    prices.push(price);
+    prices.push(Number.isFinite(p1) ? p1 : NaN);
+    prices2.push(Number.isFinite(p2) ? p2 : NaN);
   }
 
   if (!labels.length) {
@@ -4408,13 +4583,15 @@ function renderGreeksPriceChart(firstAtm) {
 
   const typeLabel = isCall ? "Call" : "Put";
   const color = isCall ? "#22c55e" : "#e14d4d";
-  const strikeLabel = state.griegasSelectedStrike
-    ? `Strike ${formatNumber(k, 0)} (seleccionado)`
-    : `Strike ${formatNumber(k, 0)} (ATM)`;
-  elements.griegasPriceChartTitle.textContent = `Precio histórico — ${typeLabel} — ${strikeLabel}`;
+  const typeStrike1p = `${typeLabel} ${formatNumber(k, 0)}`;
+  const titleSuffixP = isCruzar && k2p
+    ? `${typeStrike1p}/${isCall2p ? "Call" : "Put"} ${formatNumber(k2p, 0)}`
+    : typeStrike1p;
+  elements.griegasPriceChartTitle.textContent = `Precio histórico — ${titleSuffixP}`;
 
+  const labelB1 = `Precio ${isCall ? "C" : "P"}${strikeAbbrev(k)}`;
   const datasets = [{
-    label: `Precio ${typeLabel}`,
+    label: labelB1,
     data: prices,
     borderColor: color,
     backgroundColor: withAlphaFromHex(color, 0.12),
@@ -4425,6 +4602,21 @@ function renderGreeksPriceChart(firstAtm) {
     pointHoverRadius: 5,
     spanGaps: true
   }];
+
+  if (isCruzar && prices2.some((v) => Number.isFinite(v))) {
+    datasets.push({
+      label: `Precio ${isCall2p ? "C" : "P"}${strikeAbbrev(k2p)}`,
+      data: prices2,
+      borderColor: "#ff9f43",
+      backgroundColor: withAlphaFromHex("#ff9f43", 0.12),
+      borderWidth: 2,
+      tension: 0.28,
+      fill: false,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      spanGaps: true
+    });
+  }
 
   captureChartVisibilityState(chartKey);
   applyChartVisibilityState(chartKey, datasets);
@@ -4453,7 +4645,7 @@ function renderGreeksPriceChart(firstAtm) {
       scales: {
         x: {
           offset: true,
-          ticks: { color: "#8ea7c6", autoSkip: true, maxRotation: 45, minRotation: 45, maxTicksLimit: 24 },
+          ticks: { color: "#8ea7c6", autoSkip: false, maxRotation: 45, minRotation: 45 },
           grid: { color: "rgba(116, 150, 189, 0.08)" },
           border: { color: "rgba(116, 150, 189, 0.18)" }
         },
@@ -4464,7 +4656,8 @@ function renderGreeksPriceChart(firstAtm) {
           border: { color: "rgba(116, 150, 189, 0.18)" }
         }
       }
-    }
+    },
+    plugins: [createGreeksLastValuePlugin(chartKey, (v) => formatNumber(v, 2))]
   });
 }
 
@@ -4490,8 +4683,14 @@ function renderGreeksIVChart(firstAtm) {
     entries = entries.filter((e) => e.fechaRaw >= state.selectedFechaDesde);
   }
 
+  const isCruzar = state.griegasCruzar;
+  const k2     = isCruzar ? (state.griegasSelectedStrike2 ?? firstAtm) : null;
+  const isCall2 = state.griegasOptionType2 !== "put";
+  const kStr2  = k2 ? strikeKey(k2) : null;
+
   const labels = [];
   const ivValues = [];
+  const ivValues2 = [];
 
   for (const entry of entries) {
     const S = entry.ggal;
@@ -4500,10 +4699,16 @@ function renderGreeksIVChart(firstAtm) {
     if (!Number.isFinite(daysToOpex) || daysToOpex <= 0) continue;
     const T = daysToOpex / 365;
     const price = isCall ? entry.calls?.[kStr] : entry.puts?.[kStr];
-    const iv = Number.isFinite(price) ? greeksBSComputeIV(price, S, k, T, r, isCall) : NaN;
-    if (!Number.isFinite(iv)) continue;
+    const iv = (Number.isFinite(price) && price > 0) ? greeksBSComputeIV(price, S, k, T, r, isCall) : NaN;
+    let iv2 = NaN;
+    if (isCruzar && k2) {
+      const price2 = isCall2 ? entry.calls?.[kStr2] : entry.puts?.[kStr2];
+      iv2 = (Number.isFinite(price2) && price2 > 0) ? greeksBSComputeIV(price2, S, k2, T, r, isCall2) : NaN;
+    }
+    if (!Number.isFinite(iv) && !Number.isFinite(iv2)) continue;
     labels.push(formatChartDate(formatDate(entry.fechaRaw)));
-    ivValues.push(iv * 100);
+    ivValues.push(Number.isFinite(iv) ? iv * 100 : NaN);
+    ivValues2.push(Number.isFinite(iv2) ? iv2 * 100 : NaN);
   }
 
   if (!labels.length) {
@@ -4513,14 +4718,16 @@ function renderGreeksIVChart(firstAtm) {
 
   const typeLabel = isCall ? "Call" : "Put";
   const color = "#f0c24b";
-  const strikeLabel = state.griegasSelectedStrike
-    ? `Strike ${formatNumber(k, 0)} (seleccionado)`
-    : `Strike ${formatNumber(k, 0)} (ATM)`;
-  elements.griegasIVChartTitle.textContent = `IV histórica — ${typeLabel} — ${strikeLabel}`;
+  const typeStrike1iv = `${typeLabel} ${formatNumber(k, 0)}`;
+  const titleSuffixIV = isCruzar && k2
+    ? `${typeStrike1iv}/${isCall2 ? "Call" : "Put"} ${formatNumber(k2, 0)}`
+    : typeStrike1iv;
+  elements.griegasIVChartTitle.textContent = `IV histórica — ${titleSuffixIV}`;
 
   const fmtPct = (v) => (v != null ? v.toFixed(2) + "%" : "--");
+  const labelB1 = `IV ${isCall ? "C" : "P"}${strikeAbbrev(k)}`;
   const datasets = [{
-    label: `IV ${typeLabel}`,
+    label: labelB1,
     data: ivValues,
     borderColor: color,
     backgroundColor: withAlphaFromHex(color, 0.12),
@@ -4531,6 +4738,21 @@ function renderGreeksIVChart(firstAtm) {
     pointHoverRadius: 5,
     spanGaps: true
   }];
+
+  if (isCruzar && ivValues2.some((v) => Number.isFinite(v))) {
+    datasets.push({
+      label: `IV ${isCall2 ? "C" : "P"}${strikeAbbrev(k2)}`,
+      data: ivValues2,
+      borderColor: "#ff9f43",
+      backgroundColor: withAlphaFromHex("#ff9f43", 0.12),
+      borderWidth: 2,
+      tension: 0.28,
+      fill: false,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      spanGaps: true
+    });
+  }
 
   captureChartVisibilityState(chartKey);
   applyChartVisibilityState(chartKey, datasets);
@@ -4559,7 +4781,7 @@ function renderGreeksIVChart(firstAtm) {
       scales: {
         x: {
           offset: true,
-          ticks: { color: "#8ea7c6", autoSkip: true, maxRotation: 45, minRotation: 45, maxTicksLimit: 24 },
+          ticks: { color: "#8ea7c6", autoSkip: false, maxRotation: 45, minRotation: 45 },
           grid: { color: "rgba(116, 150, 189, 0.08)" },
           border: { color: "rgba(116, 150, 189, 0.18)" }
         },
@@ -4570,7 +4792,8 @@ function renderGreeksIVChart(firstAtm) {
           border: { color: "rgba(116, 150, 189, 0.18)" }
         }
       }
-    }
+    },
+    plugins: [createGreeksLastValuePlugin(chartKey, (v) => v.toFixed(1) + "%")]
   });
 }
 
@@ -4596,8 +4819,14 @@ function renderGreekHistoryChart(cfg, firstAtm) {
     entries = entries.filter((e) => e.fechaRaw >= state.selectedFechaDesde);
   }
 
+  const isCruzar = state.griegasCruzar;
+  const k2h    = isCruzar ? (state.griegasSelectedStrike2 ?? firstAtm) : null;
+  const isCall2h = state.griegasOptionType2 !== "put";
+  const kStr2h = k2h ? strikeKey(k2h) : null;
+
   const labels = [];
   const values = [];
+  const values2 = [];
 
   for (const entry of entries) {
     const S = entry.ggal;
@@ -4606,14 +4835,23 @@ function renderGreekHistoryChart(cfg, firstAtm) {
     if (!Number.isFinite(daysToOpex) || daysToOpex <= 0) continue;
     const T = daysToOpex / 365;
     const price = isCall ? entry.calls?.[kStr] : entry.puts?.[kStr];
-    if (!Number.isFinite(price)) continue;
-    const iv = greeksBSComputeIV(price, S, k, T, r, isCall);
-    if (!Number.isFinite(iv)) continue;
-    const g = greeksBSAll(S, k, T, r, iv, isCall);
-    const val = accessor(g);
-    if (!Number.isFinite(val)) continue;
+    let val = NaN;
+    if (Number.isFinite(price) && price > 0) {
+      const iv = greeksBSComputeIV(price, S, k, T, r, isCall);
+      if (Number.isFinite(iv)) val = accessor(greeksBSAll(S, k, T, r, iv, isCall));
+    }
+    let val2 = NaN;
+    if (isCruzar && k2h) {
+      const price2 = isCall2h ? entry.calls?.[kStr2h] : entry.puts?.[kStr2h];
+      if (Number.isFinite(price2) && price2 > 0) {
+        const iv2 = greeksBSComputeIV(price2, S, k2h, T, r, isCall2h);
+        if (Number.isFinite(iv2)) val2 = accessor(greeksBSAll(S, k2h, T, r, iv2, isCall2h));
+      }
+    }
+    if (!Number.isFinite(val) && !Number.isFinite(val2)) continue;
     labels.push(formatChartDate(formatDate(entry.fechaRaw)));
-    values.push(val);
+    values.push(Number.isFinite(val) ? val : NaN);
+    values2.push(Number.isFinite(val2) ? val2 : NaN);
   }
 
   if (!labels.length) {
@@ -4623,13 +4861,16 @@ function renderGreekHistoryChart(cfg, firstAtm) {
 
   const typeLabel = isCall ? "Call" : "Put";
   const color = cfg.fixedColor ?? (isCall ? "#7ff0ae" : "#ff9a9a");
-  const strikeLabel = state.griegasSelectedStrike
-    ? `Strike ${formatNumber(k, 0)} (seleccionado)`
-    : `Strike ${formatNumber(k, 0)} (ATM)`;
-  titleEl.textContent = `${greekName} — ${typeLabel} — ${strikeLabel}`;
+  const metricShort = greekName.replace(" histórica", "");
+  const typeStrike1h = `${typeLabel} ${formatNumber(k, 0)}`;
+  const titleSuffixH = isCruzar && k2h
+    ? `${typeStrike1h}/${isCall2h ? "Call" : "Put"} ${formatNumber(k2h, 0)}`
+    : typeStrike1h;
+  titleEl.textContent = `${greekName} — ${titleSuffixH}`;
 
+  const labelB1 = `${metricShort} ${isCall ? "C" : "P"}${strikeAbbrev(k)}`;
   const datasets = [{
-    label: `${greekName} ${typeLabel}`,
+    label: labelB1,
     data: values,
     borderColor: color,
     backgroundColor: withAlphaFromHex(color, 0.12),
@@ -4640,6 +4881,21 @@ function renderGreekHistoryChart(cfg, firstAtm) {
     pointHoverRadius: 5,
     spanGaps: true
   }];
+
+  if (isCruzar && values2.some((v) => Number.isFinite(v))) {
+    datasets.push({
+      label: `${metricShort} ${isCall2h ? "C" : "P"}${strikeAbbrev(k2h)}`,
+      data: values2,
+      borderColor: "#ff9f43",
+      backgroundColor: withAlphaFromHex("#ff9f43", 0.12),
+      borderWidth: 2,
+      tension: 0.28,
+      fill: false,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      spanGaps: true
+    });
+  }
 
   captureChartVisibilityState(chartKey);
   applyChartVisibilityState(chartKey, datasets);
@@ -4668,7 +4924,7 @@ function renderGreekHistoryChart(cfg, firstAtm) {
       scales: {
         x: {
           offset: true,
-          ticks: { color: "#8ea7c6", autoSkip: true, maxRotation: 45, minRotation: 45, maxTicksLimit: 24 },
+          ticks: { color: "#8ea7c6", autoSkip: false, maxRotation: 45, minRotation: 45 },
           grid: { color: "rgba(116, 150, 189, 0.08)" },
           border: { color: "rgba(116, 150, 189, 0.18)" }
         },
@@ -4679,7 +4935,8 @@ function renderGreekHistoryChart(cfg, firstAtm) {
           border: { color: "rgba(116, 150, 189, 0.18)" }
         }
       }
-    }
+    },
+    plugins: [createGreeksLastValuePlugin(chartKey, yTickCallback)]
   });
 }
 

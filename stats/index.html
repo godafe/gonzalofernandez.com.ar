@@ -23,7 +23,13 @@
         <button id="tasasModeButton" type="button" class="mode-button" data-mode="tasas">Tasas</button>
         <button id="griegasModeButton" type="button" class="mode-button" data-mode="griegas">Griegas</button>
       </div>
-      <button id="settingsButton" type="button" class="mode-button settings-gear-button" aria-label="Configuracion de paneles" title="Configuracion de paneles">
+      <button id="refreshButton" type="button" class="mode-button settings-gear-button" aria-label="Recargar datos" title="Recargar datos">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+      </button>
+      <button id="settingsButton" type="button" class="mode-button settings-gear-button" style="margin-left: 0" aria-label="Configuracion de paneles" title="Configuracion de paneles">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"/>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -107,8 +113,27 @@
       <div id="parametrosPanelBody" class="panel-body">
         <div class="controls-grid">
           <div id="griegasTypeField" class="field" hidden>
-            <span>Tipo</span>
-            <button id="griegasTypeButton" type="button" class="option-type-button">Call</button>
+            <span>Base 1</span>
+            <div class="field-inline">
+              <button id="griegasTypeButton" type="button" class="option-type-button">Call</button>
+              <select id="griegasStrikeSelect" class="select-small"></select>
+              <label class="cruzar-label">
+                <input type="checkbox" id="griegasCruzarCheck">
+                <span>Cruzar</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="griegasSwapField" class="field field-swap" hidden>
+            <button id="griegasSwapButton" type="button" class="swap-button" aria-label="Intercambiar bases">&#8646;</button>
+          </div>
+
+          <div id="griegasBase2Field" class="field" hidden>
+            <span>Base 2</span>
+            <div class="field-inline">
+              <button id="griegasBase2TypeButton" type="button" class="option-type-button">Call</button>
+              <select id="griegasBase2Select" class="select-small"></select>
+            </div>
           </div>
 
           <label id="strikeRangeField" class="field" hidden>
@@ -769,7 +794,7 @@
         </div>
       </article>
 
-      <article id="tasasVrpChartCard" class="chart-card">
+      <article id="tasasVrpChartCard" class="chart-card" style="display:none">
         <div class="chart-head panel-header">
           <div class="panel-title">
             <p class="chart-kicker">Análisis</p>
@@ -786,7 +811,7 @@
         </div>
       </article>
 
-      <article id="tasasRankChartCard" class="chart-card">
+      <article id="tasasRankChartCard" class="chart-card" style="display:none">
         <div class="chart-head panel-header">
           <div class="panel-title">
             <p class="chart-kicker">Análisis</p>
@@ -803,7 +828,7 @@
         </div>
       </article>
 
-      <article id="tasasThetaChartCard" class="chart-card">
+      <article id="tasasThetaChartCard" class="chart-card" style="display:none">
         <div class="chart-head panel-header">
           <div class="panel-title">
             <p class="chart-kicker">Análisis</p>
@@ -820,7 +845,7 @@
         </div>
       </article>
 
-      <article id="tasasSkewChartCard" class="chart-card">
+      <article id="tasasSkewChartCard" class="chart-card" style="display:none">
         <div class="chart-head panel-header">
           <div class="panel-title">
             <p class="chart-kicker">Análisis</p>
