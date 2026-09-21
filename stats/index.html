@@ -43,9 +43,12 @@
           <p class="eyebrow">Estado</p>
           <p id="statusCollapsedSummary" class="panel-summary" hidden></p>
         </div>
-        <button id="statusCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="statusPanelBody" aria-label="Colapsar estado">
-          <span class="caret-icon">&#9662;</span>
-        </button>
+        <div class="header-actions">
+          <button id="statusCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="statusPanelBody" aria-label="Colapsar estado">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+          <button id="statusHideButton" type="button" class="panel-hide-button" aria-label="Ocultar panel estado">&#10005;</button>
+        </div>
       </div>
 
       <div id="statusPanelBody" class="panel-body">
@@ -66,6 +69,7 @@
           <button id="configCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="configPanelBody" aria-label="Colapsar configuracion">
             <span class="caret-icon">&#9662;</span>
           </button>
+          <button id="configHideButton" type="button" class="panel-hide-button" aria-label="Ocultar panel configuracion">&#10005;</button>
         </div>
       </div>
 
@@ -107,6 +111,7 @@
           <button id="parametrosCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="parametrosPanelBody" aria-label="Colapsar parametros">
             <span class="caret-icon">&#9662;</span>
           </button>
+          <button id="parametrosHideButton" type="button" class="panel-hide-button" aria-label="Ocultar panel parametros">&#10005;</button>
         </div>
       </div>
 
@@ -226,9 +231,12 @@
           <p class="chart-kicker">Referencia</p>
           <p id="legendCollapsedSummary" class="panel-summary" hidden></p>
         </div>
-        <button id="legendCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="legendPanelBody" aria-label="Colapsar referencia">
-          <span class="caret-icon">&#9662;</span>
-        </button>
+        <div class="header-actions">
+          <button id="legendCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="legendPanelBody" aria-label="Colapsar referencia">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+          <button id="legendHideButton" type="button" class="panel-hide-button" aria-label="Ocultar panel referencia">&#10005;</button>
+        </div>
       </div>
       <div id="legendPanelBody" class="panel-body">
         <div id="legendDefault" class="legend-grid">

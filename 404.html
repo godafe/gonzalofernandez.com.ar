@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mantenimiento</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap">
+
+  <style>
+    :root {
+      --bg:        #0D1117;
+      --surface:   #161B22;
+      --border:    #30363D;
+      --text:      #E6EDF3;
+      --muted:     #8B949E;
+      --accent:    #58A6FF;
+      --accent-dim:#1F3A5C;
+      --error:     #F85149;
+      --warn:      #D29922;
+      --ok:        #3FB950;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg:        #F0F2F5;
+        --surface:   #FFFFFF;
+        --border:    #D0D7DE;
+        --text:      #1C2128;
+        --muted:     #57606A;
+        --accent:    #0969DA;
+        --accent-dim:#DDF4FF;
+        --error:     #CF222E;
+        --warn:      #9A6700;
+        --ok:        #1A7F37;
+      }
+    }
+
+    :root[data-theme="light"] {
+      --bg:        #F0F2F5;
+      --surface:   #FFFFFF;
+      --border:    #D0D7DE;
+      --text:      #1C2128;
+      --muted:     #57606A;
+      --accent:    #0969DA;
+      --accent-dim:#DDF4FF;
+      --error:     #CF222E;
+      --warn:      #9A6700;
+      --ok:        #1A7F37;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100%;
+      padding: 2rem 1.5rem;
+      padding-block: 2rem;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 3rem 2.5rem;
+      max-width: 540px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 0 0 1px var(--border), 0 24px 48px rgba(0,0,0,0.35);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--warn);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.75); }
+    }
+
+    .gear-wrap {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.5rem;
+    }
+
+    .gear-wrap svg { overflow: visible; }
+
+    .gear-main  { animation: spin  8s linear infinite; }
+    .gear-small { animation: spin-r 5s linear infinite; transform-origin: 60px 55px; }
+
+    @keyframes spin   { to { transform: rotate(360deg); } }
+    @keyframes spin-r { to { transform: rotate(-360deg); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .gear-main, .gear-small, .status-dot { animation: none; }
+    }
+
+    .code-404 {
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: clamp(4rem, 15vw, 6.5rem);
+      font-weight: 700;
+      line-height: 1;
+      color: var(--error);
+      letter-spacing: -0.04em;
+      margin-bottom: 0.2em;
+      position: relative;
+    }
+
+    .code-404::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      color: var(--accent);
+      clip-path: polygon(0 45%, 100% 45%, 100% 55%, 0 55%);
+      opacity: 0.4;
+      transform: translateX(3px);
+      pointer-events: none;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.6rem;
+      text-wrap: balance;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      font-weight: 300;
+      color: var(--muted);
+      line-height: 1.65;
+      text-wrap: balance;
+      margin-bottom: 2rem;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin-bottom: 1.75rem;
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      text-align: left;
+      margin-bottom: 2rem;
+    }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .info-row svg {
+      flex-shrink: 0;
+      color: var(--accent);
+      opacity: 0.8;
+    }
+
+    .info-row strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 24px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      text-decoration: none;
+    }
+
+    .btn-back:hover, .btn-back:focus-visible {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+      outline: none;
+    }
+
+    .footer-stamp {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--border);
+      letter-spacing: 0.06em;
+      margin-top: 2.5rem;
+      position: relative;
+      z-index: 1;
+      user-select: none;
+    }
+
+    .card { animation: fadein 0.45s ease both; }
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="status-badge">
+    <span class="status-dot"></span>
+    Modo mantenimiento activo
+  </div>
+
+  <div class="gear-wrap" aria-hidden="true">
+    <svg viewBox="0 0 80 80" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="gear-main" style="transform-origin:36px 36px">
+        <path d="M36 14c-1.1 0-2 .9-2 2v3.2a18 18 0 0 0-5.4 2.2l-2.3-2.3a2 2 0 0 0-2.8 0l-4.2 4.2a2 2 0 0 0 0 2.8l2.3 2.3A18 18 0 0 0 19.2 34H16a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3.2a18 18 0 0 0 2.2 5.4l-2.3 2.3a2 2 0 0 0 0 2.8l4.2 4.2a2 2 0 0 0 2.8 0l2.3-2.3A18 18 0 0 0 34 58.8V62a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3.2a18 18 0 0 0 5.4-2.2l2.3 2.3a2 2 0 0 0 2.8 0l4.2-4.2a2 2 0 0 0 0-2.8l-2.3-2.3A18 18 0 0 0 58.8 44H62a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-3.2a18 18 0 0 0-2.2-5.4l2.3-2.3a2 2 0 0 0 0-2.8l-4.2-4.2a2 2 0 0 0-2.8 0l-2.3 2.3A18 18 0 0 0 44 19.2V16a2 2 0 0 0-2-2h-6z"
+              fill="color-mix(in srgb, var(--accent) 15%, transparent)" stroke="var(--accent)" stroke-width="1.5"/>
+        <circle cx="37" cy="37" r="9" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+      </g>
+      <g class="gear-small">
+        <path d="M60 47c-.7 0-1.2.5-1.2 1.2v1.8a10 10 0 0 0-2.8 1.6l-1.6-1.6a1.2 1.2 0 0 0-1.7 0l-2.1 2.1a1.2 1.2 0 0 0 0 1.7l1.6 1.6A10 10 0 0 0 50.6 58H49a1.2 1.2 0 0 0-1.2 1.2v3a1.2 1.2 0 0 0 1.2 1.2h1.6a10 10 0 0 0 1.6 2.8l-1.6 1.6a1.2 1.2 0 0 0 0 1.7l2.1 2.1a1.2 1.2 0 0 0 1.7 0l1.6-1.6a10 10 0 0 0 2.8 1.6v1.6a1.2 1.2 0 0 0 1.2 1.2h3a1.2 1.2 0 0 0 1.2-1.2v-1.6a10 10 0 0 0 2.8-1.6l1.6 1.6a1.2 1.2 0 0 0 1.7 0l2.1-2.1a1.2 1.2 0 0 0 0-1.7l-1.6-1.6A10 10 0 0 0 72.4 62H74a1.2 1.2 0 0 0 1.2-1.2v-3A1.2 1.2 0 0 0 74 56.6h-1.6a10 10 0 0 0-1.6-2.8l1.6-1.6a1.2 1.2 0 0 0 0-1.7l-2.1-2.1a1.2 1.2 0 0 0-1.7 0l-1.6 1.6A10 10 0 0 0 63 48.2V47A1.2 1.2 0 0 0 61.8 46H60z"
+              fill="color-mix(in srgb, var(--warn) 12%, transparent)" stroke="var(--warn)" stroke-width="1.2" opacity="0.7"/>
+        <circle cx="61.5" cy="59" r="4.5" fill="var(--surface)" stroke="var(--warn)" stroke-width="1.2" opacity="0.7"/>
+      </g>
+    </svg>
+  </div>
+
+  <p class="code-404" data-text="404" aria-label="Error 404">404</p>
+
+  <h1>Página no disponible</h1>
+  <p class="subtitle">
+    Estamos realizando tareas de mantenimiento para mejorar el servicio.
+    La página estará disponible nuevamente en breve.
+  </p>
+
+  <hr>
+
+  <div class="info-list" role="list">
+    <div class="info-row" role="listitem">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Tiempo estimado: <strong>aprox. 2 horas</strong></span>
+    </div>
+    <div class="info-row" role="listitem">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      <span>Soporte: <strong>https://x.com/godafeok</strong></span>
+    </div>
+    <div class="info-row" role="listitem">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Código de estado: <strong>HTTP 503 — Service Unavailable</strong></span>
+    </div>
+  </div>
+
+  <a href="/" class="btn-back" aria-label="Volver al inicio">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    Volver al inicio
+  </a>
+</div>
+
+<p class="footer-stamp" aria-hidden="true">SYS_STATUS :: MAINTENANCE_MODE // ERR_404</p>
+
+</body>
+</html>

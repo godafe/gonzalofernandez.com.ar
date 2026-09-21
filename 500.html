@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Error 500</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap">
+
+  <style>
+    :root {
+      --bg:         #080810;
+      --surface:    #10101C;
+      --surface2:   #17172A;
+      --border:     #252540;
+      --text:       #EEEEF8;
+      --muted:      #7070A0;
+      --accent:     #FF4040;
+      --accent-dim: #1F0A0A;
+      --orange:     #FF8533;
+      --yellow:     #F5C542;
+      --ok:         #33CC66;
+      --mono:       'JetBrains Mono', 'Courier New', monospace;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg:         #F5F3F0;
+        --surface:    #FFFFFF;
+        --surface2:   #FFF5F5;
+        --border:     #E0D8D8;
+        --text:       #1A1520;
+        --muted:      #806878;
+        --accent:     #CC1F1F;
+        --accent-dim: #FDECEA;
+        --orange:     #C05000;
+        --yellow:     #8A6C00;
+        --ok:         #1A7F3C;
+      }
+    }
+
+    :root[data-theme="light"] {
+      --bg:         #F5F3F0;
+      --surface:    #FFFFFF;
+      --surface2:   #FFF5F5;
+      --border:     #E0D8D8;
+      --text:       #1A1520;
+      --muted:      #806878;
+      --accent:     #CC1F1F;
+      --accent-dim: #FDECEA;
+      --orange:     #C05000;
+      --yellow:     #8A6C00;
+      --ok:         #1A7F3C;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100%;
+      padding: 2rem 1.25rem;
+      padding-block: 2rem;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(255,255,255,0.012) 3px,
+        rgba(255,255,255,0.012) 4px
+      );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 620px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      animation: fadein 0.5s ease both;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .top-bar {
+      background: var(--accent);
+      border-radius: 10px 10px 0 0;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .top-bar-dots { display: flex; gap: 6px; }
+
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.3);
+    }
+
+    .top-bar-title {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.85);
+      letter-spacing: 0.05em;
+      margin-left: auto;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      overflow: hidden;
+    }
+
+    .card-body { padding: 2.5rem 2.25rem 2rem; }
+
+    .error-row {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .code-500 {
+      font-family: var(--mono);
+      font-size: clamp(3.5rem, 12vw, 5.5rem);
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .severity-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      border-radius: 5px;
+      padding: 3px 10px;
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .severity-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink { 50% { opacity: 0; } }
+
+    h1 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+      text-wrap: balance;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      font-weight: 300;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 1.75rem;
+      text-wrap: balance;
+    }
+
+    .terminal {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.75rem;
+      overflow-x: auto;
+    }
+
+    .terminal-header {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terminal-header::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 1.4s step-end infinite;
+      flex-shrink: 0;
+    }
+
+    .log-line {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      line-height: 1.7;
+      white-space: pre;
+      display: block;
+    }
+
+    .log-line.err  { color: var(--accent); }
+    .log-line.warn { color: var(--orange); }
+    .log-line.info { color: var(--muted); }
+    .log-line.ok   { color: var(--ok); }
+    .log-line.dim  { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+
+    .cursor {
+      display: inline-block;
+      width: 7px;
+      height: 0.85em;
+      background: var(--muted);
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1.75rem;
+    }
+
+    @media (max-width: 400px) {
+      .meta-grid { grid-template-columns: 1fr; }
+    }
+
+    .meta-cell {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0.75rem 1rem;
+    }
+
+    .meta-label {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.3rem;
+    }
+
+    .meta-value {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .meta-value.accent { color: var(--accent); }
+    .meta-value.warn   { color: var(--orange); }
+    .meta-value.ok     { color: var(--ok); }
+
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border-radius: 7px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.15s, transform 0.1s;
+      border: none;
+    }
+
+    .btn:hover { opacity: 0.82; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .btn-ghost:hover { border-color: var(--muted); color: var(--text); opacity: 1; }
+
+    .stamp {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      color: var(--border);
+      letter-spacing: 0.06em;
+      text-align: center;
+      margin-top: 1.25rem;
+      user-select: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .severity-dot, .terminal-header::before, .cursor { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="top-bar" role="banner">
+    <div class="top-bar-dots" aria-hidden="true">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    <span class="top-bar-title">SYSTEM LOG — CRITICAL FAILURE</span>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+
+      <div class="error-row">
+        <span class="code-500" aria-label="Error 500">500</span>
+        <span class="severity-badge" aria-label="Nivel de severidad: crítico">
+          <span class="severity-dot" aria-hidden="true"></span>
+          Critical
+        </span>
+      </div>
+
+      <h1>Error interno del servidor</h1>
+      <p class="subtitle">
+        Algo salió mal en nuestro lado. Nuestro equipo ha sido notificado automáticamente
+        y está trabajando para resolver el problema.
+      </p>
+
+      <div class="terminal" role="log" aria-label="Registro del sistema">
+        <div class="terminal-header">Salida del sistema</div>
+        <code class="log-line dim">[2026-09-20 18:42:11] INFO  Server booting...</code>
+        <code class="log-line ok"> [2026-09-20 18:42:12] OK    Database connection established</code>
+        <code class="log-line ok"> [2026-09-20 18:42:12] OK    Cache layer ready</code>
+        <code class="log-line warn">[2026-09-20 18:42:13] WARN  Memory usage at 87%</code>
+        <code class="log-line err"> [2026-09-20 18:42:14] ERROR Unhandled exception in request pipeline</code>
+        <code class="log-line err"> [2026-09-20 18:42:14] ERROR   at ProcessRequest (server.js:312:9)</code>
+        <code class="log-line err"> [2026-09-20 18:42:14] ERROR   at async Handler.run (app.js:88:5)</code>
+        <code class="log-line dim">[2026-09-20 18:42:14] INFO  Incident ID: <span style="color:var(--yellow)">INC-20260920-8834</span></code>
+        <code class="log-line info">$ esperando respuesta del servidor<span class="cursor" aria-hidden="true"></span></code>
+      </div>
+
+      <div class="meta-grid" role="list">
+        <div class="meta-cell" role="listitem">
+          <p class="meta-label">Estado HTTP</p>
+          <p class="meta-value accent">500 Internal Server Error</p>
+        </div>
+        <div class="meta-cell" role="listitem">
+          <p class="meta-label">ID de incidente</p>
+          <p class="meta-value" style="color:var(--yellow)">INC-20260920-8834</p>
+        </div>
+        <div class="meta-cell" role="listitem">
+          <p class="meta-label">Notificación al equipo</p>
+          <p class="meta-value ok">Enviada automáticamente</p>
+        </div>
+        <div class="meta-cell" role="listitem">
+          <p class="meta-label">Tiempo de respuesta</p>
+          <p class="meta-value warn">Investigando...</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <a href="/" class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
+          Reintentar
+        </a>
+        <a href="/" class="btn btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Ir al inicio
+        </a>
+        <a href="mailto:soporte@ejemplo.com" class="btn btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Contactar soporte
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <p class="stamp" aria-hidden="true">SERVER_RUNTIME :: EXCEPTION_UNHANDLED // HTTP_500 // ERR_INTERNAL</p>
+</div>
+
+</body>
+</html>

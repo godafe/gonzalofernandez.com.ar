@@ -379,7 +379,11 @@ const elements = {
   showStatusCheck: document.getElementById("showStatusCheck"),
   showConfigCheck: document.getElementById("showConfigCheck"),
   showParametrosCheck: document.getElementById("showParametrosCheck"),
-  showLegendCheck: document.getElementById("showLegendCheck")
+  showLegendCheck: document.getElementById("showLegendCheck"),
+  statusHideButton: document.getElementById("statusHideButton"),
+  configHideButton: document.getElementById("configHideButton"),
+  parametrosHideButton: document.getElementById("parametrosHideButton"),
+  legendHideButton: document.getElementById("legendHideButton")
 };
 
 elements.tableModeButton.addEventListener("click", () => setViewMode("table"));
@@ -429,6 +433,30 @@ elements.configCollapseButton.addEventListener("click", () => togglePanel("confi
 elements.parametrosCollapseButton.addEventListener("click", () => togglePanel("parametrosCollapsed"));
 elements.statusCollapseButton.addEventListener("click", () => togglePanel("statusCollapsed"));
 elements.legendCollapseButton.addEventListener("click", () => togglePanel("legendCollapsed"));
+elements.statusHideButton.addEventListener("click", () => {
+  state.panels.showStatus = false;
+  elements.showStatusCheck.checked = false;
+  syncPanelCards();
+  persistSettings({});
+});
+elements.configHideButton.addEventListener("click", () => {
+  state.panels.showConfig = false;
+  elements.showConfigCheck.checked = false;
+  syncPanelCards();
+  persistSettings({});
+});
+elements.parametrosHideButton.addEventListener("click", () => {
+  state.panels.showParametros = false;
+  elements.showParametrosCheck.checked = false;
+  syncPanelCards();
+  persistSettings({});
+});
+elements.legendHideButton.addEventListener("click", () => {
+  state.panels.showLegend = false;
+  elements.showLegendCheck.checked = false;
+  syncPanelCards();
+  persistSettings({});
+});
 elements.tableCollapseButton.addEventListener("click", () => togglePanel("tableCollapsed"));
 elements.griegasTableCollapseButton.addEventListener("click", () => togglePanel("griegasTableCollapsed"));
 elements.griegasSimpleTableCollapseButton.addEventListener("click", () => togglePanel("griegasSimpleTableCollapsed"));
@@ -1777,7 +1805,8 @@ function syncViewModeUi() {
   elements.rateDaysField.hidden = isChainLike || isTasas;
   elements.crossCountField.hidden = !isMultiple;
   elements.griegasTypeField.hidden = !isGreigas;
-  if (isGreigas) syncGriegasCruzarUi();
+  elements.griegasSwapField.hidden  = !isGreigas || !state.griegasCruzar;
+  elements.griegasBase2Field.hidden = !isGreigas || !state.griegasCruzar;
   elements.tasaRField.hidden = !isGreigas;
   elements.ggalOverrideField.hidden = !isGreigas;
   elements.dteField.hidden = !isGreigas;

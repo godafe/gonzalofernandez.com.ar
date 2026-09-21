@@ -86,6 +86,29 @@ body {
   gap: 2px;
 }
 
+.panel-hide-button {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.panel-hide-button:hover {
+  color: var(--text);
+  border-color: var(--card-border);
+  background: #141516;
+}
+
 .caret-button {
   border: 1px solid var(--card-border);
   border-radius: 6px;
