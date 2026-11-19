@@ -319,9 +319,14 @@
         <div class="panel-title">
           <p class="chart-kicker">Tabla</p>
         </div>
-        <button id="tableCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tablePanelBody" aria-label="Colapsar tabla">
-          <span class="caret-icon">&#9662;</span>
-        </button>
+        <div class="panel-header-actions">
+          <button id="tableExportButton" type="button" class="icon-button" title="Copiar tabla al portapapeles (TSV)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+          <button id="tableCollapseButton" type="button" class="caret-button" aria-expanded="true" aria-controls="tablePanelBody" aria-label="Colapsar tabla">
+            <span class="caret-icon">&#9662;</span>
+          </button>
+        </div>
       </div>
       <div id="tablePanelBody" class="panel-body">
         <div class="table-wrap">
@@ -334,8 +339,10 @@
                 <th id="base2Header">Base 2</th>
                 <th id="veBase1Header">VE Base1</th>
                 <th id="veBase2Header">VE Base2</th>
-                <th id="rateBase1Header">Tasa Base1</th>
-                <th id="rateBase2Header">Tasa Base2</th>
+                <th hidden id="rateBase1Header">Tasa Base1</th>
+                <th hidden id="rateBase2Header">Tasa Base2</th>
+                <th id="newRateBase1Header">Tasa Base1</th>
+                <th id="newRateBase2Header">Tasa Base2</th>
                 <th>Diferencial</th>
                 <th>Ratio</th>
                 <th id="costoPrimaryHeader">Costo Bull</th>

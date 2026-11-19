@@ -33,7 +33,10 @@ function calcOpexDateKeyForVencimiento(canonical) {
 
   let d = thirdFriday(today.getFullYear(), month);
 
-  if (d < today) {
+  // Only advance to next year after ~60 days (one full bimonthly cycle),
+  // so an opex that just expired still shows the correct year in the combo label.
+  const sixtyDaysAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
+  if (d < sixtyDaysAgo) {
     d = thirdFriday(today.getFullYear() + 1, month);
   }
 
@@ -137,6 +140,7 @@ const state = {
   selectedVencimiento: null,
   availableVencimientos: [],
   rawPayload: null,
+  rawLivePayload: null,
   selectedFechaDesde: null,
   griegasSelectedStrike: null,
   griegasSelectedStrike2: null,
@@ -158,6 +162,7 @@ const elements = {
   legendCollapsedSummary: document.getElementById("legendCollapsedSummary"),
   tableSection: document.getElementById("tableSection"),
   tableCollapseButton: document.getElementById("tableCollapseButton"),
+  tableExportButton: document.getElementById("tableExportButton"),
   tablePanelBody: document.getElementById("tablePanelBody"),
   tableCollapsedPreview: document.getElementById("tableCollapsedPreview"),
   chartsSection: document.getElementById("chartsSection"),
@@ -185,6 +190,8 @@ const elements = {
   veBase2Header: document.getElementById("veBase2Header"),
   rateBase1Header: document.getElementById("rateBase1Header"),
   rateBase2Header: document.getElementById("rateBase2Header"),
+  newRateBase1Header: document.getElementById("newRateBase1Header"),
+  newRateBase2Header: document.getElementById("newRateBase2Header"),
   base1Select: document.getElementById("base1Select"),
   base2Select: document.getElementById("base2Select"),
   swapBasesButton: document.getElementById("swapBasesButton"),
@@ -458,6 +465,7 @@ elements.legendHideButton.addEventListener("click", () => {
   persistSettings({});
 });
 elements.tableCollapseButton.addEventListener("click", () => togglePanel("tableCollapsed"));
+elements.tableExportButton.addEventListener("click", exportTableToClipboard);
 elements.griegasTableCollapseButton.addEventListener("click", () => togglePanel("griegasTableCollapsed"));
 elements.griegasSimpleTableCollapseButton.addEventListener("click", () => togglePanel("griegasSimpleTableCollapsed"));
 elements.griegasPriceChartCollapseButton.addEventListener("click", () => togglePanel("griegasPriceChartCollapsed"));
@@ -729,6 +737,7 @@ async function loadLiveData() {
     }
 
     const payload = await response.json();
+    state.rawLivePayload = payload;
     state.liveEntry = parseLivePayload(payload, todayKey, getLatestHistoricalGgal());
     state.lastUpdatedAt = new Date();
     state.liveStatus = "Ok";
@@ -790,7 +799,8 @@ function populateVencimientoSelector() {
 }
 
 function handleVencimientoChange() {
-  state.selectedVencimiento = elements.vencimientoSelect.value || null;
+  const intendedVencimiento = elements.vencimientoSelect.value || null;
+  state.selectedVencimiento = intendedVencimiento;
   state.selectedFechaDesde = null;
   state.griegasSelectedStrike  = null;
   state.griegasSelectedStrike2 = null;
@@ -800,7 +810,46 @@ function handleVencimientoChange() {
   elements.dteInput.value = "";
 
   if (state.rawPayload) {
-    hydrateFromPayload(state.rawPayload, state.sourceStats?.source ?? "local");
+    // Re-parse history directly for the selected vencimiento, bypassing
+    // hydrateFromPayload's auto-selection so the user's choice is always honored
+    // even when the vencimiento exists only in live data and not in history.
+    const parsed = parseHistoryPayload(state.rawPayload, intendedVencimiento);
+    state.historyByDate = parsed.historyByDate;
+    state.availableStrikes = parsed.availableStrikes;
+    state.liveEntry = null;
+    populateBaseSelectors();
+    populateFechaDesdeSelector();
+    renderTable();
+  }
+
+  if (state.rawLivePayload) {
+    const todayKey = getTodayDateKey();
+    state.liveEntry = parseLivePayload(state.rawLivePayload, todayKey, getLatestHistoricalGgal());
+    populateVencimientoSelector();
+
+    // When history has no rows for this vencimiento (e.g. OC just expired),
+    // availableStrikes is empty. Populate it from the live entry so that
+    // renderSpreadChain, renderRatioChain and renderGreeksChain can iterate.
+    if (state.liveEntry && !state.availableStrikes.length) {
+      state.availableStrikes = [
+        ...new Set([
+          ...Object.keys(state.liveEntry.calls).map(Number),
+          ...Object.keys(state.liveEntry.puts).map(Number)
+        ])
+      ].sort((a, b) => a - b);
+      populateBaseSelectors();
+    }
+
+    renderTable();
+
+    // If the cached live payload had no data for this vencimiento, fetch fresh.
+    if (!state.liveEntry) {
+      void loadLiveData();
+    }
+  } else {
+    // No cached live payload (e.g. initial load took the alreadyCovered shortcut),
+    // so fetch fresh live data for the newly selected vencimiento.
+    void loadLiveData();
   }
 }
 
@@ -907,6 +956,31 @@ function renderTable() {
   renderCollapsedTablePreview(enrichedRows, seriesStats, combinationMode);
 }
 
+function exportTableToClipboard() {
+  const table = elements.tableBody.closest("table");
+  if (!table) return;
+
+  const headers = Array.from(table.querySelectorAll("thead th"))
+    .filter(th => !th.hidden)
+    .map(th => th.textContent.trim());
+
+  const dataRows = Array.from(elements.tableBody.querySelectorAll("tr")).map(tr =>
+    Array.from(tr.querySelectorAll("td"))
+      .filter(td => !td.hidden)
+      .map(td => td.textContent.trim())
+      .join("\t")
+  );
+
+  const tsv = [headers.join("\t"), ...dataRows].join("\n");
+
+  navigator.clipboard.writeText(tsv).then(() => {
+    const btn = elements.tableExportButton;
+    const original = btn.innerHTML;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    setTimeout(() => { btn.innerHTML = original; }, 1500);
+  });
+}
+
 function handleRelationCommit() {
   const relation = clampDecimal(elements.relationInput.value, 0, 10, CONFIG.defaultRelation);
   elements.relationInput.value = formatStoredRelation(relation);
@@ -924,12 +998,16 @@ function updateBaseHeaders(base1Strike, base2Strike) {
   elements.veBase2Header.textContent = Number.isFinite(base2Strike)
     ? `VE ${formatOptionLabel(state.optionTypes.base2, base2Strike)}`
     : "VE Base2";
-  elements.rateBase1Header.textContent = Number.isFinite(base1Strike)
+  const rate1Text = Number.isFinite(base1Strike)
     ? `Tasa ${formatOptionLabel(state.optionTypes.base1, base1Strike)}`
     : "Tasa Base1";
-  elements.rateBase2Header.textContent = Number.isFinite(base2Strike)
+  const rate2Text = Number.isFinite(base2Strike)
     ? `Tasa ${formatOptionLabel(state.optionTypes.base2, base2Strike)}`
     : "Tasa Base2";
+  elements.rateBase1Header.textContent = rate1Text;
+  elements.rateBase2Header.textContent = rate2Text;
+  elements.newRateBase1Header.textContent = rate1Text;
+  elements.newRateBase2Header.textContent = rate2Text;
 }
 
 function getCombinationMode() {
@@ -1026,7 +1104,9 @@ function addDerivedMetrics(row, lotes, relation, rateDays, optionType1, optionTy
   const veBase2 = getBaseExtrinsicValue(row.strikeBase2, row.lastBase2, row.ggal, optionType2);
   const tasaBase1 = getAnnualizedBaseRate(row.strikeBase1, row.lastBase1, row.ggal, row.daysToOpex, rateDays, optionType1);
   const tasaBase2 = getAnnualizedBaseRate(row.strikeBase2, row.lastBase2, row.ggal, row.daysToOpex, rateDays, optionType2);
-  const diferencialTasas = tasaBase2 - tasaBase1;
+  const newTasaBase1 = getCompoundRate(row.strikeBase1, row.lastBase1, row.ggal, row.daysToOpex, rateDays, optionType1);
+  const newTasaBase2 = getCompoundRate(row.strikeBase2, row.lastBase2, row.ggal, row.daysToOpex, rateDays, optionType2);
+  const diferencialTasas = newTasaBase1 - newTasaBase2;
   const ratio = divide(row.lastBase1, row.lastBase2);
   const costoBull = (row.lastBase1 * lotes) - (row.lastBase2 * lotes);
   const spread = Math.abs(divide(costoBull, (row.strikeBase2 - row.strikeBase1) * lotes));
@@ -1039,6 +1119,8 @@ function addDerivedMetrics(row, lotes, relation, rateDays, optionType1, optionTy
     veBase2,
     tasaBase1,
     tasaBase2,
+    newTasaBase1,
+    newTasaBase2,
     diferencialTasas,
     ratio,
     costoBull,
@@ -1052,6 +1134,8 @@ function buildSeriesStats(rows) {
   return {
     tasaBase1: getMetricStats(rows.map((row) => row.tasaBase1)),
     tasaBase2: getMetricStats(rows.map((row) => row.tasaBase2)),
+    newTasaBase1: getMetricStats(rows.map((row) => row.newTasaBase1)),
+    newTasaBase2: getMetricStats(rows.map((row) => row.newTasaBase2)),
     diferencialTasas: getMetricStats(rows.map((row) => row.diferencialTasas)),
     ratio: getMetricStats(rows.map((row) => row.ratio)),
     costoBull: getMetricStats(rows.map((row) => row.costoBull)),
@@ -1102,8 +1186,10 @@ function buildRowMarkup(row, seriesStats, combinationMode) {
     <td>${formatNumber(row.lastBase2, 2)}</td>
     <td>${formatNumber(row.veBase1, 2)}</td>
     <td>${formatNumber(row.veBase2, 2)}</td>
-    <td>${renderMetricCell(formatPercent(row.tasaBase1), row.tasaBase1, seriesStats.tasaBase1)}</td>
-    <td>${renderMetricCell(formatPercent(row.tasaBase2), row.tasaBase2, seriesStats.tasaBase2)}</td>
+    <td hidden>${renderMetricCell(formatPercent(row.tasaBase1), row.tasaBase1, seriesStats.tasaBase1)}</td>
+    <td hidden>${renderMetricCell(formatPercent(row.tasaBase2), row.tasaBase2, seriesStats.tasaBase2)}</td>
+    <td>${renderMetricCell(formatPercent(row.newTasaBase1), row.newTasaBase1, seriesStats.newTasaBase1)}</td>
+    <td>${renderMetricCell(formatPercent(row.newTasaBase2), row.newTasaBase2, seriesStats.newTasaBase2)}</td>
     <td>${renderMetricCell(formatPercent(row.diferencialTasas), row.diferencialTasas, seriesStats.diferencialTasas)}</td>
     <td>${renderMetricCell(formatNumber(row.ratio, 3), row.ratio, seriesStats.ratio)}</td>
   `;
@@ -1703,8 +1789,10 @@ function renderCollapsedTablePreview(rows, seriesStats, combinationMode) {
             <th>${escapeHtml(elements.base2Header.textContent || "Base 2")}</th>
             <th>${escapeHtml(elements.veBase1Header.textContent || "VE Base1")}</th>
             <th>${escapeHtml(elements.veBase2Header.textContent || "VE Base2")}</th>
-            <th>${escapeHtml(elements.rateBase1Header.textContent || "Tasa Base1")}</th>
-            <th>${escapeHtml(elements.rateBase2Header.textContent || "Tasa Base2")}</th>
+            <th hidden>${escapeHtml(elements.rateBase1Header.textContent || "Tasa Base1")}</th>
+            <th hidden>${escapeHtml(elements.rateBase2Header.textContent || "Tasa Base2")}</th>
+            <th>${escapeHtml(elements.newRateBase1Header.textContent || "Tasa Base1")}</th>
+            <th>${escapeHtml(elements.newRateBase2Header.textContent || "Tasa Base2")}</th>
             <th>Diferencial</th>
             <th>Ratio</th>
             ${combinationMode === "straddle"
@@ -2097,16 +2185,16 @@ function renderCharts(rows, combinationMode) {
     labelFormatter: (value) => formatPercent(value),
     series: [
       {
-        key: "tasaBase1",
-        title: elements.rateBase1Header.textContent,
+        key: "newTasaBase1",
+        title: elements.newRateBase1Header.textContent,
         color: "#4cb3ff",
-        valueAccessor: (row) => row.tasaBase1
+        valueAccessor: (row) => row.newTasaBase1
       },
       {
-        key: "tasaBase2",
-        title: elements.rateBase2Header.textContent,
+        key: "newTasaBase2",
+        title: elements.newRateBase2Header.textContent,
         color: "#ff9f43",
-        valueAccessor: (row) => row.tasaBase2
+        valueAccessor: (row) => row.newTasaBase2
       }
     ]
   });
@@ -3298,9 +3386,9 @@ function parseLivePayload(payload, todayKey, fallbackGgal) {
       : [];
 
   const headerMap = getLiveHeaderMap(rows[0]);
-  const calls = {};
-  const puts = {};
+  const byVenc = {};
   let liveGgal = NaN;
+
   rows.forEach((rawRow, index) => {
     if (!Array.isArray(rawRow) || (headerMap && index === 0)) {
       return;
@@ -3324,24 +3412,47 @@ function parseLivePayload(payload, todayKey, fallbackGgal) {
       return;
     }
 
-
     if (row.isUnderlying) {
       liveGgal = row.last;
-    }
-
-    if (row.isCall && Number.isFinite(row.strike)) {
-      calls[strikeKey(row.strike)] = row.last;
       return;
     }
 
-    if (row.isPut && Number.isFinite(row.strike)) {
-      puts[strikeKey(row.strike)] = row.last;
+    if ((row.isCall || row.isPut) && Number.isFinite(row.strike)) {
+      const venc = getVencimientoFromTicker(row.ticker);
+      if (!venc) return;
+      if (!byVenc[venc]) byVenc[venc] = { calls: {}, puts: {} };
+      if (row.isCall) byVenc[venc].calls[strikeKey(row.strike)] = row.last;
+      else byVenc[venc].puts[strikeKey(row.strike)] = row.last;
     }
   });
 
-  if (!Object.keys(calls).length && !Object.keys(puts).length) {
-    return null;
+  // Merge newly discovered vencimientos into state and update the selector
+  const foundVencimientos = Object.keys(byVenc);
+  let newVencFound = false;
+  foundVencimientos.forEach(v => {
+    if (!state.availableVencimientos.includes(v)) {
+      state.availableVencimientos.push(v);
+      newVencFound = true;
+    }
+  });
+
+  if (newVencFound) {
+    if (!state.selectedVencimiento || !state.availableVencimientos.includes(state.selectedVencimiento)) {
+      state.selectedVencimiento = getSortedVencimientos(state.availableVencimientos)[0] ?? null;
+    }
+    populateVencimientoSelector();
   }
+
+  // Return the entry for the selected vencimiento, falling back to the first found
+  const sortedFound = getSortedVencimientos(foundVencimientos);
+  const targetVenc = (state.selectedVencimiento && byVenc[state.selectedVencimiento])
+    ? state.selectedVencimiento
+    : sortedFound[0];
+
+  if (!targetVenc || !byVenc[targetVenc]) return null;
+
+  const { calls, puts } = byVenc[targetVenc];
+  if (!Object.keys(calls).length && !Object.keys(puts).length) return null;
 
   return {
     fechaRaw: todayKey,
@@ -3450,6 +3561,18 @@ function getAnnualizedBaseRate(strike, optionPrice, ggal, daysToOpex, rateDays, 
 
   const baseExtrinsic = divide(getBaseExtrinsicValue(strike, optionPrice, ggal, optionType), ggal);
   return baseExtrinsic * divide(rateDays, daysToOpex);
+}
+
+function getCompoundRate(strike, optionPrice, ggal, daysToOpex, rateDays, optionType) {
+  if (!Number.isFinite(strike) || !Number.isFinite(optionPrice) || !Number.isFinite(ggal) ||
+    !Number.isFinite(daysToOpex) || !Number.isFinite(rateDays) || ggal === 0 || daysToOpex <= 0) {
+    return NaN;
+  }
+  const exponent = rateDays / daysToOpex;
+  if (optionType === "call") {
+    return Math.pow(1 + (strike + optionPrice - ggal) / ggal, exponent) - 1;
+  }
+  return Math.pow(1 + (ggal + optionPrice - strike) / ggal, exponent) - 1;
 }
 
 function parseLocaleNumber(value) {

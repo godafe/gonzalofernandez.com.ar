@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estrategias — GGAL</title>
+  <link rel="stylesheet" href="greeks.css">
+  <style>
+    /* ── Buttons ── */
+    .btn-primary {
+      padding: 0.5rem 1.1rem;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: #0d1117;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .btn-primary:hover { filter: brightness(1.12); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    .btn-secondary {
+      padding: 0.45rem 0.9rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-danger {
+      padding: 0.45rem 0.9rem;
+      background: none;
+      border: 1px solid #6e3030;
+      border-radius: 6px;
+      color: #e06c6c;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-danger:hover { border-color: #e06c6c; color: #ff9090; }
+
+    /* ── Toast ── */
+    #est-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(1rem);
+      background: #1f2937;
+      border: 1px solid var(--panel-border);
+      color: #e6edf3;
+      font-size: 0.85rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      white-space: nowrap;
+      z-index: 9999;
+    }
+    #est-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Status / header row ── */
+    .param-rows { display: flex; flex-direction: column; gap: 0.75rem; }
+    .param-row  { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .param-row label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      min-width: 160px;
+    }
+    .param-row select,
+    .param-row input[type="date"],
+    .param-row input[type="number"] {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      padding: 0.42rem 0.6rem;
+      font-size: 0.85rem;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .param-row select:focus,
+    .param-row input:focus { outline: none; border-color: var(--accent); }
+    .param-row select { min-width: 180px; cursor: pointer; }
+
+    .section-status {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    /* ── Panel header ── */
+    .panel-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+    .panel-header-row h2 { margin: 0; }
+    .btn-icon {
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      color: #8b949e;
+      width: 28px; height: 28px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Toolbar ── */
+    .action-bar {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 0.85rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* ── Trades table ── */
+    .trades-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    .trades-table th {
+      text-align: left;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .trades-table td {
+      padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: middle;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .trades-table tr.new-date-row td { border-top: 1px solid rgba(255,255,255,0.08); }
+    .placeholder { text-align: center; color: var(--text-muted); font-size: 0.82rem; padding: 1.5rem; }
+    .placeholder-text { color: var(--text-muted); font-size: 0.82rem; padding: 0.5rem 0; }
+
+    .remove-trade-btn {
+      background: none;
+      border: 1px solid var(--panel-border);
+      color: #8b949e;
+      border-radius: 4px;
+      width: 22px; height: 22px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .remove-trade-btn:hover { background: #f85149; border-color: #f85149; color: #fff; }
+
+    .strat-badge {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    /* ── Strategies compact cards ── */
+    .strat-card-compact {
+      background: var(--card-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.6rem;
+    }
+    .strat-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.45rem;
+    }
+    .strat-color-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .strat-name-input {
+      background: none;
+      border: none;
+      color: var(--text-bright);
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: inherit;
+      flex: 1;
+      min-width: 0;
+      cursor: text;
+      padding: 0;
+    }
+    .strat-name-input:focus { outline: 1px solid var(--accent); border-radius: 3px; padding: 0 2px; }
+
+    .status-badge {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .status-badge.open   { background: rgba(63,185,80,0.12); color: #3fb950; }
+    .status-badge.closed { background: rgba(248,81,73,0.12);  color: #f85149; }
+
+    .btn-remove-strat {
+      background: none;
+      border: none;
+      color: #6e7681;
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0 0.1rem;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .btn-remove-strat:hover { color: #f85149; }
+
+    .strat-legs-summary {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      line-height: 1.5;
+    }
+
+    .strat-close-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .strat-close-date, .strat-close-price {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text-bright);
+      padding: 0.28rem 0.5rem;
+      font-size: 0.8rem;
+      font-family: inherit;
+    }
+    .strat-close-date:focus, .strat-close-price:focus { outline: none; border-color: var(--accent); }
+    .strat-close-price { width: 130px; }
+
+    .btn-close-strat {
+      padding: 0.28rem 0.7rem;
+      background: rgba(248,81,73,0.1);
+      border: 1px solid #6e3030;
+      border-radius: 5px;
+      color: #e06c6c;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-close-strat:hover { border-color: #e06c6c; color: #ff9090; }
+
+    .btn-reopen {
+      padding: 0.2rem 0.55rem;
+      background: none;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      color: #8b949e;
+      font-size: 0.75rem;
+      cursor: pointer;
+      margin-left: 0.5rem;
+    }
+    .btn-reopen:hover { border-color: var(--accent); color: var(--accent); }
+
+    .strat-close-info {
+      font-size: 0.78rem;
+      color: #8b949e;
+    }
+
+    /* ── Summary strip ── */
+    .bt-summary-strip {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      padding: 0.85rem 1.25rem;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--panel-border);
+      margin: -1.25rem -1.25rem 1.25rem;
+    }
+    .sum-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .sum-label { font-size: 0.62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .sum-value { font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-bright); }
+    .sum-value.positive { color: var(--positive); }
+    .sum-value.negative { color: var(--negative); }
+
+    /* ── Chart ── */
+    .chart-wrap { position: relative; height: 380px; }
+
+    /* ── Results table ── */
+    .results-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .results-table th {
+      text-align: right;
+      font-size: 0.63rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 0.45rem 0.6rem;
+      border-bottom: 1px solid var(--panel-border);
+      white-space: nowrap;
+    }
+    .results-table th:first-child { text-align: left; }
+    .results-table td {
+      text-align: right;
+      padding: 0.35rem 0.6rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+    .results-table td:first-child { text-align: left; color: var(--text-muted); }
+    .results-table td.positive { color: var(--positive); }
+    .results-table td.negative { color: var(--negative); }
+
+    /* ── Strategy metric cards ── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1rem;
+    }
+    .strategy-card {
+      background: var(--card-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+    }
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.6rem;
+    }
+    .card-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .card-title-row strong { font-size: 0.95rem; color: var(--text-bright); flex: 1; }
+
+    .card-legs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 0.85rem;
+    }
+    .leg-tag {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border: 1px solid;
+      border-radius: 5px;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem 1rem;
+    }
+    .metric-item { display: flex; flex-direction: column; gap: 0.1rem; }
+    .metric-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .metric-value {
+      font-size: 0.9rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-bright);
+    }
+    .metric-value.positive { color: var(--positive); }
+    .metric-value.negative { color: var(--negative); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 520px;
+    }
+    .modal-box h3 { margin: 0 0 0.75rem; font-size: 1rem; color: #c9d1d9; }
+    .modal-hint { font-size: 0.78rem; color: #8b949e; margin-bottom: 0.75rem; line-height: 1.55; }
+    .modal-textarea {
+      width: 100%;
+      height: 160px;
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      font-family: monospace;
+      font-size: 0.84rem;
+      padding: 0.6rem 0.75rem;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .modal-textarea:focus { outline: none; border-color: var(--accent); }
+    .modal-error { font-size: 0.78rem; color: #f85149; min-height: 1.2em; margin-top: 0.4rem; }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .modal-confirm {
+      padding: 0.5rem 1.1rem;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: #0d1117;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .modal-confirm:hover { filter: brightness(1.1); }
+    .modal-cancel {
+      padding: 0.5rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      border: 1px solid var(--panel-border);
+      background: none;
+      color: #8b949e;
+    }
+    .modal-cancel:hover { border-color: #8b949e; color: #c9d1d9; }
+    .modal-field {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .modal-field label { font-size: 0.78rem; color: var(--text-muted); min-width: 60px; }
+    .modal-field input {
+      flex: 1;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      padding: 0.4rem 0.6rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+    }
+    .modal-field input:focus { outline: none; border-color: var(--accent); }
+    .modal-field input[type="color"] {
+      padding: 0.1rem 0.2rem;
+      height: 34px;
+      cursor: pointer;
+      width: 50px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h1>Estrategias — GGAL</h1>
+      <button id="est-reload-btn" class="btn-secondary" style="font-size:0.8rem">↻ Recargar datos</button>
+    </div>
+  </header>
+
+  <nav class="page-nav">
+    <a href="greeks.html">Base única</a>
+    <a href="portfolio.html">Multi-base</a>
+    <a href="simulator.html">Simulador</a>
+    <a href="backtester.html">Backtester</a>
+    <a href="estrategias.html" class="active">Estrategias</a>
+  </nav>
+
+  <!-- Panel: Parámetros -->
+  <section class="panel">
+    <h2 style="margin-top:0;margin-bottom:1rem">Parámetros</h2>
+    <div class="param-rows">
+      <div class="param-row">
+        <label for="est-venc">Vencimiento</label>
+        <select id="est-venc"><option>Cargando…</option></select>
+      </div>
+      <div class="param-row">
+        <label for="est-opex-date">Fecha OPEX</label>
+        <input type="date" id="est-opex-date">
+      </div>
+      <div class="param-row">
+        <label for="est-r">Tasa libre de riesgo (%)</label>
+        <input type="number" id="est-r" value="0" step="0.5" min="0" style="width:90px">
+      </div>
+    </div>
+    <p id="est-status" class="section-status">Iniciando…</p>
+  </section>
+
+  <!-- Panel: Operaciones -->
+  <section class="panel">
+    <div class="panel-header-row">
+      <h2>Operaciones</h2>
+    </div>
+    <div class="action-bar">
+      <button id="est-import-btn" class="btn-primary">⬇ Importar operaciones</button>
+      <button id="est-clear-trades" class="btn-danger">Limpiar todo</button>
+    </div>
+    <table class="trades-table" style="table-layout:fixed">
+      <colgroup>
+        <col style="width:13%">
+        <col style="width:8%">
+        <col style="width:8%">
+        <col style="width:12%">
+        <col style="width:12%">
+        <col>
+        <col style="width:32px">
+      </colgroup>
+      <thead>
+        <tr>
+          <th style="text-align:center">Fecha</th>
+          <th style="text-align:center">Tipo</th>
+          <th style="text-align:center">Cant</th>
+          <th style="text-align:center">Base</th>
+          <th style="text-align:center">Prima</th>
+          <th style="text-align:center">Estrategia</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="est-trades-tbody"></tbody>
+    </table>
+  </section>
+
+  <!-- Panel: Estrategias -->
+  <section class="panel">
+    <div class="panel-header-row">
+      <h2>Estrategias</h2>
+    </div>
+    <div class="action-bar">
+      <button id="est-new-strat-btn" class="btn-secondary">+ Nueva estrategia</button>
+      <button id="est-autogroup-btn" class="btn-secondary">⚡ Auto-agrupar</button>
+      <select id="est-autogroup-mode" style="background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-bright);padding:0.42rem 0.6rem;font-size:0.85rem;font-family:inherit;cursor:pointer">
+        <option value="fecha">Por fecha</option>
+        <option value="base">Por base</option>
+      </select>
+    </div>
+    <div id="est-strategies-list"></div>
+
+    <div style="margin-top:1.25rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+      <button id="est-run-btn" class="btn-primary">▶ Analizar posición</button>
+    </div>
+  </section>
+
+  <!-- Sección de resultados (oculta hasta análisis) -->
+  <section class="panel" id="est-results-section" style="display:none">
+    <div class="bt-summary-strip">
+      <div class="sum-item">
+        <span class="sum-label">Desde</span>
+        <span class="sum-value" id="est-sum-entry">—</span>
+      </div>
+      <div class="sum-item">
+        <span class="sum-label">Hasta</span>
+        <span class="sum-value" id="est-sum-last">—</span>
+      </div>
+      <div class="sum-item">
+        <span class="sum-label">GGAL actual</span>
+        <span class="sum-value" id="est-sum-ggal">—</span>
+      </div>
+      <div class="sum-item">
+        <span class="sum-label">P&amp;L total</span>
+        <span class="sum-value" id="est-sum-pnl">—</span>
+      </div>
+      <div class="sum-item">
+        <span class="sum-label">Estrategias</span>
+        <span class="sum-value" id="est-sum-strats">—</span>
+      </div>
+    </div>
+
+    <h2>P&amp;L por estrategia</h2>
+    <div class="chart-wrap">
+      <canvas id="est-chart-pnl"></canvas>
+    </div>
+  </section>
+
+  <!-- Tabla de detalle (colapsable) -->
+  <section class="panel" id="est-table-section" style="display:none">
+    <div class="panel-header-row">
+      <h2>Detalle por fecha (posición total)</h2>
+      <button class="btn-icon" id="est-table-toggle" title="Colapsar/Expandir">▼</button>
+    </div>
+    <div id="est-table-body" style="overflow-x:auto">
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Fecha</th>
+            <th>GGAL</th>
+            <th>DTE</th>
+            <th>P&amp;L</th>
+            <th>Delta</th>
+            <th>Gamma</th>
+            <th>Vega</th>
+            <th>Theta</th>
+          </tr>
+        </thead>
+        <tbody id="est-results-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Tarjetas de estrategias (ocultas hasta análisis) -->
+  <section class="panel" id="est-cards-section" style="display:none">
+    <h2 style="margin-top:0;margin-bottom:1rem">Métricas por estrategia</h2>
+    <div class="cards-grid" id="est-cards-container"></div>
+  </section>
+
+  <!-- Modal: Importar operaciones -->
+  <div id="est-import-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+        <h3 style="margin:0">Importar operaciones</h3>
+        <button id="est-import-close" style="background:none;border:none;color:#8b949e;font-size:1.2rem;cursor:pointer;line-height:1;padding:0.1rem 0.3rem" title="Cerrar">×</button>
+      </div>
+      <p class="modal-hint">
+        Pegá las operaciones desde la planilla. Formatos aceptados:<br>
+        <strong>Formato simple</strong> (una operación por línea):<br>
+        <code>Fecha&nbsp;&nbsp;Tipo&nbsp;&nbsp;Cant&nbsp;&nbsp;Base&nbsp;&nbsp;Prima</code><br><br>
+        <strong>Formato planilla</strong> (bloques CALL/PUT/ACC lado a lado, separados por Tab):<br>
+        <code>Fecha&nbsp;&nbsp;Tipo&nbsp;&nbsp;Cant&nbsp;&nbsp;Base&nbsp;&nbsp;Prima&nbsp;&nbsp;[Bruto&nbsp;&nbsp;Neto]&nbsp;&nbsp;Tipo&nbsp;&nbsp;…</code><br><br>
+        Tipo: CALL / PUT / ACC · Cant negativo = venta · Decimales con coma o punto.
+      </p>
+      <textarea id="est-import-textarea" class="modal-textarea"
+        placeholder="21/08/26&#9;CALL&#9;5&#9;7000&#9;425,001&#10;21/08/26&#9;CALL&#9;-10&#9;7600&#9;230,000&#10;25/08/26&#9;CALL&#9;5&#9;7800&#9;260,002"></textarea>
+      <div id="est-import-error" class="modal-error"></div>
+      <div class="modal-actions">
+        <button id="est-import-cancel" class="modal-cancel">Cancelar</button>
+        <button id="est-import-confirm" class="modal-confirm">Importar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nueva estrategia -->
+  <div id="est-new-strat-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Nueva estrategia</h3>
+      <div class="modal-field">
+        <label>Nombre</label>
+        <input type="text" id="est-new-strat-name" placeholder="Ej: Bull Call Agosto">
+      </div>
+      <div class="modal-field">
+        <label>Color</label>
+        <input type="color" id="est-new-strat-color" value="#58a6ff">
+      </div>
+      <div class="modal-actions">
+        <button id="est-new-strat-cancel" class="modal-cancel">Cancelar</button>
+        <button id="est-new-strat-confirm" class="modal-confirm">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="est-toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="greeks-engine.js"></script>
+  <script src="history-data.js"></script>
+  <script src="estrategias.js"></script>
+</body>
+</html>

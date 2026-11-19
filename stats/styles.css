@@ -112,6 +112,31 @@ body {
   transform: rotate(-90deg);
 }
 
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-button {
+  border: 1px solid rgba(116, 150, 189, 0.22);
+  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  background: #101a27;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.icon-button:hover {
+  opacity: 1;
+}
+
 .panel-body[hidden] {
   display: none !important;
 }
